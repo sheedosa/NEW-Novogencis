@@ -1,0 +1,20 @@
+components/InteractiveForm.tsx(116,17): error TS2322: Type '{}' is not assignable to type 'string | number | readonly string[] | undefined'.
+components/InteractiveForm.tsx(127,17): error TS2322: Type '{}' is not assignable to type 'string | number | readonly string[] | undefined'.
+components/InteractiveForm.tsx(137,17): error TS2322: Type '{}' is not assignable to type 'string | number | readonly string[] | undefined'.
+components/InteractiveForm.tsx(148,17): error TS2322: Type '{}' is not assignable to type 'string | number | readonly string[] | undefined'.
+components/InteractiveForm.tsx(159,17): error TS2322: Type '{}' is not assignable to type 'string | number | readonly string[] | undefined'.
+components/InteractiveForm.tsx(170,17): error TS2322: Type '{}' is not assignable to type 'string | number | readonly string[] | undefined'.
+components/InteractiveForm.tsx(180,17): error TS2322: Type '{}' is not assignable to type 'string | number | readonly string[] | undefined'.
+components/InteractiveForm.tsx(190,17): error TS2322: Type '{}' is not assignable to type 'string | number | readonly string[] | undefined'.
+components/InteractiveForm.tsx(209,19): error TS2322: Type '{}' is not assignable to type 'boolean | undefined'.
+components/InteractiveForm.tsx(235,17): error TS2322: Type '{}' is not assignable to type 'string | number | readonly string[] | undefined'.
+components/InteractiveForm.tsx(246,17): error TS2322: Type '{}' is not assignable to type 'string | number | readonly string[] | undefined'.
+components/InteractiveForm.tsx(256,15): error TS2322: Type '{}' is not assignable to type 'boolean | undefined'.
+components/InteractiveForm.tsx(361,15): error TS2322: Type 'unknown' is not assignable to type 'ReactNode'.
+components/InteractiveForm.tsx(362,88): error TS2322: Type '{}' is not assignable to type 'ReactNode'.
+pages/AdminPage.tsx(93,64): error TS2304: Cannot find name 'AdminType'.
+pages/AdminPage.tsx(781,43): error TS2339: Property 'paymentUrl' does not exist on type 'Message'.
+pages/AdminPage.tsx(1697,47): error TS2339: Property 'paymentUrl' does not exist on type 'Message'.
+pages/AdminPage.tsx(1755,35): error TS2353: Object literal may only specify known properties, and 'paymentUrl' does not exist in type 'Omit<Message, "id">'.
+pages/AdminPage.tsx(2450,58): error TS2304: Cannot find name 'AdminType'.
+pages/ClientDashboard.tsx(617,41): error TS2339: Property 'paymentUrl' does not exist on type 'Message'.

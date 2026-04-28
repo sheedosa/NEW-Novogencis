@@ -1,0 +1,84 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "System user profile",
+      "type": "object",
+      "properties": {
+        "fullName": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "username": { "type": "string" },
+        "role": { "type": "string", "enum": ["admin", "client"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["fullName", "email", "username", "role", "createdAt"]
+    },
+    "Client": {
+      "title": "Client",
+      "description": "Patient/Client record",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "gender": { "type": "string", "enum": ["male", "female"] },
+        "email": { "type": "string", "format": "email" },
+        "phone": { "type": "string" },
+        "dob": { "type": "string" },
+        "address": { "type": "string" },
+        "package": { "type": "string" },
+        "packageStatus": { "type": "string" },
+        "allergies": { "type": "string" },
+        "medicalHistory": { "type": "string" },
+        "status": { "type": "string" },
+        "assessmentData": { "type": "object" }
+      },
+      "required": ["name", "email", "status"]
+    },
+    "Appointment": {
+      "title": "Appointment",
+      "description": "Clinical appointment",
+      "type": "object",
+      "properties": {
+        "clientId": { "type": "string" },
+        "clientName": { "type": "string" },
+        "type": { "type": "string" },
+        "date": { "type": "string" },
+        "time": { "type": "string" },
+        "status": { "type": "string", "enum": ["Confirmed", "Pending", "Completed", "Cancelled", "No-Show"] },
+        "notes": { "type": "string" }
+      },
+      "required": ["clientId", "clientName", "type", "date", "time", "status"]
+    },
+    "Message": {
+      "title": "Message",
+      "description": "Secure message between client and clinic",
+      "type": "object",
+      "properties": {
+        "senderId": { "type": "string" },
+        "recipientId": { "type": "string" },
+        "subject": { "type": "string" },
+        "body": { "type": "string" },
+        "read": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["senderId", "recipientId", "subject", "body", "read", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profiles"
+    },
+    "/clients/{clientId}": {
+      "schema": "Client",
+      "description": "Client records"
+    },
+    "/appointments/{appointmentId}": {
+      "schema": "Appointment",
+      "description": "Appointments"
+    },
+    "/messages/{messageId}": {
+      "schema": "Message",
+      "description": "Secure messages"
+    }
+  }
+}

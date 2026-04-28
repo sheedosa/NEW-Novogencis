@@ -1,0 +1,51 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    // Auth requirement for all matching
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Helper to extract email domain
+    function isInternalDoctor() {
+      return isAuthenticated() && request.auth.token.email.matches('.*@novogenics[.]internal$');
+    }
+
+    match /gallery/{clientId}/{fileName} {
+      // Only the client themselves or verified Novogenics doctors/admins can read/write imagery
+      allow read, write: if isAuthenticated() && (
+        request.auth.uid == clientId ||
+        isInternalDoctor() ||
+        request.auth.token.email == "rasheedamer99@gmail.com" ||
+        request.auth.token.email == "aminah_amer@hotmail.com" ||
+        request.auth.token.email == "wfarid812@gmail.com"
+      );
+    }
+    
+    match /assessments/{clientId}/{fileName} {
+      // Only the client themselves or verified Novogenics doctors/admins can read
+      allow read: if isAuthenticated() && (
+        request.auth.uid == clientId ||
+        isInternalDoctor() ||
+        request.auth.token.email == "rasheedamer99@gmail.com" ||
+        request.auth.token.email == "aminah_amer@hotmail.com" ||
+        request.auth.token.email == "wfarid812@gmail.com"
+      );
+      // Allow unauthenticated uploads during intake (to 'anonymous'), or authenticated uploads
+      allow write: if (isAuthenticated() && (
+          request.auth.uid == clientId ||
+          isInternalDoctor() ||
+          request.auth.token.email == "rasheedamer99@gmail.com" ||
+          request.auth.token.email == "aminah_amer@hotmail.com" ||
+          request.auth.token.email == "wfarid812@gmail.com"
+        )) || 
+        (clientId == 'anonymous' && request.resource.size < 10 * 1024 * 1024 && request.resource.contentType.matches('image/.*'));
+    }
+    
+    // Default block
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
