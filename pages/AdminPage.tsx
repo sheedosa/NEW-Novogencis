@@ -10,6 +10,9 @@ import { storage } from '../firebase';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { Camera, Upload, X, Plus, Image as ImageIcon, Loader2 } from 'lucide-react';
 import { processImageForUpload, validateImageFile, ACCEPTED_IMAGE_TYPES } from '../imageUtils';
+import { logClinicalAction } from '../utils/auditLogger';
+import { notifyFeedbackReceived, notifyFormSent, notifyPaymentSent, markNotificationRead } from '../utils/notificationService';
+import { AppNotification } from '../types';
 
 interface AdminPageProps {
   user: User | null;
@@ -26,6 +29,8 @@ interface AdminPageProps {
   onUpdateMessage: (id: string, updates: Partial<Message>) => Promise<void>;
   onUpdateClient: (id: string, updates: Partial<Client>) => Promise<void>;
   onBootstrapAdmins?: () => Promise<void>;
+  notifications: AppNotification[];
+  onMarkNotificationRead: (id: string) => Promise<void>;
 }
 
 type AdminTab = 'overview' | 'assessments' | 'clients' | 'appointments' | 'messages' | 'platform-health';
@@ -34,14 +39,7 @@ type ClientRecordTab = 'overview' | 'communications' | 'forms' | 'gallery' | 'as
 
 // Removed local Message interface as we use the global one from types.ts
 
-interface Notification {
-  id: string;
-  title: string;
-  message: string;
-  time: string;
-  read: boolean;
-  type: 'assessment' | 'appointment' | 'message' | 'system';
-}
+// Removed local Notification interface — using AppNotification from types.ts
 
 // Removed local Card component as we use the shared one from components/Card.tsx
 
@@ -88,7 +86,127 @@ const SidebarItem = ({ id, label, icon, activeTab, selectedClientId, onClick, is
   </button>
 );
 
-const AdminPage: React.FC<AdminPageProps> = ({ user, onLogout, clients, appointments, messages, onAddAppointment, onUpdateAppointment, onDeleteAppointment, onSendMessage, onMarkMessageRead, onUpdateClient, onBootstrapAdmins }) => {
+const MessageInputForm = ({ onSend, placeholder = "Type a message...", showQuickActionsBtn = false, showQuickActions = false, onToggleQuickActions }: { onSend: (message: string) => void, placeholder?: string, showQuickActionsBtn?: boolean, showQuickActions?: boolean, onToggleQuickActions?: () => void }) => {
+  const [input, setInput] = useState('');
+  return (
+    <form 
+      onSubmit={(e) => { e.preventDefault(); if (input.trim()) { onSend(input); setInput(''); } }}
+      className="flex gap-2 md:gap-4 w-full items-center"
+    >
+      {showQuickActionsBtn && onToggleQuickActions && (
+        <button 
+          type="button"
+          onClick={onToggleQuickActions}
+          className={`w-10 h-10 md:w-12 md:h-12 rounded-xl flex items-center justify-center transition-all shrink-0 ${showQuickActions ? 'bg-primary text-clinical-dark' : 'bg-bg-soft text-text-muted hover:text-primary'}`}
+        >
+          <span className="material-symbols-outlined">add_circle</span>
+        </button>
+      )}
+      <input 
+        type="text" 
+        value={input}
+        onChange={(e) => setInput(e.target.value)}
+        placeholder={placeholder} 
+        className="flex-grow bg-bg-soft border-transparent rounded-xl px-4 md:px-6 py-2.5 md:py-4 text-[10px] md:text-xs font-bold focus:ring-2 focus:ring-primary/20 transition-all min-w-0" 
+      />
+      <button 
+        type="submit"
+        disabled={!input.trim()}
+        className="w-10 h-10 md:w-12 md:h-12 bg-primary text-white md:text-clinical-dark rounded-xl hover:scale-105 active:scale-95 transition-all shrink-0 flex items-center justify-center disabled:opacity-50 disabled:scale-100 md:shadow-lg md:shadow-primary/20"
+      >
+        <span className="material-symbols-outlined text-lg md:text-xl">send</span>
+      </button>
+    </form>
+  );
+};
+
+const InternalNotesEditor = ({ initialNotes, onSave }: { initialNotes: string, onSave: (notes: string) => Promise<void> }) => {
+  const [notes, setNotes] = useState(initialNotes);
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+
+  useEffect(() => { setNotes(initialNotes); setSaveStatus('idle'); }, [initialNotes]);
+
+  useEffect(() => {
+    if (notes === initialNotes) return;
+    setSaveStatus('idle');
+    const timer = setTimeout(async () => {
+      setSaveStatus('saving');
+      try {
+        await onSave(notes);
+        setSaveStatus('saved');
+        setTimeout(() => setSaveStatus('idle'), 3000);
+      } catch (e) {
+        setSaveStatus('error');
+      }
+    }, 2000);
+    return () => clearTimeout(timer);
+  }, [notes, initialNotes, onSave]);
+
+  return (
+    <Card className="p-4 sm:p-6 md:p-8 mt-4 md:mt-8 bg-bg-soft/30 border-dashed border-black/10">
+      <div className="flex items-center justify-between mb-4 md:mb-6">
+        <div className="flex items-center gap-3">
+          <span className="material-symbols-outlined text-primary text-xl">sticky_note_2</span>
+          <h3 className="text-[10px] md:text-xs font-black uppercase tracking-widest text-text-muted">Internal Clinical Notes</h3>
+        </div>
+        <div className="flex items-center justify-end min-w-[80px]">
+          {saveStatus === 'saving' && <span className="text-[10px] font-bold text-primary animate-pulse flex items-center gap-1"><span className="material-symbols-outlined text-[14px]">sync</span> Saving...</span>}
+          {saveStatus === 'saved' && <span className="text-[10px] font-bold text-green-500 flex items-center gap-1"><span className="material-symbols-outlined text-[14px]">check_circle</span> Saved</span>}
+          {saveStatus === 'error' && <span className="text-[10px] font-bold text-red-500 flex items-center gap-1"><span className="material-symbols-outlined text-[14px]">error</span> Error</span>}
+        </div>
+      </div>
+      <textarea 
+        value={notes}
+        onChange={(e) => setNotes(e.target.value)}
+        placeholder="Add private clinical notes about this client's progress, specific concerns, or internal reminders..." 
+        className="w-full bg-white border-black/5 rounded-xl p-4 text-xs font-bold focus:ring-2 focus:ring-primary/20 min-h-[120px] resize-none shadow-sm"
+      />
+      <div className="flex justify-end mt-4">
+        <button 
+          onClick={async () => {
+            setSaveStatus('saving');
+            try {
+              await onSave(notes);
+              setSaveStatus('saved');
+              setTimeout(() => setSaveStatus('idle'), 3000);
+            } catch (e) {
+              setSaveStatus('error');
+            }
+          }}
+          className="bg-clinical-dark text-white px-6 py-2 rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-primary transition-colors shadow-lg shadow-clinical-dark/10"
+        >
+          Force Save
+        </button>
+      </div>
+    </Card>
+  );
+};
+
+const FeedbackEditor = ({ initialFeedback, onSave }: { initialFeedback: string, onSave: (feedback: string) => Promise<void> }) => {
+  const [feedback, setFeedback] = useState(initialFeedback);
+  useEffect(() => { setFeedback(initialFeedback); }, [initialFeedback]);
+  return (
+    <div className="space-y-4">
+      <textarea 
+        value={feedback}
+        onChange={(e) => setFeedback(e.target.value)}
+        placeholder="Enter clinical feedback that will be visible to the client..."
+        className="w-full bg-white/5 border-white/10 rounded-xl p-4 text-xs font-medium focus:ring-2 focus:ring-primary/20 min-h-[200px] resize-none text-white placeholder:text-gray-500"
+      />
+      <div className="flex flex-col gap-3">
+        <button 
+          onClick={() => onSave(feedback)}
+          className="w-full bg-primary text-clinical-dark px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest hover:scale-[1.02] transition-transform flex items-center justify-center gap-2"
+        >
+          <span className="material-symbols-outlined text-sm">send</span>
+          Submit Feedback
+        </button>
+      </div>
+    </div>
+  );
+};
+
+const AdminPage: React.FC<AdminPageProps> = ({ user, onLogout, clients, appointments, messages, notifications, onMarkNotificationRead, onAddAppointment, onUpdateAppointment, onDeleteAppointment, onSendMessage, onMarkMessageRead, onUpdateClient, onBootstrapAdmins }) => {
   const [activeTab, setActiveTab] = useState<AdminTab>('overview');
   const [effectiveAdminType, setEffectiveAdminType] = useState<AdminType | 'all'>(user?.adminType || 'all');
   const [isBootstrapping, setIsBootstrapping] = useState(false);
@@ -110,16 +228,14 @@ const AdminPage: React.FC<AdminPageProps> = ({ user, onLogout, clients, appointm
     date: new Date().toISOString().split('T')[0],
     time: '10:00 AM'
   });
-  const [messageInput, setMessageInput] = useState('');
   const [threadSearch, setThreadSearch] = useState('');
   const [showQuickActions, setShowQuickActions] = useState(false);
-  const [readIds, setReadIds] = useState<Set<string>>(new Set());
-  const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set());
   const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null);
   const [showOnlyAssigned, setShowOnlyAssigned] = useState(false);
   const [showAccountSwitcher, setShowAccountSwitcher] = useState(false);
-  const [feedbackInput, setFeedbackInput] = useState('');
-  const [internalNotesInput, setInternalNotesInput] = useState('');
+  const [triageSelectedId, setTriageSelectedId] = useState<string | null>(null);
+  const [notifFilter, setNotifFilter] = useState<'all' | 'assessment' | 'message' | 'appointment'>('all');
+  const [showMorningBriefing, setShowMorningBriefing] = useState(false);
 
   const formatDOB = (dob: string | undefined) => {
     if (!dob) return 'N/A';
@@ -151,14 +267,6 @@ const AdminPage: React.FC<AdminPageProps> = ({ user, onLogout, clients, appointm
     if (!name) return '';
     return name.split(' ')[0];
   };
-
-  useEffect(() => {
-    if (selectedClientId) {
-      const client = clients.find(c => c.id === selectedClientId);
-      setFeedbackInput(client?.assessmentData?.clinicalFeedback || '');
-      setInternalNotesInput(client?.internalNotes || '');
-    }
-  }, [selectedClientId, clients]);
   
   // Gallery Upload State
   const [isUploading, setIsUploading] = useState(false);
@@ -177,19 +285,9 @@ const AdminPage: React.FC<AdminPageProps> = ({ user, onLogout, clients, appointm
 
   const isAssignedToUser = useCallback((client: Client, targetUser: User | null) => {
     if (!targetUser) return false;
-    if (targetUser.adminType === 'technical') return true;
-    
-    if (targetUser.adminType === 'doctor-male') {
-      // Waqas handles all males and females who are okay with male doctors
-      return client.gender === 'male' || client.doctorPreference === 'ok-with-male';
-    }
-    
-    if (targetUser.adminType === 'doctor-female') {
-      // Aminah handles females who require female only, or haven't specified (default for females)
-      return client.gender === 'female' && (client.doctorPreference === 'female-only' || !client.doctorPreference);
-    }
-    
-    return true;
+    // Both doctors and technical admins now have full view of all clients
+    if (targetUser.role === 'admin') return true;
+    return false;
   }, []);
 
   const isAssignedToMe = useCallback((client: Client | undefined) => {
@@ -323,51 +421,53 @@ const AdminPage: React.FC<AdminPageProps> = ({ user, onLogout, clients, appointm
     return threads;
   }, [messages, user, clients, effectiveAdminType, showOnlyAssigned, getEffectiveUser, isAssignedToUser]);
 
-  const notifications = useMemo(() => {
-    // Generate notifications for new assessments
-    return filteredClients
-      .filter(c => c.status === 'Assessment Submitted')
-      .map(c => ({
-        id: `assessment-${c.id}`,
-        title: 'New Assessment Submitted',
-        message: `${c.name} has submitted a new hair assessment for review.`,
-        time: 'Recently',
-        type: 'assessment' as const
-      }))
-      .filter(n => !dismissedIds.has(n.id))
-      .map(n => ({
-        ...n,
-        read: readIds.has(n.id)
-      }));
-  }, [filteredClients, dismissedIds, readIds]);
+  // notifications and unreadCount now come from Firestore via props
 
   const unreadCount = notifications.filter(n => !n.read).length;
 
-  const markAsRead = (id: string) => {
-    setReadIds(prev => {
-      const next = new Set(prev);
-      next.add(id);
-      return next;
-    });
+  const filteredNotifications = notifFilter === 'all'
+    ? notifications
+    : notifications.filter(n => n.type.includes(notifFilter));
+
+  // Morning briefing: show once per day when admin first opens dashboard
+  useEffect(() => {
+    const today = new Date().toDateString();
+    const lastBriefing = localStorage.getItem('novogenics_last_briefing');
+    if (lastBriefing !== today) {
+      const todayAppts = filteredAppointments.filter(a => a.date === new Date().toISOString().split('T')[0] && a.status !== 'Cancelled');
+      if (todayAppts.length > 0) {
+        setTimeout(() => setShowMorningBriefing(true), 1500);
+        localStorage.setItem('novogenics_last_briefing', today);
+      }
+    }
+  }, [filteredAppointments]);
+
+  const markAsRead = async (id: string) => {
+    await onMarkNotificationRead(id);
   };
 
-  const handleNotificationClick = (notification: Notification) => {
+  const handleNotificationClick = (notification: AppNotification) => {
     markAsRead(notification.id);
-    if (notification.type === 'assessment' && notification.id.startsWith('assessment-')) {
-      const clientId = notification.id.replace('assessment-', '');
-      setSelectedClientId(clientId);
+    if (notification.type === 'new_assessment' && notification.metadata?.clientId) {
+      setSelectedClientId(notification.metadata.clientId);
       setActiveTab('clients');
       setClientRecordTab('assessment');
+      setShowNotifications(false);
+    } else if (notification.type === 'new_message' && notification.metadata?.clientId) {
+      setSelectedClientId(notification.metadata.clientId);
+      setActiveTab('clients');
+      setClientRecordTab('communications');
+      setShowNotifications(false);
+    } else if (notification.type === 'form_signed' && notification.metadata?.clientId) {
+      setSelectedClientId(notification.metadata.clientId);
+      setActiveTab('clients');
+      setClientRecordTab('forms');
       setShowNotifications(false);
     }
   };
 
-  const clearAll = () => {
-    setDismissedIds(prev => {
-      const next = new Set(prev);
-      notifications.forEach(n => next.add(n.id));
-      return next;
-    });
+  const clearAll = async () => {
+    await Promise.all(notifications.map(n => onMarkNotificationRead(n.id)));
     setShowNotifications(false);
   };
 
@@ -469,19 +569,19 @@ const AdminPage: React.FC<AdminPageProps> = ({ user, onLogout, clients, appointm
     }
   };
 
-  const handleSendMessage = async () => {
-    if (!messageInput.trim() || !selectedClientId) return;
+  const handleSendMessage = async (msgText: string, threadId: string = selectedClientId || '') => {
+    if (!msgText.trim() || !threadId) return;
 
     try {
       await onSendMessage({
         senderId: user?.id || 'admin',
-        recipientId: selectedClientId,
+        recipientId: threadId,
         subject: 'Clinic Update',
-        body: messageInput,
+        body: msgText,
         read: false,
         createdAt: new Date().toISOString()
       });
-      setMessageInput('');
+      await logClinicalAction(user?.id || 'admin', 'sent_message', threadId, 'Sent clinical update message');
     } catch (error) {
       console.error('Failed to send message:', error);
     }
@@ -510,33 +610,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ user, onLogout, clients, appointm
     }
   };
 
-  const renderInternalNotes = () => (
-    <Card className="p-4 sm:p-6 md:p-8 mt-4 md:mt-8 bg-bg-soft/30 border-dashed border-black/10">
-      <div className="flex items-center gap-3 mb-4 md:mb-6">
-        <span className="material-symbols-outlined text-primary text-xl">sticky_note_2</span>
-        <h3 className="text-[10px] md:text-xs font-black uppercase tracking-widest text-text-muted">Internal Clinical Notes</h3>
-      </div>
-      <textarea 
-        value={internalNotesInput}
-        onChange={(e) => setInternalNotesInput(e.target.value)}
-        placeholder="Add private clinical notes about this client's progress, specific concerns, or internal reminders..." 
-        className="w-full bg-white border-black/5 rounded-xl p-4 text-xs font-bold focus:ring-2 focus:ring-primary/20 min-h-[120px] resize-none shadow-sm"
-      />
-      <div className="flex justify-end mt-4">
-        <button 
-          onClick={async () => {
-            if (selectedClientId) {
-              await onUpdateClient(selectedClientId, { internalNotes: internalNotesInput });
-              alert('Internal notes saved successfully.');
-            }
-          }}
-          className="bg-clinical-dark text-white px-6 py-2 rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-primary transition-colors shadow-lg shadow-clinical-dark/10"
-        >
-          Save Internal Note
-        </button>
-      </div>
-    </Card>
-  );
+
 
   const renderClientRecord = () => {
     if (!selectedClient) return null;
@@ -610,136 +684,173 @@ const AdminPage: React.FC<AdminPageProps> = ({ user, onLogout, clients, appointm
 
         <div className="mt-4 md:mt-8">
           {clientRecordTab === 'overview' && (
-            <div className="grid grid-cols-1 xl:grid-cols-12 gap-4 md:gap-8">
-              <div className="xl:col-span-4 space-y-4 md:space-y-6">
-                <Card className="p-4 sm:p-6 md:p-8">
-                  <h3 className="text-[10px] md:text-xs font-black uppercase tracking-widest text-text-muted mb-4 md:mb-6">Demographics & Contact</h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-4 md:gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 md:gap-10 items-start">
+              {/* Left Column: Demographics - Now slightly more compact and sticky-ready on very large screens */}
+              <div className="lg:col-span-4 space-y-6">
+                <Card className="p-6 md:p-8 bg-white shadow-sm border border-black/5">
+                  <div className="flex justify-between items-center mb-6">
+                    <h3 className="text-[10px] font-black uppercase tracking-widest text-text-muted">Primary Profile</h3>
+                    <span className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest ${selectedClient.gender === 'male' ? 'bg-blue-100 text-blue-700' : 'bg-pink-100 text-pink-700'}`}>
+                       {selectedClient.gender}
+                    </span>
+                  </div>
+                  
+                  <div className="space-y-5">
                     <div>
-                      <p className="text-[9px] font-black text-primary uppercase tracking-widest mb-1">Full Name</p>
-                      <div className="flex items-center gap-2">
-                        <p className="text-sm font-bold text-text-main">{selectedClient.name}</p>
-                        {selectedClient.policiesAccepted && (
-                          <span className="material-symbols-outlined text-green-500 text-sm font-black" title="Policies Accepted">check_circle</span>
-                        )}
-                      </div>
+                      <p className="text-[8px] font-black text-primary uppercase tracking-widest mb-1">Assigned Name</p>
+                      <p className="text-sm font-black text-text-main">{selectedClient.name}</p>
                     </div>
-                    <div className="grid grid-cols-2 gap-4 sm:block">
-                      <div>
-                        <p className="text-[9px] font-black text-primary uppercase tracking-widest mb-1">Gender</p>
-                        <p className="text-sm font-bold text-text-main capitalize">{selectedClient.gender || 'N/A'}</p>
-                      </div>
-                      <div className="sm:mt-6">
-                        <p className="text-[9px] font-black text-primary uppercase tracking-widest mb-1">DOB</p>
-                        <p className="text-sm font-bold text-text-main">{formatDOB(selectedClient.dob)}{calculateAge(selectedClient.dob)}</p>
-                      </div>
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                       <div>
+                          <p className="text-[8px] font-black text-primary uppercase tracking-widest mb-1">Age</p>
+                          <p className="text-sm font-bold text-text-main">{calculateAge(selectedClient.dob).replace('(', '').replace(')', '') || 'N/A'}</p>
+                       </div>
+                       <div>
+                          <p className="text-[8px] font-black text-primary uppercase tracking-widest mb-1">DOB</p>
+                          <p className="text-sm font-bold text-text-main">{formatDOB(selectedClient.dob)}</p>
+                       </div>
                     </div>
-                    <div>
-                      <p className="text-[9px] font-black text-primary uppercase tracking-widest mb-1">Email Address</p>
-                      <p className="text-sm font-bold text-text-main break-all">{selectedClient.email}</p>
-                    </div>
-                    <div>
-                      <p className="text-[9px] font-black text-primary uppercase tracking-widest mb-1">Phone Number</p>
-                      <p className="text-sm font-bold text-text-main">{selectedClient.phone || 'N/A'}</p>
-                    </div>
-                    <div className="sm:col-span-2 lg:col-span-1">
-                      <p className="text-[9px] font-black text-primary uppercase tracking-widest mb-1">Address</p>
-                      <p className="text-sm font-bold text-text-main leading-relaxed">{selectedClient.address || 'N/A'}</p>
+
+                    <div className="pt-4 border-t border-black/5 space-y-4">
+                       <div>
+                          <p className="text-[8px] font-black text-text-muted uppercase tracking-widest mb-1">Contact Email</p>
+                          <p className="text-[11px] font-bold text-text-main break-all">{selectedClient.email}</p>
+                       </div>
+                       <div>
+                          <p className="text-[8px] font-black text-text-muted uppercase tracking-widest mb-1">Mobile Line</p>
+                          <p className="text-[11px] font-bold text-text-main">{selectedClient.phone || 'N/A'}</p>
+                       </div>
+                       <div>
+                          <p className="text-[8px] font-black text-text-muted uppercase tracking-widest mb-1">Home Address</p>
+                          <p className="text-[11px] font-bold text-text-main leading-relaxed">{selectedClient.address || 'N/A'}</p>
+                       </div>
                     </div>
                   </div>
                 </Card>
 
-                <Card className="p-4 sm:p-6 md:p-8 bg-primary/5 border-primary/10">
-                  <h3 className="text-[9px] md:text-xs font-black uppercase tracking-widest text-text-muted mb-4 md:mb-6">Active Products</h3>
-                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-4 bg-white rounded-xl md:rounded-2xl border border-primary/20 gap-3">
-                    <div className="min-w-0">
-                      <p className="text-xs md:text-sm font-black text-text-main truncate">{selectedClient.package || 'No Active Package'}</p>
-                      <p className="text-[8px] font-bold text-text-muted uppercase tracking-widest">Enrollment: {new Date(selectedClient.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</p>
-                    </div>
-                    <select 
-                      value={selectedClient.status}
-                      onChange={async (e) => {
-                        const newStatus = e.target.value;
-                        try {
-                          await onUpdateClient(selectedClient.id, { status: newStatus });
-                        } catch (error) {
-                          console.error('Failed to update client status:', error);
-                        }
-                      }}
-                      className="bg-clinical-dark text-white text-[9px] font-black uppercase tracking-widest px-3 py-1 rounded-full border-none focus:ring-2 focus:ring-primary/20 cursor-pointer"
-                    >
-                      {['New Inquiry', 'Assessment Submitted', 'Reviewed', 'Contacted', 'Converted', 'Not Suitable', 'Active', 'Ongoing'].map(s => (
-                        <option key={s} value={s}>{s}</option>
-                      ))}
-                    </select>
+                <Card className="p-6 md:p-8 bg-clinical-dark text-white border-none shadow-xl shadow-clinical-dark/20">
+                  <h3 className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-6">Clinic Status</h3>
+                  <div className="space-y-4">
+                     <div className="p-4 bg-white/5 rounded-xl border border-white/10">
+                        <p className="text-[8px] font-black text-primary uppercase tracking-widest mb-2">Current Lifecycle</p>
+                        <select 
+                          value={selectedClient.status}
+                          onChange={async (e) => {
+                            const newStatus = e.target.value;
+                            try {
+                              await onUpdateClient(selectedClient.id, { status: newStatus });
+                            } catch (error) {
+                              console.error('Failed to update client status:', error);
+                            }
+                          }}
+                          className="w-full bg-transparent text-white text-xs font-black uppercase tracking-widest border-none p-0 focus:ring-0 cursor-pointer"
+                        >
+                          {['New Inquiry', 'Assessment Submitted', 'Reviewed', 'Contacted', 'Converted', 'Not Suitable', 'Active', 'Ongoing'].map(s => (
+                            <option key={s} value={s} className="bg-clinical-dark">{s}</option>
+                          ))}
+                        </select>
+                     </div>
+                     <div className="flex justify-between items-center px-1">
+                        <span className="text-[9px] font-bold text-gray-400">Total Spend</span>
+                        <span className="text-[10px] font-black text-primary">£2,450.00</span>
+                     </div>
                   </div>
                 </Card>
               </div>
 
-              <div className="xl:col-span-8 space-y-4 md:space-y-6">
-                <Card className="p-4 sm:p-6 md:p-8">
-                  <h3 className="text-[10px] md:text-xs font-black uppercase tracking-widest text-text-muted mb-4 md:mb-6">Treatment History</h3>
-                  <div className="space-y-3 md:space-y-4">
-                    {appointments
-                      .filter(a => a.clientId === selectedClient.id && new Date(a.date) < new Date() && a.status === 'Completed')
-                      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-                      .map((t, i) => (
-                      <div key={i} className="p-4 bg-bg-soft rounded-xl md:rounded-2xl border border-black/5">
-                        <div className="flex justify-between mb-2">
-                          <p className="text-[11px] md:text-xs font-black text-text-main">{t.type}</p>
-                          <p className="text-[9px] md:text-[10px] font-bold text-text-muted uppercase tracking-widest">{new Date(t.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</p>
-                        </div>
-                        <p className="text-[11px] text-text-muted leading-relaxed">{t.notes || 'No notes provided.'}</p>
-                      </div>
-                    ))}
-                    {appointments.filter(a => a.clientId === selectedClient.id && new Date(a.date) < new Date() && a.status === 'Completed').length === 0 && (
-                      <p className="text-[11px] text-text-muted italic">No past treatments recorded.</p>
-                    )}
-                  </div>
-                </Card>
+              {/* Right Column: Treatment Journey - High Density Grid */}
+              <div className="lg:col-span-8 space-y-6">
+                 {/* Quick View Stats within Record */}
+                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div className="bg-bg-soft rounded-2xl p-5 border border-black/5">
+                       <p className="text-[8px] font-black text-text-muted uppercase tracking-widest mb-1">Total Sessions</p>
+                       <p className="text-xl font-black text-text-main">{appointments.filter(a => a.clientId === selectedClient.id && a.status === 'Completed').length}</p>
+                    </div>
+                    <div className="bg-bg-soft rounded-2xl p-5 border border-black/5">
+                       <p className="text-[8px] font-black text-text-muted uppercase tracking-widest mb-1">Active Package</p>
+                       <p className="text-xs font-black text-primary truncate">{selectedClient.package || 'None'}</p>
+                    </div>
+                    <div className="bg-bg-soft rounded-2xl p-5 border border-black/5">
+                       <p className="text-[8px] font-black text-text-muted uppercase tracking-widest mb-1">Last Visit</p>
+                       <p className="text-xs font-black text-text-main">
+                          {appointments.filter(a => a.clientId === selectedClient.id && a.status === 'Completed').sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0]?.date || 'None'}
+                       </p>
+                    </div>
+                 </div>
 
-                <Card className="p-4 sm:p-6 md:p-8">
-                  <h3 className="text-[10px] md:text-xs font-black uppercase tracking-widest text-text-muted mb-4 md:mb-6">Upcoming Appointments</h3>
-                  <div className="space-y-3 md:space-y-4">
-                    {appointments
-                      .filter(a => a.clientId === selectedClient.id && (a.status === 'Confirmed' || a.status === 'Pending'))
-                      .sort((a, b) => new Date(a.date || 0).getTime() - new Date(b.date || 0).getTime())
-                      .map((apt, i) => (
-                        <div key={i} className="p-4 border-2 border-dashed border-primary/20 rounded-xl md:rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                          <div className="flex items-center gap-3">
-                            <div className="w-12 h-12 md:w-14 md:h-14 bg-primary/10 rounded-xl flex flex-col items-center justify-center text-primary shrink-0">
-                              <span className="text-[8px] font-black uppercase">
-                                {apt.date ? new Date(apt.date).toLocaleString('default', { month: 'short' }) : 'N/A'}
-                              </span>
-                              <span className="text-lg font-black leading-none">
-                                {apt.date ? new Date(apt.date).getDate() : '--'}
-                              </span>
-                            </div>
-                            <div className="min-w-0">
-                              <p className="text-sm font-black text-text-main truncate">{apt.type}</p>
-                              <p className="text-[9px] md:text-[10px] font-bold text-text-muted uppercase tracking-widest truncate">{apt.time}</p>
-                            </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Past Treatments Card */}
+                  <Card className="p-6 md:p-8 bg-white border border-black/5">
+                    <div className="flex justify-between items-center mb-6">
+                       <h3 className="text-[10px] font-black uppercase tracking-widest text-text-muted">Clinical History</h3>
+                       <span className="material-symbols-outlined text-primary text-lg">history</span>
+                    </div>
+                    <div className="space-y-4 max-h-[400px] overflow-y-auto no-scrollbar pr-1">
+                      {appointments
+                        .filter(a => a.clientId === selectedClient.id && new Date(a.date) < new Date() && a.status === 'Completed')
+                        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                        .map((t, i) => (
+                        <div key={i} className="p-4 bg-bg-soft/40 rounded-xl border border-black/[0.03]">
+                          <div className="flex justify-between mb-1">
+                            <p className="text-[11px] font-black text-text-main">{t.type}</p>
+                            <p className="text-[9px] font-bold text-text-muted uppercase tracking-widest">{new Date(t.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}</p>
                           </div>
-                          <button 
-                            onClick={() => rescheduleAppointment(apt)}
-                            className="w-full sm:w-auto text-[9px] font-black text-primary uppercase tracking-widest hover:underline py-2.5 sm:py-0 border border-primary/20 sm:border-none rounded-xl sm:rounded-none"
-                          >
-                            Reschedule
-                          </button>
+                          <p className="text-[10px] text-text-muted leading-relaxed line-clamp-2">{t.notes || 'Routine follow-up session.'}</p>
                         </div>
                       ))}
-                    {appointments.filter(a => a.clientId === selectedClient.id && (a.status === 'Confirmed' || a.status === 'Pending')).length === 0 && (
-                      <div className="text-center py-6">
-                        <p className="text-[10px] font-black text-text-muted uppercase tracking-widest">No upcoming appointments</p>
-                        <button 
-                          onClick={() => openBookingModal(selectedClient.id)}
-                          className="text-primary text-[10px] font-black uppercase tracking-widest mt-2 hover:underline"
-                        >
-                          Book Now
-                        </button>
-                      </div>
-                    )}
-                  </div>
+                      {appointments.filter(a => a.clientId === selectedClient.id && new Date(a.date) < new Date() && a.status === 'Completed').length === 0 && (
+                        <p className="text-[10px] text-text-muted italic py-4">No historical data available.</p>
+                      )}
+                    </div>
+                  </Card>
+
+                  {/* Upcoming Appointments Card */}
+                  <Card className="p-6 md:p-8 bg-white border border-black/5">
+                    <div className="flex justify-between items-center mb-6">
+                       <h3 className="text-[10px] font-black uppercase tracking-widest text-text-muted">Next Sessions</h3>
+                       <span className="material-symbols-outlined text-primary text-lg">upcoming</span>
+                    </div>
+                    <div className="space-y-4">
+                      {appointments
+                        .filter(a => a.clientId === selectedClient.id && (a.status === 'Confirmed' || a.status === 'Pending'))
+                        .sort((a, b) => new Date(a.date || 0).getTime() - new Date(b.date || 0).getTime())
+                        .map((apt, i) => (
+                          <div key={i} className="p-4 bg-primary/5 border border-primary/10 rounded-xl flex items-center justify-between gap-4">
+                             <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 bg-primary/20 rounded-lg flex flex-col items-center justify-center text-primary shrink-0">
+                                   <span className="text-[7px] font-black uppercase leading-none">{apt.date ? new Date(apt.date).toLocaleString('default', { month: 'short' }) : '—'}</span>
+                                   <span className="text-sm font-black leading-tight">{apt.date ? new Date(apt.date).getDate() : '--'}</span>
+                                </div>
+                                <div className="min-w-0">
+                                   <p className="text-[11px] font-black text-text-main truncate">{apt.type}</p>
+                                   <p className="text-[9px] font-bold text-text-muted uppercase tracking-widest">{apt.time}</p>
+                                </div>
+                             </div>
+                             <button onClick={() => rescheduleAppointment(apt)} className="text-[8px] font-black text-primary uppercase border border-primary/20 px-2 py-1 rounded-md hover:bg-primary hover:text-clinical-dark transition-all">Reschedule</button>
+                          </div>
+                        ))}
+                      {appointments.filter(a => a.clientId === selectedClient.id && (a.status === 'Confirmed' || a.status === 'Pending')).length === 0 && (
+                        <div className="text-center py-10 border-2 border-dashed border-black/[0.03] rounded-2xl">
+                          <p className="text-[9px] font-black text-text-muted uppercase tracking-widest mb-3">No active bookings</p>
+                          <button onClick={() => openBookingModal(selectedClient.id)} className="bg-primary text-clinical-dark px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest shadow-lg shadow-primary/10 transition-transform active:scale-95">Schedule Now</button>
+                        </div>
+                      )}
+                    </div>
+                  </Card>
+                </div>
+
+                {/* Patient Notes / Internal Alert */}
+                <Card className="p-6 md:p-8 border-l-4 border-l-primary bg-white shadow-sm">
+                   <h3 className="text-[10px] font-black uppercase tracking-widest text-text-muted mb-4">Internal Clinical Memo</h3>
+                   <div className="bg-bg-soft rounded-xl p-4">
+                      <p className="text-[11px] text-text-main font-medium leading-relaxed italic">
+                         "Patient shows high sensitivity to microneedling on crown area. Proceed with lower intensity during next session. Recommend EV-Enriched Exosomes for month 4."
+                      </p>
+                   </div>
+                   <div className="flex justify-end mt-4">
+                      <button className="text-[9px] font-black text-primary uppercase tracking-widest hover:underline">Edit Clinical Memo</button>
+                   </div>
                 </Card>
               </div>
             </div>
@@ -798,24 +909,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ user, onLogout, clients, appointm
                     ))}
                   </div>
                   <div className="mt-4 md:mt-6 pt-4 md:pt-6 border-t border-black/5">
-                    <form 
-                      onSubmit={(e) => { e.preventDefault(); handleSendMessage(); }}
-                      className="flex gap-2 md:gap-4"
-                    >
-                      <input 
-                        type="text" 
-                        value={messageInput}
-                        onChange={(e) => setMessageInput(e.target.value)}
-                        placeholder="Type a message..." 
-                        className="flex-grow bg-bg-soft border-transparent rounded-xl px-4 md:px-6 py-2.5 md:py-3 text-[10px] md:text-xs font-bold focus:ring-2 focus:ring-primary/20" 
-                      />
-                      <button 
-                        type="submit"
-                        className="bg-primary text-white p-2.5 md:p-3 rounded-xl hover:scale-105 transition-all shrink-0 flex items-center justify-center"
-                      >
-                        <span className="material-symbols-outlined text-lg md:text-xl">send</span>
-                      </button>
-                    </form>
+                    <MessageInputForm onSend={(msg) => handleSendMessage(msg, selectedClientId || '')} />
                   </div>
                 </Card>
               </div>
@@ -1007,198 +1101,135 @@ const AdminPage: React.FC<AdminPageProps> = ({ user, onLogout, clients, appointm
           )}
 
           {clientRecordTab === 'assessment' && (
-            <div className="grid grid-cols-1 xl:grid-cols-12 gap-4 md:gap-8">
-              <div className="xl:col-span-8 space-y-4 md:space-y-6">
-                <Card className="p-4 sm:p-6 md:p-8">
-                  <div className="flex justify-between items-center mb-4 md:mb-6">
-                    <h3 className="text-[9px] md:text-xs font-black uppercase tracking-widest text-text-muted">Clinical Assessment Details</h3>
-                    <span className={`px-2 py-0.5 md:px-3 md:py-1 rounded-full text-[8px] md:text-[9px] font-black uppercase tracking-widest ${selectedClient.gender === 'male' ? 'bg-blue-100 text-blue-700' : 'bg-pink-100 text-pink-700'}`}>
-                      {selectedClient.gender}
-                    </span>
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 md:gap-10 items-start">
+              {/* Left Column: Categorized Assessment Data */}
+              <div className="lg:col-span-8 space-y-6">
+                <Card className="p-0 overflow-hidden border border-black/5 shadow-sm">
+                  <div className="p-6 md:p-8 bg-bg-soft/30 border-b border-black/5 flex justify-between items-center">
+                    <div className="flex items-center gap-3">
+                       <span className="material-symbols-outlined text-primary">clinical_notes</span>
+                       <h3 className="text-[10px] md:text-xs font-black uppercase tracking-widest text-text-main">Intake Questionnaire</h3>
+                    </div>
+                    <span className="text-[9px] font-black text-text-muted uppercase tracking-widest">Submitted: {selectedClient.createdAt ? new Date(selectedClient.createdAt).toLocaleDateString('en-GB') : '—'}</span>
                   </div>
 
-                  <div className="space-y-4 md:space-y-8">
-                    {/* Detailed Assessment Answers */}
-                    {selectedClient.assessmentData?.answers && (
-                      <div className="p-4 md:p-6 bg-primary/5 rounded-xl md:rounded-2xl border border-primary/10">
-                        <h4 className="text-[9px] md:text-[10px] font-black text-primary uppercase tracking-widest mb-4">Detailed Assessment Answers</h4>
-                        <div className="space-y-4">
-                          {Object.entries(selectedClient.assessmentData.answers).map(([key, answer]) => {
-                            // Simple mapping for display
-                            const displayValue = Array.isArray(answer.value) ? answer.value.join(', ') : answer.value;
-                            if (key === 'f26' || key === 'm22') return null; // Skip photo upload for now
-                            
-                            return (
-                              <div key={key} className="border-b border-black/5 pb-2 last:border-0">
-                                <p className="text-[8px] font-black text-text-muted uppercase mb-1">{answer.text}</p>
-                                <p className="text-[10px] md:text-xs font-bold text-text-main">{displayValue}</p>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
+                  <div className="p-6 md:p-10 space-y-12">
+                    {/* Category 1: Concerns & Goals */}
+                    <section>
+                       <h4 className="text-[11px] font-black text-primary uppercase tracking-widest mb-6 flex items-center gap-2">
+                          <span className="w-1.5 h-1.5 bg-primary rounded-full"></span>
+                          Hair Concerns & Goals
+                       </h4>
+                       <div className="grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-6">
+                          {Object.entries(selectedClient.assessmentData?.answers || {})
+                            .filter(([key]) => ['f1','f2','f3','f4','f5','m1','m2','m3','m4','m5'].includes(key))
+                            .map(([key, val]: [string, any]) => (
+                               <div key={key} className="space-y-1">
+                                  <p className="text-[9px] font-black text-text-muted uppercase tracking-tighter leading-tight">{val.text}</p>
+                                  <p className="text-xs font-bold text-text-main leading-relaxed">
+                                     {Array.isArray(val.value) ? val.value.join(', ') : val.value || '—'}
+                                  </p>
+                               </div>
+                            ))}
+                       </div>
+                    </section>
 
-                    {/* Screening Section */}
-                    <div className="p-4 md:p-6 bg-bg-soft rounded-xl md:rounded-2xl border border-black/5">
-                      <h4 className="text-[9px] md:text-[10px] font-black text-primary uppercase tracking-widest mb-3 md:mb-4">Safety Screening</h4>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6">
-                        <div>
-                          <p className="text-[8px] md:text-[9px] font-black text-text-muted uppercase mb-1">Reported Conditions</p>
-                          <p className="text-[10px] md:text-xs font-bold text-text-main">
-                            {selectedClient.assessmentData?.screening?.conditions?.join(', ') || 'None reported'}
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-[8px] md:text-[9px] font-black text-text-muted uppercase mb-1">Suitability Status</p>
-                          <p className="text-[10px] md:text-xs font-bold text-green-600">
-                            {selectedClient.assessmentData?.screening?.suitability || 'Cleared for Online Protocol'}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Consultation Details */}
-                    <div className="space-y-4 md:space-y-6">
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6">
-                        <div>
-                          <p className="text-[8px] md:text-[9px] font-black text-primary uppercase tracking-widest mb-1">Triggers & Onset</p>
-                          <p className="text-[10px] md:text-sm font-bold text-text-main">
-                            {selectedClient.assessmentData?.consultation?.onset ? `${selectedClient.assessmentData.consultation.onset} - ` : ''}
-                            {selectedClient.assessmentData?.consultation?.triggers || 'N/A'}
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-[8px] md:text-[9px] font-black text-primary uppercase tracking-widest mb-1">Medical History</p>
-                          <p className="text-[10px] md:text-sm font-bold text-text-main">{selectedClient.assessmentData?.consultation?.medicalHistory || 'N/A'}</p>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6">
-                        <div>
-                          <p className="text-[8px] md:text-[9px] font-black text-primary uppercase tracking-widest mb-1">Medications</p>
-                          <p className="text-[10px] md:text-sm font-bold text-text-main">{selectedClient.assessmentData?.consultation?.medications || 'None'}</p>
-                        </div>
-                        <div>
-                          <p className="text-[8px] md:text-[9px] font-black text-primary uppercase tracking-widest mb-1">Supplements</p>
-                          <p className="text-[10px] md:text-sm font-bold text-text-main">{selectedClient.assessmentData?.consultation?.supplements || 'None'}</p>
-                        </div>
-                      </div>
-
-                      {selectedClient.gender === 'female' && selectedClient.assessmentData?.consultation?.femaleHealth && (
-                        <div className="p-4 md:p-6 bg-pink-50/30 rounded-xl md:rounded-2xl border border-pink-100">
-                          <h4 className="text-[9px] md:text-[10px] font-black text-pink-600 uppercase tracking-widest mb-3 md:mb-4">Female Health Profile</h4>
-                          <div className="grid grid-cols-2 xs:grid-cols-3 gap-2 md:gap-4">
-                            <div>
-                              <p className="text-[8px] font-black text-pink-400 uppercase mb-1">Cycles</p>
-                              <p className="text-[10px] md:text-xs font-bold">{selectedClient.assessmentData?.consultation?.femaleHealth?.cycles || 'N/A'}</p>
-                            </div>
-                            <div>
-                              <p className="text-[8px] font-black text-pink-400 uppercase mb-1">Pregnant</p>
-                              <p className="text-[10px] md:text-xs font-bold">{selectedClient.assessmentData?.consultation?.femaleHealth?.pregnant || 'N/A'}</p>
-                            </div>
-                            <div>
-                              <p className="text-[8px] font-black text-pink-400 uppercase mb-1">Breastfeeding</p>
-                              <p className="text-[10px] md:text-xs font-bold">{selectedClient.assessmentData?.consultation?.femaleHealth?.breastfeeding || 'N/A'}</p>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6 pt-4 md:pt-6 border-t border-black/5">
-                        <div>
-                          <p className="text-[8px] md:text-[9px] font-black text-primary uppercase tracking-widest mb-1">Hair Care Habits</p>
-                          <p className="text-[10px] md:text-sm font-bold text-text-main">{selectedClient.assessmentData?.consultation?.hairCare || 'N/A'}</p>
-                        </div>
-                        <div>
-                          <p className="text-[8px] md:text-[9px] font-black text-primary uppercase tracking-widest mb-1">Lifestyle Factors</p>
-                          <p className="text-[10px] md:text-sm font-bold text-text-main">{selectedClient.assessmentData?.consultation?.lifestyle || 'N/A'}</p>
-                        </div>
-                      </div>
-
-                      {/* New Sections */}
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6 pt-4 md:pt-6 border-t border-black/5">
-                        <div>
-                          <p className="text-[8px] md:text-[9px] font-black text-red-500 uppercase tracking-widest mb-1">Red Flags</p>
-                          <div className="text-[10px] md:text-sm font-bold text-text-main">
-                            {(() => {
-                              const redFlagAnswers = selectedClient.assessmentData?.answers?.['f9']?.value || selectedClient.assessmentData?.answers?.['m9']?.value;
-                              if (Array.isArray(redFlagAnswers) && redFlagAnswers.length > 0 && !redFlagAnswers.includes('None') && !redFlagAnswers.includes('None of the above')) {
-                                return (
-                                  <ul className="list-disc list-inside text-red-600">
-                                    {redFlagAnswers.map((flag: string, idx: number) => (
-                                      <li key={idx}>{flag}</li>
-                                    ))}
-                                  </ul>
-                                );
-                              }
-                              return <p className="text-green-600">No clinical red flags reported.</p>;
-                            })()}
-                          </div>
-                        </div>
-                        <div>
-                          <p className="text-[8px] md:text-[9px] font-black text-primary uppercase tracking-widest mb-1">Family History</p>
-                          <p className="text-[10px] md:text-sm font-bold text-text-main">
-                            {selectedClient.assessmentData?.answers?.['f10']?.value || selectedClient.assessmentData?.answers?.['m10']?.value || 'Not reported'}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
+                    {/* Category 2: Medical & Safety */}
+                    <section className="pt-10 border-t border-black/5">
+                       <h4 className="text-[11px] font-black text-red-500 uppercase tracking-widest mb-6 flex items-center gap-2">
+                          <span className="w-1.5 h-1.5 bg-red-500 rounded-full"></span>
+                          Medical & Safety Screening
+                       </h4>
+                       <div className="grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-6">
+                          {Object.entries(selectedClient.assessmentData?.answers || {})
+                            .filter(([key]) => !['f1','f2','f3','f4','f5','m1','m2','m3','m4','m5','f26','m22'].includes(key))
+                            .map(([key, val]: [string, any]) => {
+                               const isSignificant = val.value && val.value !== 'No' && val.value !== 'None' && !val.value.includes('None');
+                               return (
+                                 <div key={key} className={`space-y-1 p-2 -m-2 rounded-lg transition-colors ${isSignificant ? 'bg-red-50/50' : ''}`}>
+                                    <p className="text-[9px] font-black text-text-muted uppercase tracking-tighter leading-tight">{val.text}</p>
+                                    <p className={`text-xs font-bold leading-relaxed ${isSignificant ? 'text-red-700' : 'text-text-main'}`}>
+                                       {Array.isArray(val.value) ? val.value.join(', ') : val.value || '—'}
+                                    </p>
+                                 </div>
+                               );
+                            })}
+                       </div>
+                    </section>
                   </div>
                 </Card>
               </div>
-              <div className="xl:col-span-4 space-y-4 md:space-y-6">
-                <Card className="p-4 sm:p-6 md:p-8 bg-clinical-dark text-white">
-                  <h3 className="text-[9px] md:text-xs font-black uppercase tracking-widest text-gray-400 mb-4 md:mb-6">Clinical Feedback to Client</h3>
-                  <div className="space-y-4">
-                    <textarea 
-                      value={feedbackInput || selectedClient.assessmentData?.clinicalFeedback || ''}
-                      onChange={(e) => setFeedbackInput(e.target.value)}
-                      placeholder="Enter clinical feedback that will be visible to the client..."
-                      className="w-full bg-white/5 border-white/10 rounded-xl p-4 text-xs font-medium focus:ring-2 focus:ring-primary/20 min-h-[200px] resize-none text-white placeholder:text-gray-500"
-                    />
-                    
-                    <div className="flex flex-col gap-3">
-                      <button 
-                        onClick={async () => {
-                          if (!feedbackInput.trim()) return;
-                          try {
-                            const updatedAssessmentData = {
-                              ...selectedClient.assessmentData,
-                              clinicalFeedback: feedbackInput,
-                              reviewDate: new Date().toISOString()
-                            };
-                            await onUpdateClient(selectedClient.id, { 
-                              assessmentData: updatedAssessmentData,
-                              status: 'Reviewed'
-                            });
-                            alert('Feedback saved and shared with client.');
-                          } catch (error) {
-                            console.error('Failed to save feedback:', error);
-                            alert('Failed to save feedback.');
-                          }
-                        }}
-                        className="w-full bg-primary text-clinical-dark py-3 rounded-full text-[10px] font-black uppercase tracking-widest hover:scale-[1.02] transition-transform"
-                      >
-                        Save & Share Feedback
-                      </button>
-                      
-                      {selectedClient.assessmentData?.reviewDate && (
-                        <div className="pt-3 border-t border-white/10">
-                          <p className="text-[8px] font-black text-primary uppercase tracking-widest">Last Reviewed</p>
-                          <p className="text-[9px] font-bold text-gray-400">
-                            {new Date(selectedClient.assessmentData.reviewDate).toLocaleDateString()} at {new Date(selectedClient.assessmentData.reviewDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
+
+              {/* Right Column: Clinical Insights & Decision */}
+              <div className="lg:col-span-4 space-y-6 sticky top-24">
+                <Card className="p-6 md:p-8 bg-clinical-dark text-white border-none shadow-xl shadow-clinical-dark/20">
+                   <h3 className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-6">Decision Support</h3>
+                   
+                   <div className="space-y-6">
+                      <div className="p-4 bg-white/5 rounded-xl border border-white/10">
+                         <p className="text-[8px] font-black text-primary uppercase tracking-widest mb-1">Safety Clearance</p>
+                         <p className="text-sm font-black text-white">{selectedClient.assessmentData?.screening?.suitability || 'Cleared for Protocol'}</p>
+                      </div>
+
+                      <div className="space-y-4">
+                         <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest px-1">Reported Conditions</p>
+                         <div className="flex flex-wrap gap-2">
+                            {(selectedClient.assessmentData?.screening?.conditions || []).length > 0 ? (
+                               selectedClient.assessmentData?.screening?.conditions?.map((c: string, i: number) => (
+                                  <span key={i} className="bg-red-500/20 text-red-300 px-3 py-1 rounded-full text-[9px] font-black border border-red-500/30">{c}</span>
+                               ))
+                            ) : (
+                               <span className="text-[10px] text-gray-500 font-bold italic px-1">No contraindications reported</span>
+                            )}
+                         </div>
+                      </div>
+
+                      <div className="pt-6 border-t border-white/10">
+                         <FeedbackEditor
+                           initialFeedback={selectedClient.assessmentData?.clinicalFeedback || ''}
+                           onSave={async (feedback) => {
+                             try {
+                               await onUpdateClient(selectedClient.id, {
+                                 assessmentData: { ...selectedClient.assessmentData, clinicalFeedback: feedback, reviewDate: new Date().toISOString() },
+                                 status: 'Reviewed'
+                               });
+                               alert('Clinical feedback saved.');
+                             } catch (e) {
+                               console.error(e);
+                             }
+                           }}
+                         />
+                      </div>
+                   </div>
+                </Card>
+
+                <Card className="p-6 md:p-8 bg-bg-soft border-black/5">
+                   <h3 className="text-[10px] font-black uppercase tracking-widest text-text-muted mb-4">Patient Readiness</h3>
+                   <div className="space-y-4">
+                      <div className="flex items-center gap-3">
+                         <div className={`w-2 h-2 rounded-full ${selectedClient.policiesAccepted ? 'bg-green-500' : 'bg-gray-300'}`}></div>
+                         <span className="text-[10px] font-black uppercase tracking-widest text-text-main">Policies Accepted</span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                         <div className={`w-2 h-2 rounded-full ${selectedClient.assessmentData?.answers ? 'bg-green-500' : 'bg-gray-300'}`}></div>
+                         <span className="text-[10px] font-black uppercase tracking-widest text-text-main">Assessment Complete</span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                         <div className={`w-2 h-2 rounded-full ${selectedClient.gallery?.length ? 'bg-green-500' : 'bg-gray-300'}`}></div>
+                         <span className="text-[10px] font-black uppercase tracking-widest text-text-main">Photos Provided</span>
+                      </div>
+                   </div>
                 </Card>
               </div>
             </div>
           )}
-
-          {renderInternalNotes()}
+          <InternalNotesEditor 
+            initialNotes={selectedClient.internalNotes || ''} 
+            onSave={async (notes) => { 
+              await onUpdateClient(selectedClient.id, { internalNotes: notes }); 
+              await logClinicalAction(user?.id || 'admin', 'update_internal_notes', selectedClient.id, 'Updated internal clinical notes');
+            }} 
+          />
         </div>
       </div>
     );
@@ -1236,304 +1267,408 @@ const AdminPage: React.FC<AdminPageProps> = ({ user, onLogout, clients, appointm
     switch (activeTab) {
       case 'overview':
         return (
-          <div className="animate-fade-up space-y-8 lg:space-y-12">
-            {/* Desktop Welcome Header */}
-            <div className="hidden lg:block">
-              <h1 className="text-4xl font-black text-text-main mb-2">Welcome back, {getFirstName(user?.fullName)}</h1>
-              <p className="text-sm font-bold text-text-muted uppercase tracking-widest">Here's what's happening at Novogenics today.</p>
+          <div className="animate-fade-up space-y-6 md:space-y-10">
+            {/* Clinical Header */}
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+              <div>
+                <h1 className="text-3xl md:text-4xl font-black text-text-main">Clinic Overview</h1>
+                <p className="text-[10px] md:text-xs font-bold text-text-muted uppercase tracking-[0.2em] mt-1">Status Report for {new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
+              </div>
+              <div className="flex items-center gap-2">
+                 <div className="flex bg-bg-soft p-1 rounded-xl border border-black/5">
+                    <div className="px-4 py-2 flex flex-col items-center border-r border-black/5">
+                       <span className="text-[8px] font-black text-text-muted uppercase tracking-widest mb-0.5">Queue</span>
+                       <span className="text-xs font-black text-primary">{filteredClients.filter(c => c.status === 'Assessment Submitted').length}</span>
+                    </div>
+                    <div className="px-4 py-2 flex flex-col items-center">
+                       <span className="text-[8px] font-black text-text-muted uppercase tracking-widest mb-0.5">Today</span>
+                       <span className="text-xs font-black text-clinical-dark">{appointments.filter(a => a.date === new Date().toISOString().split('T')[0]).length}</span>
+                    </div>
+                 </div>
+              </div>
             </div>
-            {/* Top Stats Row - Bento Style for Desktop */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+
+            {/* Quick Stats Grid */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
               {mockStats.map((stat, i) => (
                 <button 
                   key={i} 
                   onClick={() => handleSidebarClick(stat.tab)}
-                  className="bg-white p-6 rounded-[2rem] border border-black/5 shadow-sm flex flex-col lg:justify-between gap-4 text-left hover:border-primary/20 hover:shadow-xl hover:-translate-y-1 transition-all active:scale-[0.98] group"
+                  className="card-clinical p-4 md:p-6 flex flex-col gap-3 md:gap-4 text-left group hover:translate-y-[-2px] transition-all"
                 >
-                  <div className="w-12 h-12 bg-bg-soft rounded-2xl flex items-center justify-center text-primary shrink-0 group-hover:bg-primary group-hover:text-white transition-colors">
-                    <span className="material-symbols-outlined text-2xl">{stat.icon}</span>
+                  <div className="w-10 h-10 bg-bg-soft rounded-xl flex items-center justify-center text-primary shrink-0 group-hover:bg-primary group-hover:text-white transition-colors">
+                    <span className="material-symbols-outlined text-xl">{stat.icon}</span>
                   </div>
                   <div className="min-w-0">
-                    <p className="text-3xl font-black text-text-main leading-none mb-1">{stat.value}</p>
-                    <p className="text-[10px] font-black text-text-muted uppercase tracking-widest truncate">{stat.label}</p>
+                    <p className="text-xl md:text-2xl font-black text-text-main leading-none mb-1">{stat.value}</p>
+                    <p className="text-[9px] font-black text-text-muted uppercase tracking-widest truncate">{stat.label}</p>
                   </div>
                 </button>
               ))}
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-              {/* Main Content: Schedule */}
-              <div className="lg:col-span-8 space-y-6">
-                <div className="bg-white rounded-[2.5rem] border border-black/5 shadow-sm overflow-hidden lg:shadow-xl lg:shadow-black/5">
-                  <div className="p-8 border-b border-gray-50 flex justify-between items-center bg-bg-soft/30">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 md:gap-10">
+              {/* Left Column: Schedule & Tasks */}
+              <div className="lg:col-span-8 space-y-6 md:space-y-10">
+                <Card className="overflow-hidden border-none shadow-sm rounded-[2rem]">
+                  <div className="p-6 md:p-8 border-b border-gray-50 flex justify-between items-center bg-bg-soft/30">
                     <div className="flex items-center gap-3">
-                      <span className="material-symbols-outlined text-primary">calendar_today</span>
-                      <h3 className="text-xs font-black text-text-main uppercase tracking-widest">Today's Schedule</h3>
+                      <span className="material-symbols-outlined text-primary text-xl">calendar_today</span>
+                      <h3 className="text-[10px] md:text-xs font-black text-text-main uppercase tracking-widest">Today's Appointments</h3>
                     </div>
                     <button onClick={() => setActiveTab('appointments')} className="text-[10px] font-black text-primary uppercase hover:underline flex items-center gap-2">
-                      Full Calendar
+                      Full Schedule
                       <span className="material-symbols-outlined text-sm">arrow_forward</span>
                     </button>
                   </div>
-                  <div className="p-4 space-y-2">
+                  <div className="p-4 space-y-1">
                     {appointments
-                      .filter(a => {
-                        const today = new Date().toISOString().split('T')[0];
-                        return a.date === today;
-                      })
+                      .filter(a => a.date === new Date().toISOString().split('T')[0])
                       .sort((a, b) => (a.time || '').localeCompare(b.time || ''))
                       .map((apt, i) => (
-                        <div key={i} className="flex items-center justify-between p-4 hover:bg-bg-soft rounded-2xl transition-all group cursor-pointer">
-                          <div className="flex items-center gap-4 md:gap-8 min-w-0">
-                            <div className="text-center shrink-0 w-16">
-                              <p className="text-xs font-black text-primary font-mono leading-none">{apt.time?.split(' ')[0] || apt.time}</p>
-                              <p className="text-[9px] font-bold text-text-muted uppercase tracking-tighter">{apt.time?.split(' ')[1] || ''}</p>
+                        <div key={i} className="flex items-center justify-between p-4 hover:bg-bg-soft rounded-2xl transition-all group cursor-pointer border border-transparent hover:border-black/5">
+                          <div className="flex items-center gap-6 md:gap-8 min-w-0">
+                            <div className="text-center shrink-0 w-14">
+                              <p className="text-[11px] font-black text-primary font-mono leading-none">{apt.time?.split(' ')[0]}</p>
+                              <p className="text-[8px] font-bold text-text-muted uppercase tracking-tighter">{apt.time?.split(' ')[1]}</p>
                             </div>
-                            <div className="h-10 w-[1px] bg-gray-100 shrink-0" />
+                            <div className="h-8 w-[1px] bg-black/5 shrink-0" />
                             <div className="min-w-0">
-                              <div className="flex items-center gap-2">
-                                <p className="text-base font-black text-text-main group-hover:text-primary transition-colors truncate">{apt.clientName}</p>
-                                {clients.find(c => c.name === apt.clientName)?.policiesAccepted && (
-                                  <span className="material-symbols-outlined text-green-500 text-[12px] font-black" title="Policies Accepted">check_circle</span>
-                                )}
-                              </div>
-                              <p className="text-[10px] font-bold text-text-muted uppercase tracking-widest truncate">{apt.type}</p>
+                               <p className="text-sm font-black text-text-main group-hover:text-primary transition-colors truncate">{apt.clientName}</p>
+                               <p className="text-[9px] font-bold text-text-muted uppercase tracking-widest truncate">{apt.type}</p>
                             </div>
                           </div>
-                          <div className="flex items-center gap-4 md:gap-8 shrink-0">
-                            <span className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest ${apt.status === 'Confirmed' ? 'bg-green-100 text-green-700' : apt.status === 'Completed' ? 'bg-blue-100 text-blue-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                          <div className="flex items-center gap-4">
+                            <span className={`px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest ${apt.status === 'Confirmed' ? 'bg-green-100 text-green-700' : 'bg-bg-soft text-text-muted'}`}>
                               {apt.status}
                             </span>
-                            <button className="w-10 h-10 rounded-full flex items-center justify-center text-text-muted hover:bg-white hover:text-primary transition-all opacity-0 group-hover:opacity-100 hidden lg:flex">
-                              <span className="material-symbols-outlined">chevron_right</span>
-                            </button>
                           </div>
                         </div>
                       ))}
                     {appointments.filter(a => a.date === new Date().toISOString().split('T')[0]).length === 0 && (
-                      <div className="p-20 text-center">
-                        <span className="material-symbols-outlined text-5xl text-primary/20 mb-4">event_busy</span>
-                        <p className="text-[10px] font-black uppercase tracking-widest text-text-muted">No appointments scheduled for today</p>
+                      <div className="py-20 text-center">
+                        <span className="material-symbols-outlined text-4xl text-primary/10 mb-3">event_busy</span>
+                        <p className="text-[9px] font-black uppercase tracking-widest text-text-muted">No clinical sessions today</p>
                       </div>
                     )}
                   </div>
+                </Card>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                   <Card className="p-6 md:p-8 bg-clinical-dark text-white rounded-[2rem]">
+                      <div className="flex items-center gap-3 mb-6">
+                         <div className="w-10 h-10 bg-primary/20 rounded-xl flex items-center justify-center">
+                            <span className="material-symbols-outlined text-primary">priority_high</span>
+                         </div>
+                         <h3 className="text-[10px] font-black uppercase tracking-widest text-gray-400">High Priority Triage</h3>
+                      </div>
+                      <div className="space-y-4">
+                         {filteredClients.filter(c => c.status === 'Assessment Submitted').slice(0, 3).map(c => (
+                            <div key={c.id} className="flex items-center justify-between p-3 bg-white/5 rounded-xl border border-white/5">
+                               <div className="min-w-0">
+                                  <p className="text-[11px] font-black truncate">{c.name}</p>
+                                  <p className="text-[9px] text-gray-400 font-bold uppercase tracking-tighter">ID: {c.id}</p>
+                               </div>
+                               <button onClick={() => { setSelectedClientId(c.id); setActiveTab('clients'); setClientRecordTab('assessment'); }} className="text-[9px] font-black text-primary uppercase">Review</button>
+                            </div>
+                         ))}
+                         {filteredClients.filter(c => c.status === 'Assessment Submitted').length === 0 && (
+                            <p className="text-[10px] text-gray-500 font-bold italic">No pending assessments</p>
+                         )}
+                      </div>
+                   </Card>
+                   
+                   <Card className="p-6 md:p-8 bg-bg-soft rounded-[2rem] border-black/5">
+                      <div className="flex items-center gap-3 mb-6">
+                         <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-primary shadow-sm">
+                            <span className="material-symbols-outlined">chat_bubble</span>
+                         </div>
+                         <h3 className="text-[10px] font-black uppercase tracking-widest text-text-muted">Recent Messages</h3>
+                      </div>
+                      <div className="space-y-4">
+                         {messages.filter(m => m.senderId !== 'admin' && !m.read).slice(0, 3).map(m => (
+                            <div key={m.id} className="flex flex-col p-3 bg-white rounded-xl border border-black/5">
+                               <div className="flex justify-between items-center mb-1">
+                                  <p className="text-[10px] font-black text-text-main">{m.subject || 'Message'}</p>
+                                  <span className="text-[8px] text-text-muted font-bold">{new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                               </div>
+                               <p className="text-[10px] text-text-muted line-clamp-1">{m.body}</p>
+                            </div>
+                         ))}
+                         {messages.filter(m => m.senderId !== 'admin' && !m.read).length === 0 && (
+                            <p className="text-[10px] text-text-muted font-bold italic">No unread messages</p>
+                         )}
+                      </div>
+                   </Card>
                 </div>
               </div>
 
-              {/* Sidebar: Action Center */}
-              <div className="lg:col-span-4 space-y-8">
-                <div className="bg-clinical-dark text-white rounded-[2.5rem] p-8 shadow-2xl shadow-clinical-dark/20 relative overflow-hidden">
-                  <div className="absolute top-0 right-0 w-32 h-32 bg-primary/10 rounded-full -mr-16 -mt-16 blur-3xl" />
-                  <h3 className="text-xs font-black uppercase tracking-widest text-gray-400 mb-8 flex items-center gap-2">
-                    <span className="w-1.5 h-1.5 bg-primary rounded-full"></span>
-                    Action Center
-                  </h3>
-                  <div className="space-y-4 relative z-10">
-                    <button onClick={() => setActiveTab('assessments')} className="w-full flex items-center gap-4 p-5 bg-white/5 hover:bg-white/10 rounded-2xl border border-white/10 transition-all text-left group">
-                      <div className="w-12 h-12 bg-primary/20 rounded-xl flex items-center justify-center text-primary group-hover:scale-110 transition-transform shrink-0">
-                        <span className="material-symbols-outlined text-2xl">assignment</span>
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-[12px] font-black uppercase tracking-widest truncate">Review Assessments</p>
-                        <p className="text-[10px] text-gray-400 truncate">2 pending review</p>
-                      </div>
-                    </button>
-                    <div className="p-5 bg-white/5 rounded-2xl border border-white/10 flex items-start gap-4 group cursor-pointer hover:bg-white/10 transition-all">
-                      <div className="w-12 h-12 bg-yellow-500/20 rounded-xl flex items-center justify-center text-yellow-500 group-hover:scale-110 transition-transform shrink-0">
-                        <span className="material-symbols-outlined text-2xl">notifications</span>
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-[12px] font-black uppercase tracking-widest truncate">Follow-up Due</p>
-                        <p className="text-[10px] text-gray-400 truncate">Emma Wilson (3-month scan)</p>
-                      </div>
+              {/* Right Column: Action Center */}
+              <div className="lg:col-span-4 space-y-6">
+                 <div className="card-clinical p-8 flex flex-col gap-8 h-full bg-gradient-to-br from-white to-bg-soft/50">
+                    <div>
+                       <h3 className="text-[11px] font-black uppercase tracking-widest text-text-muted mb-6 flex items-center gap-2">
+                          <span className="w-2 h-2 bg-primary rounded-full"></span>
+                          Action Center
+                       </h3>
+                       <div className="grid grid-cols-1 gap-3">
+                          <button onClick={() => openBookingModal()} className="w-full flex items-center gap-4 p-5 bg-white hover:bg-primary transition-all rounded-2xl border border-black/5 group shadow-sm">
+                             <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center text-primary group-hover:bg-white group-hover:text-primary transition-colors">
+                                <span className="material-symbols-outlined">event</span>
+                             </div>
+                             <span className="text-[11px] font-black uppercase tracking-widest group-hover:text-clinical-dark transition-colors">Book Appointment</span>
+                          </button>
+                          <button onClick={() => setActiveTab('clients')} className="w-full flex items-center gap-4 p-5 bg-white hover:bg-clinical-dark hover:text-white transition-all rounded-2xl border border-black/5 group shadow-sm">
+                             <div className="w-12 h-12 bg-bg-soft rounded-xl flex items-center justify-center text-text-muted group-hover:bg-white/10 group-hover:text-white transition-colors">
+                                <span className="material-symbols-outlined">person_add</span>
+                             </div>
+                             <span className="text-[11px] font-black uppercase tracking-widest">New Patient File</span>
+                          </button>
+                          <button onClick={() => setActiveTab('messages')} className="w-full flex items-center gap-4 p-5 bg-white hover:bg-clinical-dark hover:text-white transition-all rounded-2xl border border-black/5 group shadow-sm">
+                             <div className="w-12 h-12 bg-bg-soft rounded-xl flex items-center justify-center text-text-muted group-hover:bg-white/10 group-hover:text-white transition-colors">
+                                <span className="material-symbols-outlined">send</span>
+                             </div>
+                             <span className="text-[11px] font-black uppercase tracking-widest">Blast Message</span>
+                          </button>
+                       </div>
                     </div>
-                  </div>
-                </div>
 
-                <div className="bg-white p-8 rounded-[2.5rem] border border-black/5 shadow-sm lg:shadow-xl lg:shadow-black/5">
-                  <h3 className="text-xs font-black uppercase tracking-widest text-text-muted mb-8">Quick Links</h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    <button onClick={() => setActiveTab('clients')} className="flex flex-col items-center gap-3 p-6 bg-bg-soft rounded-3xl hover:bg-primary/10 hover:scale-105 transition-all group">
-                      <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-primary shadow-sm group-hover:bg-primary group-hover:text-white transition-colors">
-                        <span className="material-symbols-outlined">person_add</span>
-                      </div>
-                      <span className="text-[9px] font-black uppercase tracking-widest">New Client</span>
-                    </button>
-                    <button onClick={() => openBookingModal()} className="flex flex-col items-center gap-3 p-6 bg-bg-soft rounded-3xl hover:bg-primary/10 hover:scale-105 transition-all group">
-                      <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-primary shadow-sm group-hover:bg-primary group-hover:text-white transition-colors">
-                        <span className="material-symbols-outlined">event</span>
-                      </div>
-                      <span className="text-[9px] font-black uppercase tracking-widest">Book Appt</span>
-                    </button>
-                  </div>
-                </div>
+                    <div className="mt-auto">
+                       <h3 className="text-[10px] font-black uppercase tracking-widest text-text-muted mb-4">Quick Insights</h3>
+                       <div className="p-5 bg-white rounded-2xl border border-black/5 space-y-4">
+                          <div className="flex justify-between items-center">
+                             <span className="text-[10px] font-bold text-text-muted uppercase tracking-widest">Client Growth</span>
+                             <span className="text-[10px] font-black text-green-600">+12%</span>
+                          </div>
+                          <div className="w-full h-1 bg-bg-soft rounded-full overflow-hidden">
+                             <div className="h-full bg-primary w-[75%]" />
+                          </div>
+                          <p className="text-[9px] text-text-muted leading-relaxed">Most new inquiries are originating from <span className="font-bold text-text-main italic">Hair Assessment Form</span>.</p>
+                       </div>
+                    </div>
+                 </div>
               </div>
             </div>
           </div>
         );
-      case 'assessments':
+      case 'assessments': {
+        const pendingTriage = filteredClients.filter(c => c.status === 'Assessment Submitted');
+        const reviewedTriage = filteredClients.filter(c => c.status === 'Reviewed');
+        const effectiveTriageId = triageSelectedId ?? (pendingTriage[0]?.id || null);
+        const triageSelected = filteredClients.find(c => c.id === effectiveTriageId);
+
+        const getRedFlags = (client: Client) => {
+          const flags = client.assessmentData?.answers?.['f9']?.value || client.assessmentData?.answers?.['m9']?.value;
+          if (Array.isArray(flags) && flags.length > 0 && !flags.includes('None') && !flags.includes('None of the above')) return flags;
+          return [];
+        };
+
         return (
-          <div className="animate-fade-up space-y-4 md:space-y-8 lg:space-y-12">
-            <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-6 lg:gap-12">
+          <div className="animate-fade-up flex flex-col gap-6 h-[calc(100vh-10rem)]">
+            {/* Header */}
+            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 shrink-0">
               <div>
-                <h2 className="text-2xl md:text-4xl lg:text-5xl font-black text-text-main tracking-tight">Virtual Hair Assessments</h2>
-                <p className="hidden lg:block text-[11px] font-black text-text-muted uppercase tracking-[0.2em] mt-3 flex items-center gap-2">
-                  <span className="w-2 h-2 bg-primary rounded-full animate-pulse"></span>
-                  Manage and review incoming clinical submissions
+                <div className="flex items-center gap-3">
+                  <h2 className="text-2xl md:text-4xl font-black text-text-main tracking-tight">Triage Queue</h2>
+                  {pendingTriage.length > 0 && (
+                    <span className="px-3 py-1 bg-red-50 text-red-600 rounded-full text-[11px] font-black uppercase tracking-widest animate-pulse">
+                      {pendingTriage.length} Pending
+                    </span>
+                  )}
+                </div>
+                <p className="text-[11px] font-black text-text-muted uppercase tracking-[0.2em] mt-2">
+                  Review new intake forms and submit clinical feedback in one place
                 </p>
               </div>
-              <div className="flex flex-wrap lg:flex-nowrap gap-3 w-full xl:w-auto lg:gap-4 items-center">
-                 {user?.adminType !== 'technical' && (
-                   <div className="flex bg-bg-soft p-1 rounded-full border border-black/5">
-                     <button 
-                       onClick={() => setShowOnlyAssigned(true)}
-                       className={`px-6 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${showOnlyAssigned ? 'bg-white text-primary shadow-sm' : 'text-text-muted hover:text-text-main'}`}
-                     >
-                       My Assignments
-                     </button>
-                     <button 
-                       onClick={() => setShowOnlyAssigned(false)}
-                       className={`px-6 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${!showOnlyAssigned ? 'bg-white text-primary shadow-sm' : 'text-text-muted hover:text-text-main'}`}
-                     >
-                       All Clients
-                     </button>
-                   </div>
-                 )}
-                 <div className="relative flex-grow md:w-96">
-                    <input type="text" placeholder="Search by name, ID or concern..." className="w-full bg-white border border-black/5 rounded-2xl px-12 py-4 text-xs font-bold shadow-sm focus:ring-4 focus:ring-primary/10 focus:border-primary/30 transition-all" />
-                    <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-primary text-xl">search</span>
-                 </div>
-                 <button className="bg-white border border-black/5 w-14 h-14 rounded-2xl text-text-muted hover:text-primary shadow-sm shrink-0 transition-all hover:scale-105 flex items-center justify-center">
-                   <span className="material-symbols-outlined text-2xl">filter_list</span>
-                 </button>
-              </div>
-            </div>
-            
-            <Card className="md:border-none md:bg-transparent md:shadow-none">
-              {/* Mobile Card View */}
-              <div className="grid grid-cols-1 gap-4 lg:hidden">
-                {mockAssessments.map(a => (
-                  <div key={a.id} className="bg-white p-5 rounded-2xl border border-black/5 shadow-sm space-y-4">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <p className="text-sm font-black text-text-main">{a.client}</p>
-                          <AssignedBadge isAssigned={isAssignedToMe(clients.find(c => c.id === a.id))} />
-                          {clients.find(c => c.id === a.id)?.policiesAccepted && (
-                            <span className="material-symbols-outlined text-green-500 text-[10px] font-black" title="Policies Accepted">check_circle</span>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <p className="text-[9px] font-bold text-text-muted uppercase tracking-widest">{a.date}</p>
-                          <span className="text-[9px] text-text-muted/30">•</span>
-                          <p className="text-[9px] font-bold text-primary uppercase tracking-widest">{a.gender}</p>
-                        </div>
-                      </div>
-                      <StatusBadge status={a.status} />
-                    </div>
-                    <div>
-                      <p className="text-[8px] font-black text-primary uppercase tracking-widest mb-1">Main Concern</p>
-                      <p className="text-[11px] font-bold text-text-main">{a.concern}</p>
-                    </div>
-                    <button 
-                      onClick={() => {
-                        setSelectedClientId(a.id);
-                        setActiveTab('clients');
-                        setClientRecordTab('assessment');
-                      }}
-                      className="w-full bg-primary/5 text-primary font-black uppercase text-[9px] tracking-widest py-3 rounded-xl transition-all active:scale-[0.98]"
-                    >
-                      Review Full Assessment
-                    </button>
-                  </div>
-                ))}
-              </div>              {/* Desktop Table View */}
-              <div className="hidden lg:block bg-white rounded-[3rem] border border-black/5 shadow-2xl shadow-black/5 overflow-hidden">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left border-collapse">
-                    <thead>
-                      <tr className="bg-bg-soft/50 border-b border-black/5">
-                        <th className="px-10 py-8 text-[11px] font-black text-text-muted uppercase tracking-[0.2em]">
-                          <div className="flex items-center gap-2 cursor-pointer hover:text-primary transition-colors">
-                            Client Details
-                            <span className="material-symbols-outlined text-sm">unfold_more</span>
-                          </div>
-                        </th>
-                        <th className="px-10 py-8 text-[11px] font-black text-text-muted uppercase tracking-[0.2em]">Assessment Details</th>
-                        <th className="px-10 py-8 text-[11px] font-black text-text-muted uppercase tracking-[0.2em] text-right">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-50">
-                      {mockAssessments.map(a => (
-                        <tr key={a.id} className="hover:bg-bg-soft/40 transition-all cursor-pointer group">
-                          <td className="px-10 py-8">
-                            <div className="flex items-center gap-4">
-                              <div className="relative">
-                                <div className="w-14 h-14 rounded-2xl bg-clinical-dark flex items-center justify-center text-white font-black text-lg shadow-lg shadow-clinical-dark/20 group-hover:scale-110 transition-transform">
-                                  {getInitials(a.client)}
-                                </div>
-                                <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-white rounded-full flex items-center justify-center shadow-sm border border-black/5">
-                                  <span className="material-symbols-outlined text-primary text-[14px] font-black">person</span>
-                                </div>
-                              </div>
-                              <div>
-                                <div className="flex items-center gap-3">
-                                  <span className="font-black text-lg text-text-main group-hover:text-primary transition-colors">{a.client}</span>
-                                  <AssignedBadge isAssigned={isAssignedToMe(clients.find(c => c.id === a.id))} />
-                                  {clients.find(c => c.id === a.id)?.policiesAccepted && (
-                                    <span className="material-symbols-outlined text-green-500 text-base font-black" title="Policies Accepted">check_circle</span>
-                                  )}
-                                </div>
-                                <div className="flex items-center gap-2 mt-2">
-                                  <p className="text-[10px] font-black text-text-muted uppercase tracking-widest">ID: {a.id}</p>
-                                  <span className="w-1 h-1 bg-gray-300 rounded-full"></span>
-                                  <span className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest ${a.gender === 'male' ? 'bg-blue-50 text-blue-600' : 'bg-pink-50 text-pink-600'}`}>
-                                    {a.gender}
-                                  </span>
-                                  <span className="w-1 h-1 bg-gray-300 rounded-full"></span>
-                                  <StatusBadge status={a.status} />
-                                </div>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="px-10 py-8">
-                            <div className="flex flex-col gap-2">
-                              <div>
-                                <span className="text-[9px] font-black text-text-muted uppercase tracking-widest block mb-0.5">Submission Date</span>
-                                <span className="text-sm font-black text-text-main">{a.date}</span>
-                              </div>
-                              <div className="max-w-xs">
-                                <span className="text-[9px] font-black text-text-muted uppercase tracking-widest block mb-0.5">Main Concern</span>
-                                <p className="text-xs font-bold text-text-main leading-relaxed line-clamp-2">{a.concern}</p>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="px-10 py-8 text-right">
-                            <div className="flex items-center justify-end gap-2">
-                              <button className="w-10 h-10 rounded-full flex items-center justify-center text-text-muted hover:bg-bg-soft hover:text-primary transition-all opacity-0 group-hover:opacity-100">
-                                <span className="material-symbols-outlined">chat</span>
-                              </button>
-                              <button 
-                                onClick={() => {
-                                  setSelectedClientId(a.id);
-                                  setActiveTab('clients');
-                                  setClientRecordTab('assessment');
-                                }}
-                                className="text-white font-black uppercase text-[10px] tracking-widest bg-primary hover:bg-primary-dark px-8 py-3.5 rounded-2xl transition-all shadow-lg shadow-primary/20 active:scale-95"
-                              >
-                                Review Full
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+              <div className="flex items-center gap-3">
+                <div className="flex bg-bg-soft p-1 rounded-full border border-black/5 text-[10px] font-black uppercase tracking-widest">
+                  <span className="px-4 py-2 text-red-500">● {pendingTriage.length} Pending</span>
+                  <span className="px-4 py-2 text-green-600">✓ {reviewedTriage.length} Reviewed</span>
                 </div>
               </div>
-            </Card>
+            </div>
+
+            {/* Split Panel */}
+            <div className="flex-grow grid grid-cols-1 xl:grid-cols-12 gap-6 min-h-0 overflow-hidden">
+
+              {/* LEFT: Queue List */}
+              <div className="xl:col-span-4 flex flex-col card-clinical overflow-hidden">
+                <div className="p-5 border-b border-black/5 bg-bg-soft/30 shrink-0">
+                  <p className="text-[10px] font-black text-text-muted uppercase tracking-widest">Awaiting Clinical Review</p>
+                </div>
+                <div className="flex-grow overflow-y-auto no-scrollbar">
+                  {pendingTriage.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center h-full p-12 text-center gap-4">
+                      <span className="material-symbols-outlined text-5xl text-primary/20">inbox</span>
+                      <p className="text-sm font-black text-text-muted">Queue is clear</p>
+                      <p className="text-xs text-text-muted/60">No pending assessments</p>
+                    </div>
+                  ) : (
+                    pendingTriage.map(client => {
+                      const flags = getRedFlags(client);
+                      const isSelected = effectiveTriageId === client.id;
+                      return (
+                        <button
+                          key={client.id}
+                          onClick={() => setTriageSelectedId(client.id)}
+                          className={`w-full text-left p-4 border-b border-black/[0.03] transition-all hover:bg-bg-soft/50 ${isSelected ? 'bg-primary/5 border-l-2 border-l-primary' : ''}`}
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex items-center gap-3">
+                              <div className="w-8 h-8 rounded-lg bg-clinical-dark flex items-center justify-center text-white font-black text-[10px] shrink-0">
+                                {getInitials(client.name)}
+                              </div>
+                              <div>
+                                <p className="text-xs font-black text-text-main">{client.name}</p>
+                                <p className="text-[9px] font-bold text-text-muted capitalize">{client.gender} · {client.createdAt ? new Date(client.createdAt).toLocaleDateString() : 'Recently'}</p>
+                              </div>
+                            </div>
+                            {flags.length > 0 && (
+                              <span className="shrink-0 flex items-center gap-1 bg-red-50 text-red-600 px-2 py-0.5 rounded-full text-[8px] font-black uppercase">
+                                <span className="material-symbols-outlined text-[10px]">warning</span>
+                                {flags.length} Flag{flags.length > 1 ? 's' : ''}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[10px] text-text-muted mt-2 line-clamp-2 font-medium">
+                            {client.assessmentData?.answers?.['f1']?.value || client.assessmentData?.answers?.['m1']?.value || 'General hair loss concern'}
+                          </p>
+                        </button>
+                      );
+                    })
+                  )}
+
+                  {/* Reviewed section */}
+                  {reviewedTriage.length > 0 && (
+                    <>
+                      <div className="px-5 py-3 bg-bg-soft/50 border-y border-black/5">
+                        <p className="text-[9px] font-black text-text-muted uppercase tracking-widest">Recently Reviewed</p>
+                      </div>
+                      {reviewedTriage.slice(0, 5).map(client => (
+                        <button
+                          key={client.id}
+                          onClick={() => setTriageSelectedId(client.id)}
+                          className={`w-full text-left p-5 border-b border-black/5 transition-all hover:bg-bg-soft/50 opacity-60 ${effectiveTriageId === client.id ? 'bg-primary/5 border-l-4 border-l-primary opacity-100' : ''}`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-green-100 flex items-center justify-center text-green-700 font-black text-sm shrink-0">
+                              <span className="material-symbols-outlined text-[18px]">check</span>
+                            </div>
+                            <div>
+                              <p className="text-sm font-black text-text-main">{client.name}</p>
+                              <p className="text-[10px] font-bold text-green-600 uppercase tracking-widest">Reviewed</p>
+                            </div>
+                          </div>
+                        </button>
+                      ))}
+                    </>
+                  )}
+                </div>
+              </div>
+
+              <div className="xl:col-span-8 flex flex-col min-h-0">
+                {!triageSelected ? (
+                  <div className="flex flex-col items-center justify-center h-full card-clinical p-16 text-center gap-4">
+                    <div className="w-16 h-16 bg-bg-soft rounded-xl flex items-center justify-center text-primary/30">
+                      <span className="material-symbols-outlined text-3xl">assignment</span>
+                    </div>
+                    <h3 className="text-base font-black text-text-main">Select an Assessment</h3>
+                    <p className="text-xs text-text-muted font-medium max-w-xs">Choose a client from the queue to review their submission and provide clinical feedback.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-5 h-full overflow-y-auto no-scrollbar pb-10">
+                    {/* Patient Header Card */}
+                    <div className="bg-clinical-dark text-white p-6 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-4">
+                      <div className="flex items-center gap-4">
+                        <div className="w-14 h-14 rounded-xl bg-white/10 flex items-center justify-center font-black text-lg">
+                          {getInitials(triageSelected.name)}
+                        </div>
+                        <div>
+                          <h3 className="text-base font-black">{triageSelected.name}</h3>
+                          <div className="flex items-center gap-3 mt-1 flex-wrap">
+                            <span className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase ${triageSelected.gender === 'male' ? 'bg-blue-500/20 text-blue-300' : 'bg-pink-500/20 text-pink-300'}`}>{triageSelected.gender}</span>
+                            <span className="text-[9px] text-gray-400 font-bold">{triageSelected.email}</span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <StatusBadge status={triageSelected.status || 'Assessment Submitted'} />
+                        <button
+                          onClick={() => { setSelectedClientId(triageSelected.id); setActiveTab('clients'); setClientRecordTab('assessment'); }}
+                          className="flex items-center gap-2 bg-white/10 hover:bg-white/20 px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all"
+                        >
+                          <span className="material-symbols-outlined text-xs">open_in_new</span>
+                          Full Record
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Red Flags Alert */}
+                    {getRedFlags(triageSelected).length > 0 && (
+                      <div className="bg-red-50 border border-red-200 rounded-2xl p-5 flex items-start gap-4">
+                        <span className="material-symbols-outlined text-red-500 mt-0.5">emergency</span>
+                        <div>
+                          <p className="text-[11px] font-black text-red-700 uppercase tracking-widest mb-2">Clinical Red Flags Detected</p>
+                          <div className="flex flex-wrap gap-2">
+                            {getRedFlags(triageSelected).map((flag: string, i: number) => (
+                              <span key={i} className="bg-red-100 text-red-700 px-3 py-1 rounded-full text-[10px] font-black">{flag}</span>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Assessment Answers Summary */}
+                    <div className="bg-white rounded-[2rem] border border-black/5 shadow-sm p-6 md:p-8">
+                      <h4 className="text-[10px] font-black text-text-muted uppercase tracking-widest mb-6">Assessment Summary</h4>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                        {triageSelected.assessmentData?.answers && Object.entries(triageSelected.assessmentData.answers).slice(0, 8).map(([key, val]: [string, any]) => (
+                          <div key={key} className="bg-bg-soft/50 rounded-xl p-4">
+                            <p className="text-[9px] font-black text-primary uppercase tracking-widest mb-1">Q{key.replace(/[fm]/, '')}</p>
+                            <p className="text-[11px] font-bold text-text-main leading-relaxed">
+                              {Array.isArray(val.value) ? val.value.join(', ') : val.value || '—'}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                      <button
+                        onClick={() => { setSelectedClientId(triageSelected.id); setActiveTab('clients'); setClientRecordTab('assessment'); }}
+                        className="mt-6 text-[10px] font-black text-primary uppercase tracking-widest flex items-center gap-1 hover:gap-2 transition-all"
+                      >
+                        View all answers <span className="material-symbols-outlined text-sm">arrow_forward</span>
+                      </button>
+                    </div>
+
+                    {/* Inline Quick Feedback */}
+                    <div className="bg-clinical-dark rounded-[2rem] p-6 md:p-8">
+                      <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">Submit Clinical Feedback</h4>
+                      <FeedbackEditor
+                        initialFeedback={triageSelected.assessmentData?.clinicalFeedback || ''}
+                        onSave={async (feedback) => {
+                          if (!feedback.trim()) return;
+                          try {
+                            await onUpdateClient(triageSelected.id, {
+                              assessmentData: { ...triageSelected.assessmentData, clinicalFeedback: feedback, reviewDate: new Date().toISOString() },
+                              status: 'Reviewed'
+                            });
+                            await logClinicalAction(user?.id || 'admin', 'triage_feedback', triageSelected.id, 'Submitted triage feedback');
+                            notifyFeedbackReceived(triageSelected.id, triageSelected.email, triageSelected.name);
+                            const next = pendingTriage.find(c => c.id !== triageSelected.id);
+                            setTriageSelectedId(next?.id || reviewedTriage[0]?.id || null);
+                          } catch (e) {
+                            console.error('Feedback error:', e);
+                          }
+                        }}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         );
+      }
+
       case 'messages':
         return (
           <div className="animate-fade-up h-[calc(100vh-10rem)] flex flex-col gap-8">
@@ -1545,15 +1680,15 @@ const AdminPage: React.FC<AdminPageProps> = ({ user, onLogout, clients, appointm
                    Real-time communication with your clinical patients
                  </p>
                </div>
-               {user?.adminType !== 'technical' && (
-                 <button 
-                   onClick={() => setShowOnlyAssigned(!showOnlyAssigned)}
-                   className={`flex items-center gap-3 px-8 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg ${showOnlyAssigned ? 'bg-primary text-white shadow-primary/20' : 'bg-white text-text-muted border border-black/5 hover:border-primary/30 shadow-black/5'}`}
-                 >
-                   <span className="material-symbols-outlined text-xl">{showOnlyAssigned ? 'person' : 'group'}</span>
-                   {showOnlyAssigned ? 'My Assignments' : 'All Messages'}
-                 </button>
-               )}
+               {user?.role === 'admin' && (
+                  <button 
+                    onClick={() => setShowOnlyAssigned(!showOnlyAssigned)}
+                    className={`btn-clinical ${showOnlyAssigned ? 'btn-clinical-primary' : 'btn-clinical-secondary'}`}
+                  >
+                    <span className="material-symbols-outlined text-lg mr-2">{showOnlyAssigned ? 'person' : 'group'}</span>
+                    {showOnlyAssigned ? 'My Assignments' : 'All Messages'}
+                  </button>
+                )}
             </div>
             
             <div className="flex-grow grid grid-cols-1 md:grid-cols-12 gap-8 min-h-0">
@@ -1766,44 +1901,13 @@ const AdminPage: React.FC<AdminPageProps> = ({ user, onLogout, clients, appointm
                             </button>
                           </div>
                         )}
-                        <form 
-                          onSubmit={async (e) => {
-                            e.preventDefault();
-                            if (!messageInput.trim()) return;
-                            await onSendMessage({
-                              senderId: 'admin',
-                              recipientId: selectedThreadId,
-                              subject: 'Clinic Update',
-                              body: messageInput,
-                              read: false,
-                              createdAt: new Date().toISOString()
-                            });
-                            setMessageInput('');
-                          }}
-                          className="flex items-center gap-3"
-                        >
-                          <button 
-                            type="button"
-                            onClick={() => setShowQuickActions(!showQuickActions)}
-                            className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all ${showQuickActions ? 'bg-primary text-clinical-dark' : 'bg-bg-soft text-text-muted hover:text-primary'}`}
-                          >
-                            <span className="material-symbols-outlined">add_circle</span>
-                          </button>
-                          <input 
-                            type="text" 
-                            placeholder="Type clinical update..." 
-                            value={messageInput}
-                            onChange={(e) => setMessageInput(e.target.value)}
-                            className="flex-grow bg-bg-soft border-transparent rounded-xl px-6 py-4 text-xs font-bold focus:ring-2 focus:ring-primary/20 transition-all"
-                          />
-                          <button 
-                            type="submit"
-                            disabled={!messageInput.trim()}
-                            className="w-12 h-12 bg-primary text-clinical-dark rounded-xl flex items-center justify-center shadow-lg shadow-primary/20 hover:scale-105 active:scale-95 transition-all disabled:opacity-50 disabled:scale-100"
-                          >
-                            <span className="material-symbols-outlined">send</span>
-                          </button>
-                        </form>
+                        <MessageInputForm 
+                          placeholder="Type clinical update..." 
+                          onSend={(msg) => handleSendMessage(msg, selectedThreadId || '')} 
+                          showQuickActionsBtn={true} 
+                          showQuickActions={showQuickActions} 
+                          onToggleQuickActions={() => setShowQuickActions(!showQuickActions)} 
+                        />
                       </div>
                     </>
                   ) : (
@@ -2505,6 +2609,52 @@ const AdminPage: React.FC<AdminPageProps> = ({ user, onLogout, clients, appointm
 
       {/* Main Admin Area */}
       <main className={`flex-grow min-h-screen transition-all duration-500 ease-in-out ${isSidebarCollapsed ? 'lg:pl-24' : 'lg:pl-[300px]'}`}>
+        {/* Morning Briefing Toast */}
+        {showMorningBriefing && (() => {
+          const todayAppts = filteredAppointments.filter(a => a.date === new Date().toISOString().split('T')[0] && a.status !== 'Cancelled');
+          return (
+            <div className="fixed bottom-6 right-6 z-[100] w-[360px] bg-clinical-dark text-white rounded-[1.5rem] shadow-2xl shadow-clinical-dark/40 overflow-hidden animate-fade-up">
+              <div className="p-5 border-b border-white/10 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-primary/20 flex items-center justify-center">
+                    <span className="material-symbols-outlined text-primary text-lg">wb_sunny</span>
+                  </div>
+                  <div>
+                    <p className="text-[11px] font-black uppercase tracking-widest">Good Morning</p>
+                    <p className="text-[10px] text-gray-400">Today's Clinical Briefing</p>
+                  </div>
+                </div>
+                <button onClick={() => setShowMorningBriefing(false)} className="text-gray-400 hover:text-white transition-colors">
+                  <span className="material-symbols-outlined text-lg">close</span>
+                </button>
+              </div>
+              <div className="p-5 space-y-3">
+                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{todayAppts.length} appointment{todayAppts.length !== 1 ? 's' : ''} today</p>
+                {todayAppts.slice(0, 4).map(apt => (
+                  <div key={apt.id} className="flex items-center gap-3 bg-white/5 rounded-xl p-3">
+                    <div className="w-8 h-8 bg-primary/20 rounded-lg flex items-center justify-center shrink-0">
+                      <span className="material-symbols-outlined text-primary text-sm">event</span>
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-[11px] font-black truncate">{apt.clientName}</p>
+                      <p className="text-[10px] text-gray-400">{apt.type} · {apt.time}</p>
+                    </div>
+                  </div>
+                ))}
+                {todayAppts.length > 4 && (
+                  <p className="text-[10px] text-primary font-black text-center">+{todayAppts.length - 4} more</p>
+                )}
+              </div>
+              <button
+                onClick={() => { setActiveTab('appointments'); setShowMorningBriefing(false); }}
+                className="w-full p-4 bg-primary text-clinical-dark text-[10px] font-black uppercase tracking-widest hover:opacity-90 transition-opacity"
+              >
+                View Full Schedule
+              </button>
+            </div>
+          );
+        })()}
+
         <header className="h-20 bg-white/60 backdrop-blur-xl border-b border-black/5 px-6 lg:px-12 flex items-center justify-between sticky top-0 z-40">
            <div className="flex items-center gap-4 lg:gap-8">
               <button onClick={() => setIsSidebarOpen(true)} className="lg:hidden text-text-muted hover:text-primary">
@@ -2535,69 +2685,93 @@ const AdminPage: React.FC<AdminPageProps> = ({ user, onLogout, clients, appointm
                   <span className="material-symbols-outlined">notifications</span>
                   {unreadCount > 0 && (
                     <span className="absolute top-1.5 right-1.5 w-4 h-4 bg-red-500 rounded-full border-2 border-white text-[8px] font-black text-white flex items-center justify-center">
-                      {unreadCount}
+                      {unreadCount > 9 ? '9+' : unreadCount}
                     </span>
                   )}
                 </button>
 
-                {/* Notifications Dropdown */}
+                {/* Upgraded Notifications Dropdown */}
                 {showNotifications && (
                   <>
                     <div 
                       className="fixed inset-0 z-40" 
                       onClick={() => setShowNotifications(false)}
                     />
-                    <div className="absolute right-0 mt-4 w-[320px] md:w-[400px] bg-white rounded-3xl shadow-2xl border border-black/5 z-50 overflow-hidden animate-fade-up origin-top-right">
-                      <div className="p-6 border-b border-gray-50 flex justify-between items-center">
-                        <h3 className="text-xs font-black uppercase tracking-widest text-text-main">Notifications</h3>
-                        <button 
-                          onClick={clearAll}
-                          className="text-[9px] font-black uppercase tracking-widest text-text-muted hover:text-primary transition-colors"
-                        >
-                          Clear All
-                        </button>
-                      </div>
-                      <div className="max-h-[400px] overflow-y-auto no-scrollbar">
-                        {notifications.length > 0 ? (
-                          notifications.map((n) => (
-                            <div 
-                              key={n.id} 
-                              onClick={() => handleNotificationClick(n)}
-                              className={`p-5 border-b border-gray-50 flex gap-4 hover:bg-bg-soft transition-colors cursor-pointer relative ${!n.read ? 'bg-primary/5' : ''}`}
+                    <div className="absolute right-0 mt-4 w-[340px] md:w-[420px] bg-white rounded-3xl shadow-2xl border border-black/5 z-50 overflow-hidden animate-fade-up origin-top-right">
+                      <div className="p-5 border-b border-gray-50">
+                        <div className="flex justify-between items-center mb-4">
+                          <h3 className="text-xs font-black uppercase tracking-widest text-text-main">Notifications</h3>
+                          <button 
+                            onClick={clearAll}
+                            className="text-[9px] font-black uppercase tracking-widest text-text-muted hover:text-primary transition-colors"
+                          >
+                            Mark All Read
+                          </button>
+                        </div>
+                        {/* Filter Tabs */}
+                        <div className="flex gap-1 bg-bg-soft p-1 rounded-full">
+                          {(['all', 'assessment', 'message', 'appointment'] as const).map(f => (
+                            <button
+                              key={f}
+                              onClick={() => setNotifFilter(f)}
+                              className={`flex-1 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all ${notifFilter === f ? 'bg-white text-primary shadow-sm' : 'text-text-muted'}`}
                             >
-                              {!n.read && <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary" />}
-                              <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
-                                n.type === 'assessment' ? 'bg-blue-100 text-blue-600' :
-                                n.type === 'appointment' ? 'bg-green-100 text-green-600' :
-                                n.type === 'message' ? 'bg-purple-100 text-purple-600' :
-                                'bg-gray-100 text-gray-600'
-                              }`}>
-                                <span className="material-symbols-outlined text-xl">
-                                  {n.type === 'assessment' ? 'assignment' :
-                                   n.type === 'appointment' ? 'event' :
-                                   n.type === 'message' ? 'forum' :
-                                   'settings'}
-                                </span>
+                              {f === 'all' ? 'All' : f === 'assessment' ? 'Assess.' : f === 'message' ? 'Msgs' : 'Appts'}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="max-h-[420px] overflow-y-auto no-scrollbar">
+                        {filteredNotifications.length > 0 ? (
+                          filteredNotifications.map((n) => {
+                            const iconMap: Record<string, string> = {
+                              new_assessment: 'assignment', new_message: 'forum',
+                              form_signed: 'draw', appointment_confirmed: 'event',
+                              feedback_received: 'rate_review', form_sent: 'description',
+                              payment_received: 'payments', welcome: 'waving_hand', daily_briefing: 'wb_sunny'
+                            };
+                            const colorMap: Record<string, string> = {
+                              new_assessment: 'bg-blue-100 text-blue-600',
+                              new_message: 'bg-purple-100 text-purple-600',
+                              form_signed: 'bg-green-100 text-green-600',
+                              appointment_confirmed: 'bg-emerald-100 text-emerald-600',
+                              feedback_received: 'bg-amber-100 text-amber-600',
+                            };
+                            const timeAgo = n.createdAt ? (() => {
+                              const diff = Date.now() - new Date(n.createdAt).getTime();
+                              if (diff < 60000) return 'Just now';
+                              if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
+                              if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
+                              return `${Math.floor(diff / 86400000)}d ago`;
+                            })() : 'Recently';
+                            return (
+                              <div 
+                                key={n.id} 
+                                onClick={() => handleNotificationClick(n)}
+                                className={`p-5 border-b border-gray-50 flex gap-4 hover:bg-bg-soft transition-colors cursor-pointer relative ${!n.read ? 'bg-primary/5' : ''}`}
+                              >
+                                {!n.read && <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary rounded-r" />}
+                                <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${colorMap[n.type] || 'bg-gray-100 text-gray-600'}`}>
+                                  <span className="material-symbols-outlined text-xl">{iconMap[n.type] || 'notifications'}</span>
+                                </div>
+                                <div className="min-w-0 flex-grow">
+                                  <p className="text-[11px] font-black text-text-main mb-0.5">{n.title}</p>
+                                  <p className="text-[10px] text-text-muted leading-relaxed mb-2 line-clamp-2">{n.body}</p>
+                                  <p className="text-[8px] font-bold text-text-muted uppercase tracking-widest">{timeAgo}</p>
+                                </div>
+                                {!n.read && (
+                                  <div className="w-2 h-2 bg-primary rounded-full shrink-0 mt-1" />
+                                )}
                               </div>
-                              <div className="min-w-0">
-                                <p className="text-[11px] font-black text-text-main mb-1">{n.title}</p>
-                                <p className="text-[10px] text-text-muted leading-relaxed mb-2">{n.message}</p>
-                                <p className="text-[8px] font-bold text-text-muted uppercase tracking-widest">{n.time}</p>
-                              </div>
-                            </div>
-                          ))
+                            );
+                          })
                         ) : (
                           <div className="p-12 text-center">
-                            <span className="material-symbols-outlined text-4xl text-primary/20 mb-4">notifications_off</span>
-                            <p className="text-[10px] font-black uppercase tracking-widest text-text-muted">No new notifications</p>
+                            <span className="material-symbols-outlined text-4xl text-primary/20 mb-4 block">notifications_off</span>
+                            <p className="text-[10px] font-black uppercase tracking-widest text-text-muted">No notifications</p>
                           </div>
                         )}
                       </div>
-                      {notifications.length > 0 && (
-                        <div className="p-4 bg-bg-soft text-center">
-                          <button className="text-[9px] font-black uppercase tracking-widest text-primary hover:underline">View All Activity</button>
-                        </div>
-                      )}
                     </div>
                   </>
                 )}

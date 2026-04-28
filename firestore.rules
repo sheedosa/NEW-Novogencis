@@ -8,33 +8,27 @@ service cloud.firestore {
     //
     // Collection: users
     // Document ID: {userId}
-    // Fields:
-    //   - fullName: string (required)
-    //   - email: string (required, email)
-    //   - role: string (required, enum: ['admin', 'client'])
-    //   - createdAt: string (required, date-time)
+    // Fields: fullName, email, role, createdAt, username
     //
     // Collection: clients
-    // Document ID: {clientId}
-    // Fields:
-    //   - name: string (required)
-    //   - gender: string (enum: ['male', 'female'])
-    //   - email: string (required, email)
-    //   - phone: string
-    //   - dob: string
-    //   - status: string (required)
-    //   - assessmentData: map
+    // Document ID: {clientId} (matches userId)
+    // Fields: name, email, status, assessmentData, internalNotes, gender, phone, dob, address
     //
     // Collection: appointments
     // Document ID: {appointmentId}
-    // Fields:
-    //   - clientId: string (required)
-    //   - clientName: string (required)
-    //   - type: string (required)
-    //   - date: string (required)
-    //   - time: string (required)
-    //   - status: string (required, enum: ['Confirmed', 'Pending', 'Completed', 'Cancelled', 'No-Show'])
-    //   - notes: string
+    // Fields: clientId, clientName, type, date, time, status
+    //
+    // Collection: messages
+    // Document ID: {messageId}
+    // Fields: senderId, recipientId, subject, body, read, createdAt
+    //
+    // Collection: notifications
+    // Document ID: {notifId}
+    // Fields: recipientId, recipientRole, type, title, body, read, createdAt, metadata
+    //
+    // Collection: system_logs
+    // Document ID: {logId}
+    // Fields: adminId, actionType, targetId, details, timestamp
     //
     // ===============================================================
 
@@ -53,13 +47,8 @@ service cloud.firestore {
     function isAdmin() {
       return isAuthenticated() &&
         (
-          (request.auth.token.email == "rasheedamer99@gmail.com" || 
-           request.auth.token.email == "aminah_amer@hotmail.com" || 
-           request.auth.token.email == "wfarid812@gmail.com" ||
-           request.auth.token.email == "aminah_doctor@novogenics.internal" || 
-           request.auth.token.email == "waqass_doctor@novogenics.internal") ||
-          (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
-           get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin')
+          request.auth.token.admin == true ||
+          (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin')
         );
     }
 
@@ -68,84 +57,92 @@ service cloud.firestore {
         email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
     }
 
-    function isValidDateString(dateStr) {
-      return dateStr is string &&
-        dateStr.matches("^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}.*Z?$");
-    }
-
     // ===============================================================
     // Domain Validators
     // ===============================================================
 
     function isValidUser(data) {
       return data.keys().hasAll(['fullName', 'email', 'username', 'role', 'createdAt']) &&
-             data.fullName is string && data.fullName.size() > 0 && data.fullName.size() < 100 &&
+             data.fullName is string && data.fullName.size() > 0 &&
              isValidEmail(data.email) &&
-             data.username is string && data.username.size() > 0 && data.username.size() < 50 &&
              data.role in ['admin', 'client'] &&
-             (!('adminType' in data) || data.adminType in ['doctor-female', 'doctor-male', 'technical']) &&
              data.createdAt is string;
     }
 
     function isValidClient(data) {
       return data.keys().hasAll(['name', 'email', 'status']) &&
-             data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             data.name is string && data.name.size() > 0 &&
              isValidEmail(data.email) &&
-             data.status is string &&
-             (!('gender' in data) || data.gender in ['male', 'female']);
+             data.status is string;
     }
 
-    function isValidAppointment(data) {
-      return data.keys().hasAll(['clientId', 'clientName', 'type', 'date', 'time', 'status']) &&
-             data.clientId is string &&
-             data.clientName is string &&
-             data.type is string &&
-             data.date is string &&
-             data.time is string &&
-             data.status in ['Confirmed', 'Pending', 'Completed', 'Cancelled', 'No-Show'];
-    }
-
-    function isValidMessage(data) {
-      return data.keys().hasAll(['senderId', 'recipientId', 'subject', 'body', 'read', 'createdAt']) &&
-             data.senderId is string &&
-             data.recipientId is string &&
-             data.subject is string && data.subject.size() > 0 && data.subject.size() < 200 &&
-             data.body is string && data.body.size() > 0 && data.body.size() < 5000 &&
-             data.read is bool &&
-             data.createdAt is string;
+    function isValidNotification(data) {
+      return data.keys().hasAll(['type', 'title', 'body', 'read', 'createdAt']) &&
+             (data.keys().hasAny(['recipientId', 'recipientRole'])) &&
+             data.read is bool;
     }
 
     // ===============================================================
     // Rules
     // ===============================================================
 
+    // Deny all by default
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+
+    // Users Collection
     match /users/{userId} {
       allow read: if isOwner(userId) || isAdmin();
       allow create: if isAuthenticated() && isValidUser(request.resource.data) && 
-                    (request.auth.uid == userId && request.resource.data.role == 'client' || isAdmin());
+                    ((request.auth.uid == userId && request.resource.data.role == 'client') || isAdmin());
+      // Prevent role escalation for non-admins
       allow update: if isAuthenticated() && isValidUser(request.resource.data) && 
-                    (isOwner(userId) && request.resource.data.role == resource.data.role || isAdmin());
+                    ((isOwner(userId) && request.resource.data.role == resource.data.role) || isAdmin());
     }
 
+    // Clients Collection
     match /clients/{clientId} {
       allow read: if isAdmin() || isOwner(clientId);
-      allow create: if isAuthenticated() && isValidClient(request.resource.data) && (isOwner(clientId) || isAdmin());
-      allow update: if isAdmin() || (isOwner(clientId) && isValidClient(request.resource.data));
+      allow create: if (isAdmin() || (isOwner(clientId) && isValidClient(request.resource.data)));
+      // Prevent status tampering for non-admins
+      allow update: if isAdmin() || 
+                    (isOwner(clientId) && isValidClient(request.resource.data) && request.resource.data.status == resource.data.status);
       allow delete: if isAdmin();
     }
 
+    // Appointments Collection
     match /appointments/{appointmentId} {
-      allow read: if isAdmin() || (isAuthenticated() && (request.auth.uid == resource.data.clientId || request.auth.token.email == get(/databases/$(database)/documents/clients/$(resource.data.clientId)).data.email));
-      allow create: if isAuthenticated() && isValidAppointment(request.resource.data) && (isAdmin() || request.auth.uid == request.resource.data.clientId);
-      allow update: if isAdmin() || (isAuthenticated() && request.auth.uid == resource.data.clientId && isValidAppointment(request.resource.data));
+      allow read: if isAdmin() || (isAuthenticated() && request.auth.uid == resource.data.clientId);
+      allow create: if isAdmin() || (isAuthenticated() && request.auth.uid == request.resource.data.clientId);
+      allow update: if isAdmin(); // Clients shouldn't unilaterally update appointments (they should request change via message)
       allow delete: if isAdmin();
     }
 
+    // Messages Collection
     match /messages/{messageId} {
       allow read: if isAdmin() || (isAuthenticated() && (request.auth.uid == resource.data.senderId || request.auth.uid == resource.data.recipientId));
-      allow create: if isAuthenticated() && isValidMessage(request.resource.data) && (request.resource.data.senderId == request.auth.uid || isAdmin());
-      allow update: if isAdmin() || (isAuthenticated() && request.auth.uid == resource.data.recipientId && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read', 'isSigned', 'signature', 'signedAt', 'formData']));
+      allow create: if isAuthenticated() && (request.resource.data.senderId == request.auth.uid || isAdmin());
+      // Only allow updating the 'read' status or adding form data if recipient
+      allow update: if isAdmin() || 
+                    (isAuthenticated() && request.auth.uid == resource.data.recipientId && 
+                     request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read', 'isSigned', 'signature', 'signedAt', 'formData']));
       allow delete: if isAdmin();
+    }
+
+    // Notifications Collection
+    match /notifications/{notifId} {
+      allow read: if isAdmin() || (isAuthenticated() && request.auth.uid == resource.data.recipientId);
+      allow create: if isAdmin(); // Only system/admin should create notifications
+      allow update: if isAdmin() || (isAuthenticated() && request.auth.uid == resource.data.recipientId && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']));
+      allow delete: if isAdmin();
+    }
+
+    // System Logs Collection (Audit Trail)
+    match /system_logs/{logId} {
+      allow read: if isAdmin();
+      allow create: if isAdmin(); // System uses admin credentials to log
+      allow update, delete: if false; // Logs are immutable
     }
   }
 }

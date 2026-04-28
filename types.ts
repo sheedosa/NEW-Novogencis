@@ -158,3 +158,28 @@ export interface Treatment {
   benefits: string[];
   idealFor: string[];
 }
+
+export type NotificationType =
+  | 'new_assessment'
+  | 'new_message'
+  | 'form_signed'
+  | 'form_sent'
+  | 'feedback_received'
+  | 'appointment_confirmed'
+  | 'appointment_reminder'
+  | 'payment_received'
+  | 'welcome'
+  | 'daily_briefing'
+  | 'profile_updated';
+
+export interface AppNotification {
+  id: string;
+  recipientId: string;          // userId or 'all-admins'
+  recipientRole: 'admin' | 'client';
+  type: NotificationType;
+  title: string;
+  body: string;
+  read: boolean;
+  createdAt: string;
+  metadata?: Record<string, string>;
+}

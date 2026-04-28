@@ -230,6 +230,77 @@
                 border-radius: 0;
             }
         }
+
+        /* Clinical Dashboard Refinements */
+        .btn-clinical {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0.625rem 1.25rem;
+            font-size: 0.625rem;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            border-radius: 0.75rem; /* rounded-xl */
+            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+            cursor: pointer;
+            border: 1px solid transparent;
+        }
+
+        .btn-clinical:active {
+            transform: scale(0.98);
+        }
+
+        .btn-clinical-primary {
+            background-color: #D0BB95;
+            color: #1D1A15;
+            box-shadow: 0 4px 12px -2px rgba(208, 187, 149, 0.2);
+        }
+
+        .btn-clinical-primary:hover {
+            background-color: #C9A86A;
+            box-shadow: 0 6px 16px -2px rgba(208, 187, 149, 0.3);
+            transform: translateY(-1px);
+        }
+
+        .btn-clinical-secondary {
+            background-color: #ffffff;
+            color: #5A4A47;
+            border-color: rgba(29, 26, 21, 0.05);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+        }
+
+        .btn-clinical-secondary:hover {
+            border-color: rgba(208, 187, 149, 0.3);
+            color: #D0BB95;
+            background-color: #FBF9F7;
+        }
+
+        .card-clinical {
+            background-color: #ffffff;
+            border-radius: 1rem; /* rounded-2xl */
+            border: 1px solid rgba(29, 26, 21, 0.04);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.01), 0 10px 20px -12px rgba(0,0,0,0.03);
+            transition: all 0.3s ease;
+        }
+
+        .card-clinical:hover {
+            border-color: rgba(208, 187, 149, 0.15);
+            box-shadow: 0 20px 40px -15px rgba(208, 187, 149, 0.08);
+        }
+
+        .sidebar-item-clinical {
+            transition: all 0.2s ease;
+            border-radius: 0.75rem;
+        }
+
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
     </style>
 </head>
 <body class="bg-bg-soft text-text-main antialiased overflow-x-hidden selection:bg-primary/30">

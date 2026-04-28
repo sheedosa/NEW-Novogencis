@@ -1,8 +1,18 @@
 import React, { useState, useEffect, Suspense, lazy, Component, ErrorInfo, ReactNode } from 'react';
 import { onAuthStateChanged, createUserWithEmailAndPassword, signOut } from 'firebase/auth';
 import { collection, onSnapshot, doc, getDoc, setDoc, query, orderBy, limit, deleteDoc, updateDoc, where, or } from 'firebase/firestore';
-import { Page, User, Client, Appointment, Message, UserRole, AdminType, GalleryItem } from './types';
+import { Page, User, Client, Appointment, Message, UserRole, AdminType, GalleryItem, AppNotification } from './types';
 import { auth, db, handleFirestoreError, OperationType, cleanData } from './firebase';
+import {
+  notifyNewAssessment,
+  notifyClientNewMessage,
+  notifyAdminNewMessage,
+  notifyAppointmentConfirmed,
+  notifyWelcome,
+  notifyFormSent,
+  notifyPaymentSent,
+  markNotificationRead,
+} from './utils/notificationService';
 import Header from './components/Header';
 import Footer from './components/Footer';
 import WhatsAppWidget from './components/WhatsAppWidget';
@@ -79,6 +89,7 @@ const App: React.FC = () => {
   const [clients, setClients] = useState<Client[]>([]);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
 
   // Firebase Auth Listener
   useEffect(() => {
@@ -217,11 +228,61 @@ const App: React.FC = () => {
     return () => unsubscribe();
   }, [isAuthReady, currentUser]);
 
+  // Firestore Sync: Notifications
+  useEffect(() => {
+    if (!isAuthReady || !currentUser) return;
+
+    let q;
+    if (currentUser.role === 'admin') {
+      // Admins see notifications addressed to them or 'all-admins'
+      q = query(
+        collection(db, 'notifications'),
+        where('recipientRole', '==', 'admin'),
+        orderBy('createdAt', 'desc'),
+        limit(50)
+      );
+    } else {
+      // Clients only see their own notifications
+      q = query(
+        collection(db, 'notifications'),
+        where('recipientId', '==', currentUser.id),
+        orderBy('createdAt', 'desc'),
+        limit(30)
+      );
+    }
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const notifData = snapshot.docs.map(d => ({
+        id: d.id,
+        ...d.data(),
+        createdAt: d.data().createdAt?.toDate?.()?.toISOString?.() || new Date().toISOString()
+      } as AppNotification));
+      setNotifications(notifData);
+    }, (error) => {
+      console.error('[Notifications] Subscription error:', error);
+    });
+
+    return () => unsubscribe();
+  }, [isAuthReady, currentUser]);
+
   const handleAddAppointment = async (appointment: Appointment) => {
     const docId = appointment.id || doc(collection(db, 'appointments')).id;
     const path = `appointments/${docId}`;
     try {
       await setDoc(doc(db, 'appointments', docId), cleanData({ ...appointment, id: docId }));
+
+      // Notify client of confirmed appointment
+      const client = clients.find(c => c.id === appointment.clientId);
+      if (client) {
+        notifyAppointmentConfirmed(
+          client.id,
+          client.email,
+          client.name,
+          appointment.type,
+          appointment.date,
+          appointment.time
+        );
+      }
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, path);
     }
@@ -250,6 +311,30 @@ const App: React.FC = () => {
     const path = `messages/${id}`;
     try {
       await setDoc(doc(db, 'messages', id), cleanData({ ...message, id }));
+
+      // Fire notifications after message is saved
+      const isFromAdmin = message.senderId === 'admin' || clients.some(c => c.id !== message.senderId);
+      const recipientClient = clients.find(c => c.id === message.recipientId);
+      const senderClient = clients.find(c => c.id === message.senderId);
+
+      if (isFromAdmin && recipientClient) {
+        // Admin → Client notification
+        if (message.type === 'form') {
+          notifyFormSent(recipientClient.id, recipientClient.email, recipientClient.name, message.subject);
+        } else if (message.type === 'payment') {
+          notifyPaymentSent(recipientClient.id, recipientClient.email, recipientClient.name, message.subject);
+        } else {
+          notifyClientNewMessage(
+            recipientClient.id,
+            recipientClient.email,
+            recipientClient.name,
+            message.body
+          );
+        }
+      } else if (senderClient) {
+        // Client → Admin notification
+        notifyAdminNewMessage(senderClient.name, senderClient.id, message.body);
+      }
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, path);
     }
@@ -647,6 +732,10 @@ const App: React.FC = () => {
         } catch (error) {
           handleFirestoreError(error, OperationType.CREATE, `clients/${uid}`);
         }
+
+        // Fire welcome notifications for new client
+        notifyWelcome(uid, authEmail, normalizedFullName);
+        notifyNewAssessment(normalizedFullName, uid, authEmail);
       }
       
       // Manually set current user to avoid race condition with Auth listener
@@ -744,6 +833,8 @@ const App: React.FC = () => {
             clients={clients}
             appointments={appointments}
             messages={messages}
+            notifications={notifications}
+            onMarkNotificationRead={markNotificationRead}
             onAddAppointment={handleAddAppointment}
             onUpdateAppointment={handleUpdateAppointment}
             onDeleteAppointment={handleDeleteAppointment}
@@ -773,6 +864,8 @@ const App: React.FC = () => {
             appointments={appointments}
             clients={clients}
             messages={messages}
+            notifications={notifications}
+            onMarkNotificationRead={markNotificationRead}
             onSendMessage={handleSendMessage}
             onMarkMessageRead={handleMarkMessageRead}
             onUpdateMessage={handleUpdateMessage}
