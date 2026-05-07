@@ -246,7 +246,7 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
     .filter(a => a.status === 'Confirmed' || a.status === 'Pending')
     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())[0];
 
-  // Mock data for Client
+  // Progress = % of completed sessions out of all booked sessions
   const calculateProgress = () => {
     if (!userAppointments || userAppointments.length === 0) return 0;
     const completed = userAppointments.filter(a => a.status === 'Completed').length;
@@ -343,10 +343,27 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
                    <div className="w-8 h-8 bg-white/10 rounded-lg flex items-center justify-center text-primary">
                       <span className="material-symbols-outlined text-[18px]">medical_services</span>
                    </div>
-                   <span className="text-gray-400 font-black uppercase tracking-widest text-[9px]">Lead Clinician</span>
+                   <span className="text-gray-400 font-black uppercase tracking-widest text-[9px]">Your Clinician</span>
                 </div>
-                <p className="text-lg md:text-xl font-black relative z-10">Dr. Aminah Amer</p>
-                <p className="text-[9px] font-black text-primary uppercase tracking-widest relative z-10">Chief of Medicine</p>
+                {(() => {
+                  const assigned = userAppointments
+                    .filter(a => a.doctorName)
+                    .sort((a, b) => new Date(b.createdAt || b.date).getTime() - new Date(a.createdAt || a.date).getTime())[0];
+                  if (assigned?.doctorName) {
+                    return (
+                      <>
+                        <p className="text-lg md:text-xl font-black relative z-10">{assigned.doctorName}</p>
+                        <p className="text-[9px] font-black text-primary uppercase tracking-widest relative z-10">Assigned via {assigned.type}</p>
+                      </>
+                    );
+                  }
+                  return (
+                    <>
+                      <p className="text-lg md:text-xl font-black relative z-10">Pending Assignment</p>
+                      <p className="text-[9px] font-black text-primary uppercase tracking-widest relative z-10">A clinician will be assigned at booking</p>
+                    </>
+                  );
+                })()}
               </div>
             </div>
 
@@ -356,9 +373,15 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
                   <span className="material-symbols-outlined text-primary">bolt</span> Quick Actions
                 </h3>
                 <div className="grid grid-cols-2 gap-4">
-                  <button onClick={() => setActiveTab('appointments')} className="p-6 bg-bg-soft rounded-3xl text-center group hover:bg-primary transition-all">
+                  <button
+                    onClick={() => {
+                      setActiveTab('messages');
+                      setMessageInput('Hello, I would like to request a new appointment. My preferred date/time is...');
+                    }}
+                    className="p-6 bg-bg-soft rounded-3xl text-center group hover:bg-primary transition-all"
+                  >
                     <span className="material-symbols-outlined text-3xl text-primary group-hover:text-white mb-2">event</span>
-                    <p className="text-[10px] font-black uppercase tracking-widest group-hover:text-white">Book Appt</p>
+                    <p className="text-[10px] font-black uppercase tracking-widest group-hover:text-white">Request Visit</p>
                   </button>
                   <button onClick={() => setActiveTab('treatments')} className="p-6 bg-bg-soft rounded-3xl text-center group hover:bg-primary transition-all">
                     <span className="material-symbols-outlined text-3xl text-primary group-hover:text-white mb-2">analytics</span>
@@ -482,7 +505,12 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
                         )}
                      </div>
                      {currentClient?.gallery && currentClient.gallery.length > 4 && (
-                        <button className="w-full text-center py-3 text-[9px] font-black text-primary uppercase tracking-widest hover:underline mt-2">View All Progress</button>
+                        <button
+                          onClick={() => setActiveTab('treatments')}
+                          className="w-full text-center py-3 text-[9px] font-black text-primary uppercase tracking-widest hover:underline mt-2"
+                        >
+                          View All Progress ({currentClient.gallery.length} photos)
+                        </button>
                      )}
                   </Card>
                </div>

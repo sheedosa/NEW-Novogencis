@@ -176,28 +176,43 @@ export default function OverviewPanel() {
                        <div className="w-12 h-12 bg-bg-soft rounded-xl flex items-center justify-center text-text-muted group-hover:bg-white/10 group-hover:text-white transition-colors">
                           <span className="material-symbols-outlined">person_add</span>
                        </div>
-                       <span className="text-[11px] font-black uppercase tracking-widest">New Patient File</span>
+                       <span className="text-[11px] font-black uppercase tracking-widest">Client Registry</span>
                     </button>
                     <button onClick={() => setActiveTab('messages')} className="w-full flex items-center gap-4 p-5 bg-white hover:bg-clinical-dark hover:text-white transition-all rounded-2xl border border-black/5 group shadow-sm">
                        <div className="w-12 h-12 bg-bg-soft rounded-xl flex items-center justify-center text-text-muted group-hover:bg-white/10 group-hover:text-white transition-colors">
                           <span className="material-symbols-outlined">send</span>
                        </div>
-                       <span className="text-[11px] font-black uppercase tracking-widest">Blast Message</span>
+                       <span className="text-[11px] font-black uppercase tracking-widest">Messages</span>
                     </button>
                  </div>
               </div>
 
               <div className="mt-auto">
-                 <h3 className="text-[10px] font-black uppercase tracking-widest text-text-muted mb-4">Quick Insights</h3>
-                 <div className="p-5 bg-white rounded-2xl border border-black/5 space-y-4">
-                    <div className="flex justify-between items-center">
-                       <span className="text-[10px] font-bold text-text-muted uppercase tracking-widest">Client Growth</span>
-                       <span className="text-[10px] font-black text-green-600">+12%</span>
-                    </div>
-                    <div className="w-full h-1 bg-bg-soft rounded-full overflow-hidden">
-                       <div className="h-full bg-primary w-[75%]" />
-                    </div>
-                    <p className="text-[9px] text-text-muted leading-relaxed">Most new inquiries are originating from <span className="font-bold text-text-main italic">Hair Assessment Form</span>.</p>
+                 <h3 className="text-[10px] font-black uppercase tracking-widest text-text-muted mb-4">This Week</h3>
+                 <div className="p-5 bg-white rounded-2xl border border-black/5 space-y-3">
+                    {(() => {
+                       const now = Date.now();
+                       const ms7d = 7 * 24 * 60 * 60 * 1000;
+                       const newClients7d = filteredClients.filter(c => c.createdAt && now - new Date(c.createdAt).getTime() < ms7d).length;
+                       const apt7d = filteredAppointments.filter(a => a.createdAt && now - new Date(a.createdAt).getTime() < ms7d).length;
+                       const msg7d = messages.filter(m => m.createdAt && now - new Date(m.createdAt).getTime() < ms7d).length;
+                       return (
+                          <>
+                             <div className="flex justify-between items-center">
+                                <span className="text-[10px] font-bold text-text-muted uppercase tracking-widest">New Clients</span>
+                                <span className="text-[10px] font-black text-text-main">{newClients7d}</span>
+                             </div>
+                             <div className="flex justify-between items-center">
+                                <span className="text-[10px] font-bold text-text-muted uppercase tracking-widest">Bookings</span>
+                                <span className="text-[10px] font-black text-text-main">{apt7d}</span>
+                             </div>
+                             <div className="flex justify-between items-center">
+                                <span className="text-[10px] font-bold text-text-muted uppercase tracking-widest">Messages</span>
+                                <span className="text-[10px] font-black text-text-main">{msg7d}</span>
+                             </div>
+                          </>
+                       );
+                    })()}
                  </div>
               </div>
            </div>

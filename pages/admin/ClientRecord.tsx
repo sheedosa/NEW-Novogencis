@@ -226,8 +226,8 @@ const ClientRecord: React.FC = () => {
                       </select>
                    </div>
                    <div className="flex justify-between items-center px-1">
-                      <span className="text-[9px] font-bold text-gray-400">Total Spend</span>
-                      <span className="text-[10px] font-black text-primary">£2,450.00</span>
+                      <span className="text-[9px] font-bold text-gray-400">Sessions Logged</span>
+                      <span className="text-[10px] font-black text-primary">{appointments.filter(a => a.clientId === selectedClient.id && a.status === 'Completed').length}</span>
                    </div>
                 </div>
               </Card>

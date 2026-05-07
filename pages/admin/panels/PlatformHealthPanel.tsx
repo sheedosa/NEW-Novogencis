@@ -101,26 +101,34 @@ const PlatformHealthPanel: React.FC = () => {
       </div>
 
       <Card className="p-8">
-        <h3 className="text-xs font-black uppercase tracking-widest text-text-muted mb-6">System Logs Summary</h3>
+        <h3 className="text-xs font-black uppercase tracking-widest text-text-muted mb-6">Build &amp; Environment</h3>
         <div className="space-y-4">
-          {[
-            { time: '10:15 AM', event: 'Database Sync',    status: 'Success', details: 'Messages collection updated' },
-            { time: '09:42 AM', event: 'Auth Verification', status: 'Success', details: 'Admin login verified' },
-            { time: '08:00 AM', event: 'Daily Backup',      status: 'Success', details: 'Automated snapshot completed' },
-          ].map((log, i) => (
-            <div key={i} className="flex items-center justify-between py-3 border-b border-black/5 last:border-0">
-              <div className="flex items-center gap-4">
-                <span className="text-[10px] font-bold text-text-muted w-16">{log.time}</span>
-                <div>
-                  <p className="text-[11px] font-black text-text-main">{log.event}</p>
-                  <p className="text-[9px] text-text-muted">{log.details}</p>
-                </div>
-              </div>
-              <span className="text-[8px] font-black uppercase tracking-widest text-green-600 bg-green-100 px-2 py-1 rounded-full">
-                {log.status}
-              </span>
+          <div className="flex items-center justify-between py-3 border-b border-black/5">
+            <div>
+              <p className="text-[11px] font-black text-text-main">Frontend Build</p>
+              <p className="text-[9px] text-text-muted">React 19 + Vite + TypeScript (strict)</p>
             </div>
-          ))}
+            <span className="text-[8px] font-black uppercase tracking-widest text-green-600 bg-green-100 px-2 py-1 rounded-full">Live</span>
+          </div>
+          <div className="flex items-center justify-between py-3 border-b border-black/5">
+            <div>
+              <p className="text-[11px] font-black text-text-main">Firebase Project</p>
+              <p className="text-[9px] text-text-muted font-mono">
+                {(import.meta as { env?: Record<string, string> }).env?.VITE_FIREBASE_PROJECT_ID || 'novogenics-clinical'}
+              </p>
+            </div>
+            <span className="text-[8px] font-black uppercase tracking-widest text-green-600 bg-green-100 px-2 py-1 rounded-full">Connected</span>
+          </div>
+          <div className="flex items-center justify-between py-3">
+            <div>
+              <p className="text-[11px] font-black text-text-main">Session</p>
+              <p className="text-[9px] text-text-muted">Active since {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+            </div>
+            <span className="text-[8px] font-black uppercase tracking-widest text-green-600 bg-green-100 px-2 py-1 rounded-full">{user?.adminType || 'admin'}</span>
+          </div>
+          <p className="text-[9px] text-text-muted leading-relaxed pt-2 border-t border-black/5">
+            Clinical audit logs are written to the <span className="font-mono">audit_logs</span> Firestore collection on each action. Browse historical logs via the Firebase Console.
+          </p>
         </div>
       </Card>
     </div>

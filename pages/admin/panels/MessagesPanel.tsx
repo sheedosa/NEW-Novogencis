@@ -144,16 +144,29 @@ const MessagesPanel: React.FC = () => {
                        <h3 className="text-lg font-black text-text-main">
                          {clients.find(c => c.id === selectedThreadId)?.name}
                        </h3>
-                       <div className="flex items-center gap-2 mt-1">
-                         <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
-                         <p className="text-[10px] font-black uppercase tracking-widest text-text-muted">Patient Online</p>
-                       </div>
+                       {(() => {
+                         const client = clients.find(c => c.id === selectedThreadId);
+                         return (
+                           <p className="text-[10px] font-bold uppercase tracking-widest text-text-muted mt-1">
+                             {client?.email || client?.phone || 'No contact details'}
+                           </p>
+                         );
+                       })()}
                      </div>
                   </div>
                   <div className="flex items-center gap-3">
-                    <button className="w-12 h-12 rounded-2xl bg-bg-soft text-text-muted hover:text-primary transition-all flex items-center justify-center">
-                      <span className="material-symbols-outlined">call</span>
-                    </button>
+                    {(() => {
+                      const client = clients.find(c => c.id === selectedThreadId);
+                      return client?.phone ? (
+                        <a
+                          href={`tel:${client.phone}`}
+                          title={`Call ${client.phone}`}
+                          className="w-12 h-12 rounded-2xl bg-bg-soft text-text-muted hover:text-primary transition-all flex items-center justify-center"
+                        >
+                          <span className="material-symbols-outlined">call</span>
+                        </a>
+                      ) : null;
+                    })()}
                     <button
                       onClick={() => {
                         setSelectedClientId(selectedThreadId);
