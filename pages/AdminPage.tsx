@@ -106,11 +106,15 @@ const AdminPage: React.FC<AdminPageProps> = ({
     return { ...user, adminType: effectiveAdminType } as User;
   }, [user, effectiveAdminType]);
 
+  // A client is "assigned" to an admin if they have at least one appointment
+  // with that admin as the doctor. Technical admins are never assigned (they
+  // don't see patients). Switching effectiveAdminType is a UI filter only —
+  // assignment is always based on the actual user.id.
   const isAssignedToUser = useCallback((client: Client, targetUser: User | null) => {
     if (!targetUser) return false;
-    if (targetUser.role === 'admin') return true;
-    return false;
-  }, []);
+    if (targetUser.adminType === 'technical') return false;
+    return appointments.some(a => a.clientId === client.id && a.doctorId === targetUser.id);
+  }, [appointments]);
 
   const isAssignedToMe = useCallback((client: Client | undefined) => {
     if (!client) return false;
@@ -170,25 +174,20 @@ const AdminPage: React.FC<AdminPageProps> = ({
 
   // ── Computed / derived ────────────────────────────────────────────────────
   const filteredClients = useMemo(() => {
-    const effectiveUser = getEffectiveUser();
-    if (!effectiveUser) return [];
-    if (user?.adminType === 'technical' && effectiveAdminType !== 'all')
-      return clients.filter(c => isAssignedToUser(c, effectiveUser));
-    if (showOnlyAssigned)
-      return clients.filter(c => isAssignedToUser(c, effectiveUser));
+    if (!user) return [];
+    if (showOnlyAssigned && user.adminType !== 'technical') {
+      return clients.filter(c => isAssignedToUser(c, user));
+    }
     return clients;
-  }, [clients, user, effectiveAdminType, showOnlyAssigned, getEffectiveUser, isAssignedToUser]);
+  }, [clients, user, showOnlyAssigned, isAssignedToUser]);
 
   const filteredAppointments = useMemo(() => {
-    const effectiveUser = getEffectiveUser();
-    if (!effectiveUser) return [];
-    if (user?.adminType === 'technical' && effectiveAdminType === 'all') return appointments;
-    const targetClients = user?.adminType === 'technical' && effectiveAdminType !== 'all'
-      ? clients.filter(c => isAssignedToUser(c, effectiveUser))
-      : (showOnlyAssigned ? clients.filter(c => isAssignedToUser(c, effectiveUser)) : clients);
-    const ids = new Set(targetClients.map(c => c.id));
-    return appointments.filter(a => ids.has(a.clientId));
-  }, [appointments, clients, user, effectiveAdminType, showOnlyAssigned, getEffectiveUser, isAssignedToUser]);
+    if (!user) return [];
+    if (showOnlyAssigned && user.adminType !== 'technical') {
+      return appointments.filter(a => a.doctorId === user.id);
+    }
+    return appointments;
+  }, [appointments, user, showOnlyAssigned]);
 
   const messageThreads = useMemo(() => {
     const threads: Record<string, Message[]> = {};

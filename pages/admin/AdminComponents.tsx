@@ -187,21 +187,39 @@ export const FeedbackEditor = ({
   onSave: (feedback: string) => Promise<void>;
 }) => {
   const [feedback, setFeedback] = useState(initialFeedback);
-  useEffect(() => { setFeedback(initialFeedback); }, [initialFeedback]);
+  const [status, setStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  useEffect(() => { setFeedback(initialFeedback); setStatus('idle'); }, [initialFeedback]);
+
+  const handleSubmit = async () => {
+    if (!feedback.trim()) return;
+    setStatus('saving');
+    try {
+      await onSave(feedback);
+      setStatus('saved');
+      setTimeout(() => setStatus('idle'), 3000);
+    } catch {
+      setStatus('error');
+    }
+  };
+
+  const isUnchanged = feedback === initialFeedback;
   return (
     <div className="space-y-4">
       <textarea
         value={feedback}
         onChange={(e) => setFeedback(e.target.value)}
-        placeholder="Enter clinical feedback that will be visible to the client..."
+        placeholder="Enter clinical feedback that will be visible to the client. On first save the client receives an in-portal notification and an email."
         className="w-full bg-white/5 border-white/10 rounded-xl p-4 text-xs font-medium focus:ring-2 focus:ring-primary/20 min-h-[200px] resize-none text-white placeholder:text-gray-500"
       />
       <button
-        onClick={() => onSave(feedback)}
-        className="w-full bg-primary text-clinical-dark px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest hover:scale-[1.02] transition-transform flex items-center justify-center gap-2"
+        onClick={handleSubmit}
+        disabled={status === 'saving' || isUnchanged || !feedback.trim()}
+        className="w-full bg-primary text-clinical-dark px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest hover:scale-[1.02] transition-transform flex items-center justify-center gap-2 disabled:opacity-50 disabled:hover:scale-100"
       >
-        <span className="material-symbols-outlined text-sm">send</span>
-        Submit Feedback
+        {status === 'saving' && (<><span className="material-symbols-outlined text-sm animate-spin">sync</span> Saving…</>)}
+        {status === 'saved'  && (<><span className="material-symbols-outlined text-sm">check_circle</span> Saved &amp; Client Notified</>)}
+        {status === 'error'  && (<><span className="material-symbols-outlined text-sm">error</span> Failed — Retry</>)}
+        {status === 'idle'   && (<><span className="material-symbols-outlined text-sm">send</span> {initialFeedback ? 'Update Feedback' : 'Submit Feedback'}</>)}
       </button>
     </div>
   );

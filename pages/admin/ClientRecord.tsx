@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useAdminContext } from './context';
 import { ClientRecordTab } from './context';
 import { Card } from '../../components/Card';
@@ -54,20 +54,61 @@ const ClientRecord: React.FC = () => {
     onUpdateAppointment,
   } = useAdminContext();
 
+  const [rescheduleApt, setRescheduleApt] = useState<Appointment | null>(null);
+  const [rescheduleForm, setRescheduleForm] = useState({ date: '', time: '' });
+  const [rescheduleStatus, setRescheduleStatus] = useState<'idle' | 'saving' | 'error'>('idle');
+  const [showQuickEdit, setShowQuickEdit] = useState(false);
+  const [quickEditForm, setQuickEditForm] = useState({ name: '', email: '', phone: '', address: '' });
+  const [quickEditStatus, setQuickEditStatus] = useState<'idle' | 'saving' | 'error'>('idle');
+
   if (!selectedClient) return null;
 
-  const rescheduleAppointment = async (apt: Appointment) => {
-    const newDate = prompt(`Enter new date (YYYY-MM-DD) for ${apt.type} on ${apt.date}:`, apt.date);
-    if (!newDate) return;
-    const newTime = prompt(`Enter new time for ${apt.type} on ${newDate}:`, apt.time);
-    if (!newTime) return;
+  const openReschedule = (apt: Appointment) => {
+    setRescheduleApt(apt);
+    setRescheduleForm({ date: apt.date, time: apt.time });
+    setRescheduleStatus('idle');
+  };
 
+  const submitReschedule = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!rescheduleApt || !rescheduleForm.date || !rescheduleForm.time) return;
+    setRescheduleStatus('saving');
     try {
-      await onUpdateAppointment(apt.id, { date: newDate, time: newTime });
-      alert('Appointment rescheduled successfully.');
+      await onUpdateAppointment(rescheduleApt.id, { date: rescheduleForm.date, time: rescheduleForm.time });
+      await logClinicalAction(user?.id || 'admin', 'reschedule_appointment', selectedClient.id, `Rescheduled ${rescheduleApt.type} from ${rescheduleApt.date} ${rescheduleApt.time} to ${rescheduleForm.date} ${rescheduleForm.time}`);
+      setRescheduleApt(null);
     } catch (error) {
       console.error('Failed to reschedule:', error);
-      alert('Rescheduling failed.');
+      setRescheduleStatus('error');
+    }
+  };
+
+  const openQuickEdit = () => {
+    setQuickEditForm({
+      name: selectedClient.name || '',
+      email: selectedClient.email || '',
+      phone: selectedClient.phone || '',
+      address: selectedClient.address || '',
+    });
+    setQuickEditStatus('idle');
+    setShowQuickEdit(true);
+  };
+
+  const submitQuickEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setQuickEditStatus('saving');
+    try {
+      await onUpdateClient(selectedClient.id, {
+        name: quickEditForm.name.trim(),
+        email: quickEditForm.email.trim().toLowerCase(),
+        phone: quickEditForm.phone.trim(),
+        address: quickEditForm.address.trim(),
+      });
+      await logClinicalAction(user?.id || 'admin', 'update_client_profile', selectedClient.id, 'Updated client contact details');
+      setShowQuickEdit(false);
+    } catch (error) {
+      console.error('Failed to save profile:', error);
+      setQuickEditStatus('error');
     }
   };
 
@@ -118,13 +159,7 @@ const ClientRecord: React.FC = () => {
             Book Appt
           </button>
           <button
-            onClick={() => {
-              const newName = prompt('Enter new profile name for ' + selectedClient.name, selectedClient.name);
-              if (newName && newName !== selectedClient.name) {
-                onUpdateClient(selectedClient.id, { name: newName });
-                alert('Profile simplified update applied.');
-              }
-            }}
+            onClick={openQuickEdit}
             className="bg-clinical-dark text-white px-4 md:px-6 py-3 rounded-full text-[10px] font-black uppercase tracking-widest transition-transform hover:scale-105 active:scale-95"
           >
             Quick Edit
@@ -301,7 +336,7 @@ const ClientRecord: React.FC = () => {
                                  <p className="text-[9px] font-bold text-text-muted uppercase tracking-widest">{apt.time}</p>
                               </div>
                            </div>
-                           <button onClick={() => rescheduleAppointment(apt)} className="text-[8px] font-black text-primary uppercase border border-primary/20 px-2 py-1 rounded-md hover:bg-primary hover:text-clinical-dark transition-all">Reschedule</button>
+                           <button onClick={() => openReschedule(apt)} className="text-[8px] font-black text-primary uppercase border border-primary/20 px-2 py-1 rounded-md hover:bg-primary hover:text-clinical-dark transition-all">Reschedule</button>
                         </div>
                       ))}
                     {appointments.filter(a => a.clientId === selectedClient.id && (a.status === 'Confirmed' || a.status === 'Pending')).length === 0 && (
@@ -662,14 +697,19 @@ const ClientRecord: React.FC = () => {
                        <FeedbackEditor
                          initialFeedback={selectedClient.assessmentData?.clinicalFeedback || ''}
                          onSave={async (feedback) => {
+                           const isFirstFeedback = !selectedClient.assessmentData?.clinicalFeedback;
                            try {
                              await onUpdateClient(selectedClient.id, {
                                assessmentData: { ...selectedClient.assessmentData, clinicalFeedback: feedback, reviewDate: new Date().toISOString() },
                                status: 'Reviewed'
                              });
-                             alert('Clinical feedback saved.');
+                             await logClinicalAction(user?.id || 'admin', 'submit_feedback', selectedClient.id, isFirstFeedback ? 'Submitted clinical feedback' : 'Updated clinical feedback');
+                             if (isFirstFeedback) {
+                               await notifyFeedbackReceived(selectedClient.id, selectedClient.email, selectedClient.name);
+                             }
                            } catch (e) {
-                             console.error(e);
+                             console.error('Failed to save feedback:', e);
+                             throw e;
                            }
                          }}
                        />
@@ -705,6 +745,93 @@ const ClientRecord: React.FC = () => {
           }}
         />
       </div>
+
+      {/* Reschedule Modal */}
+      {rescheduleApt && (
+        <div className="fixed inset-0 z-[100] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setRescheduleApt(null)}>
+          <form onClick={(e) => e.stopPropagation()} onSubmit={submitReschedule} className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden">
+            <div className="p-6 border-b border-black/5">
+              <h3 className="text-sm font-black uppercase tracking-widest text-text-main">Reschedule Appointment</h3>
+              <p className="text-[10px] text-text-muted font-bold mt-1">{rescheduleApt.type} — currently {rescheduleApt.date} {rescheduleApt.time}</p>
+            </div>
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="text-[9px] font-black uppercase tracking-widest text-text-muted block mb-2">New Date</label>
+                <input
+                  type="date"
+                  required
+                  value={rescheduleForm.date}
+                  onChange={(e) => setRescheduleForm(p => ({ ...p, date: e.target.value }))}
+                  min={new Date().toISOString().split('T')[0]}
+                  className="w-full bg-bg-soft border-transparent rounded-xl px-4 py-3 text-sm font-bold focus:ring-2 focus:ring-primary/20"
+                />
+              </div>
+              <div>
+                <label className="text-[9px] font-black uppercase tracking-widest text-text-muted block mb-2">New Time</label>
+                <select
+                  required
+                  value={rescheduleForm.time}
+                  onChange={(e) => setRescheduleForm(p => ({ ...p, time: e.target.value }))}
+                  className="w-full bg-bg-soft border-transparent rounded-xl px-4 py-3 text-sm font-bold focus:ring-2 focus:ring-primary/20"
+                >
+                  <option value="">Select time...</option>
+                  {['09:00 AM','09:30 AM','10:00 AM','10:30 AM','11:00 AM','11:30 AM','12:00 PM','01:00 PM','01:30 PM','02:00 PM','02:30 PM','03:00 PM','03:30 PM','04:00 PM','04:30 PM','05:00 PM'].map(t => (
+                    <option key={t} value={t}>{t}</option>
+                  ))}
+                </select>
+              </div>
+              {rescheduleStatus === 'error' && (
+                <p className="text-[10px] font-bold text-red-500">Failed to reschedule. Please try again.</p>
+              )}
+            </div>
+            <div className="p-6 border-t border-black/5 flex gap-3 justify-end bg-bg-soft/30">
+              <button type="button" onClick={() => setRescheduleApt(null)} className="px-5 py-2.5 text-[10px] font-black uppercase tracking-widest text-text-muted hover:text-text-main transition-colors">Cancel</button>
+              <button type="submit" disabled={rescheduleStatus === 'saving' || !rescheduleForm.date || !rescheduleForm.time} className="bg-primary text-clinical-dark px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest disabled:opacity-50">
+                {rescheduleStatus === 'saving' ? 'Saving…' : 'Confirm Reschedule'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* Quick Edit Modal */}
+      {showQuickEdit && (
+        <div className="fixed inset-0 z-[100] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setShowQuickEdit(false)}>
+          <form onClick={(e) => e.stopPropagation()} onSubmit={submitQuickEdit} className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden">
+            <div className="p-6 border-b border-black/5">
+              <h3 className="text-sm font-black uppercase tracking-widest text-text-main">Quick Edit Profile</h3>
+              <p className="text-[10px] text-text-muted font-bold mt-1">Registry ID: {selectedClient.id}</p>
+            </div>
+            <div className="p-6 space-y-4 max-h-[60vh] overflow-y-auto">
+              <div>
+                <label className="text-[9px] font-black uppercase tracking-widest text-text-muted block mb-2">Full Name</label>
+                <input type="text" required value={quickEditForm.name} onChange={(e) => setQuickEditForm(p => ({ ...p, name: e.target.value }))} className="w-full bg-bg-soft border-transparent rounded-xl px-4 py-3 text-sm font-bold focus:ring-2 focus:ring-primary/20" />
+              </div>
+              <div>
+                <label className="text-[9px] font-black uppercase tracking-widest text-text-muted block mb-2">Email</label>
+                <input type="email" required value={quickEditForm.email} onChange={(e) => setQuickEditForm(p => ({ ...p, email: e.target.value }))} className="w-full bg-bg-soft border-transparent rounded-xl px-4 py-3 text-sm font-bold focus:ring-2 focus:ring-primary/20" />
+              </div>
+              <div>
+                <label className="text-[9px] font-black uppercase tracking-widest text-text-muted block mb-2">Phone</label>
+                <input type="tel" value={quickEditForm.phone} onChange={(e) => setQuickEditForm(p => ({ ...p, phone: e.target.value }))} className="w-full bg-bg-soft border-transparent rounded-xl px-4 py-3 text-sm font-bold focus:ring-2 focus:ring-primary/20" />
+              </div>
+              <div>
+                <label className="text-[9px] font-black uppercase tracking-widest text-text-muted block mb-2">Address</label>
+                <textarea value={quickEditForm.address} onChange={(e) => setQuickEditForm(p => ({ ...p, address: e.target.value }))} rows={2} className="w-full bg-bg-soft border-transparent rounded-xl px-4 py-3 text-sm font-bold focus:ring-2 focus:ring-primary/20 resize-none" />
+              </div>
+              {quickEditStatus === 'error' && (
+                <p className="text-[10px] font-bold text-red-500">Failed to save. Please try again.</p>
+              )}
+            </div>
+            <div className="p-6 border-t border-black/5 flex gap-3 justify-end bg-bg-soft/30">
+              <button type="button" onClick={() => setShowQuickEdit(false)} className="px-5 py-2.5 text-[10px] font-black uppercase tracking-widest text-text-muted hover:text-text-main transition-colors">Cancel</button>
+              <button type="submit" disabled={quickEditStatus === 'saving' || !quickEditForm.name.trim() || !quickEditForm.email.trim()} className="bg-clinical-dark text-white px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest disabled:opacity-50">
+                {quickEditStatus === 'saving' ? 'Saving…' : 'Save Changes'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
     </div>
   );
 };

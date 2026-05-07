@@ -402,9 +402,40 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
                 <div className="absolute top-0 right-0 w-64 h-64 bg-primary/10 rounded-full blur-[80px] pointer-events-none" />
                 <h3 className="text-xl font-black uppercase tracking-widest mb-8 relative z-10">Clinical Update</h3>
                 <div className="space-y-6 relative z-10">
-                  <div className="p-6 bg-white/5 rounded-2xl border border-white/10 text-center">
-                    <p className="text-sm italic leading-relaxed text-gray-300 font-serif">No clinical updates yet.</p>
-                  </div>
+                  {currentClient?.assessmentData?.clinicalFeedback ? (
+                    <button
+                      onClick={() => setActiveTab('assessments')}
+                      className="w-full text-left p-6 bg-white/5 rounded-2xl border border-white/10 hover:bg-white/10 transition-colors group"
+                    >
+                      <div className="flex items-center gap-2 mb-3">
+                        <span className="material-symbols-outlined text-primary text-base">clinical_notes</span>
+                        <p className="text-[9px] font-black text-primary uppercase tracking-widest">Feedback Available</p>
+                        {currentClient.assessmentData.reviewDate && (
+                          <span className="text-[9px] text-gray-400 font-bold ml-auto">
+                            {new Date(currentClient.assessmentData.reviewDate).toLocaleDateString()}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-sm leading-relaxed text-gray-200 line-clamp-3 italic font-serif">
+                        "{currentClient.assessmentData.clinicalFeedback}"
+                      </p>
+                      <p className="text-[9px] font-black text-primary uppercase tracking-widest mt-3 group-hover:underline flex items-center gap-1">
+                        Read full review
+                        <span className="material-symbols-outlined text-[14px]">arrow_forward</span>
+                      </p>
+                    </button>
+                  ) : currentClient?.status === 'Assessment Submitted' ? (
+                    <div className="p-6 bg-white/5 rounded-2xl border border-white/10">
+                      <p className="text-[9px] font-black text-primary uppercase tracking-widest mb-2">Under Review</p>
+                      <p className="text-sm leading-relaxed text-gray-300 font-serif">
+                        Your clinical team is reviewing your assessment. You'll be notified when feedback is ready.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="p-6 bg-white/5 rounded-2xl border border-white/10 text-center">
+                      <p className="text-sm italic leading-relaxed text-gray-300 font-serif">No clinical updates yet.</p>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
