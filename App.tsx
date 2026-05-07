@@ -16,6 +16,7 @@ import {
 import Header from './components/Header';
 import Footer from './components/Footer';
 import WhatsAppWidget from './components/WhatsAppWidget';
+import CookieBanner from './components/CookieBanner';
 import Logo from './components/Logo';
 
 // Error Boundary Component
@@ -910,6 +911,7 @@ const App: React.FC = () => {
         </main>
         {!isDashboard && !isAuthPage && !isAssessmentPage && <Footer onNavigate={navigateTo} />}
         {!hideWhatsApp && <WhatsAppWidget />}
+        <CookieBanner />
       </div>
     </ErrorBoundary>
   );

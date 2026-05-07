@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useRef } from 'react';
 import { Page } from '../types';
-import { storage } from '../firebase';
+import { storage, auth } from '../firebase';
+import { signInAnonymously } from 'firebase/auth';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { processImageForUpload, validateImageFile, ACCEPTED_IMAGE_TYPES } from '../imageUtils';
 
@@ -207,9 +208,15 @@ const AssessmentPage: React.FC<AssessmentPageProps> = ({ onNavigate, onIntakeCom
       alert(validationError);
       return;
     }
-    
+
     setUploading(true);
     try {
+      // Ensure the user is signed in (anonymously if not already) so storage
+      // rules can verify request.auth != null before allowing the write.
+      if (!auth.currentUser) {
+        await signInAnonymously(auth);
+      }
+
       const { blob, fileName } = await processImageForUpload(file);
       const storagePath = `assessments/${clientId || 'anonymous'}/${fileName}`;
       const storageRef = ref(storage, storagePath);

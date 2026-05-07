@@ -1,0 +1,208 @@
+import React, { useState, useEffect } from 'react';
+import { motion } from 'motion/react';
+import { Card } from '../../components/Card';
+import { AdminTab } from './context';
+
+// ── StatusBadge ────────────────────────────────────────────────────────────
+export const StatusBadge = ({ status }: { status: string }) => {
+  const colors: Record<string, string> = {
+    'New': 'bg-red-500 text-white',
+    'Reviewed': 'bg-yellow-500 text-white',
+    'Contacted': 'bg-blue-500 text-white',
+    'Converted': 'bg-green-500 text-white',
+    'Not Suitable': 'bg-gray-500 text-white',
+    'Active': 'bg-green-100 text-green-700',
+    'Ongoing': 'bg-primary text-white',
+  };
+  return (
+    <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${colors[status] || 'bg-gray-200 text-text-muted'}`}>
+      {status}
+    </span>
+  );
+};
+
+// ── AssignedBadge ──────────────────────────────────────────────────────────
+export const AssignedBadge = ({ isAssigned }: { isAssigned: boolean }) => {
+  if (!isAssigned) return null;
+  return (
+    <span className="flex items-center gap-1 px-2 py-0.5 bg-primary/10 text-primary rounded-full text-[8px] font-black uppercase tracking-widest shrink-0">
+      <span className="material-symbols-outlined text-[10px]">person</span>
+      Assigned
+    </span>
+  );
+};
+
+// ── SidebarItem ────────────────────────────────────────────────────────────
+export const SidebarItem = ({
+  id, label, icon, activeTab, selectedClientId, onClick, isCollapsed,
+}: {
+  id: AdminTab;
+  label: string;
+  icon: string;
+  activeTab: AdminTab;
+  selectedClientId: string | null;
+  onClick: (id: AdminTab) => void;
+  isCollapsed?: boolean;
+}) => (
+  <button
+    onClick={() => onClick(id)}
+    className={`w-full flex items-center gap-4 px-6 py-5 rounded-2xl transition-all group relative ${
+      activeTab === id && !selectedClientId
+        ? 'bg-clinical-dark text-white shadow-2xl shadow-clinical-dark/20'
+        : 'text-text-muted hover:bg-bg-soft hover:text-clinical-dark'
+    }`}
+  >
+    {activeTab === id && !selectedClientId && (
+      <motion.div layoutId="activeTab" className="absolute left-0 w-1.5 h-8 bg-primary rounded-r-full" />
+    )}
+    <span className={`material-symbols-outlined text-2xl transition-transform group-hover:scale-110 ${activeTab === id && !selectedClientId ? 'text-primary' : 'text-text-muted'}`}>
+      {icon}
+    </span>
+    {!isCollapsed && <span className="text-[11px] font-black uppercase tracking-widest">{label}</span>}
+  </button>
+);
+
+// ── MessageInputForm ───────────────────────────────────────────────────────
+export const MessageInputForm = ({
+  onSend,
+  placeholder = 'Type a message...',
+  showQuickActionsBtn = false,
+  showQuickActions = false,
+  onToggleQuickActions,
+}: {
+  onSend: (message: string) => void;
+  placeholder?: string;
+  showQuickActionsBtn?: boolean;
+  showQuickActions?: boolean;
+  onToggleQuickActions?: () => void;
+}) => {
+  const [input, setInput] = useState('');
+  return (
+    <form
+      onSubmit={(e) => { e.preventDefault(); if (input.trim()) { onSend(input); setInput(''); } }}
+      className="flex gap-2 md:gap-4 w-full items-center"
+    >
+      {showQuickActionsBtn && onToggleQuickActions && (
+        <button
+          type="button"
+          onClick={onToggleQuickActions}
+          className={`w-10 h-10 md:w-12 md:h-12 rounded-xl flex items-center justify-center transition-all shrink-0 ${showQuickActions ? 'bg-primary text-clinical-dark' : 'bg-bg-soft text-text-muted hover:text-primary'}`}
+        >
+          <span className="material-symbols-outlined">add_circle</span>
+        </button>
+      )}
+      <input
+        type="text"
+        value={input}
+        onChange={(e) => setInput(e.target.value)}
+        placeholder={placeholder}
+        className="flex-grow bg-bg-soft border-transparent rounded-xl px-4 md:px-6 py-2.5 md:py-4 text-[10px] md:text-xs font-bold focus:ring-2 focus:ring-primary/20 transition-all min-w-0"
+      />
+      <button
+        type="submit"
+        disabled={!input.trim()}
+        className="w-10 h-10 md:w-12 md:h-12 bg-primary text-white md:text-clinical-dark rounded-xl hover:scale-105 active:scale-95 transition-all shrink-0 flex items-center justify-center disabled:opacity-50 disabled:scale-100 md:shadow-lg md:shadow-primary/20"
+      >
+        <span className="material-symbols-outlined text-lg md:text-xl">send</span>
+      </button>
+    </form>
+  );
+};
+
+// ── InternalNotesEditor ────────────────────────────────────────────────────
+export const InternalNotesEditor = ({
+  initialNotes,
+  onSave,
+}: {
+  initialNotes: string;
+  onSave: (notes: string) => Promise<void>;
+}) => {
+  const [notes, setNotes] = useState(initialNotes);
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+
+  useEffect(() => { setNotes(initialNotes); setSaveStatus('idle'); }, [initialNotes]);
+
+  useEffect(() => {
+    if (notes === initialNotes) return;
+    setSaveStatus('idle');
+    const timer = setTimeout(async () => {
+      setSaveStatus('saving');
+      try {
+        await onSave(notes);
+        setSaveStatus('saved');
+        setTimeout(() => setSaveStatus('idle'), 3000);
+      } catch {
+        setSaveStatus('error');
+      }
+    }, 2000);
+    return () => clearTimeout(timer);
+  }, [notes, initialNotes, onSave]);
+
+  return (
+    <Card className="p-4 sm:p-6 md:p-8 mt-4 md:mt-8 bg-bg-soft/30 border-dashed border-black/10">
+      <div className="flex items-center justify-between mb-4 md:mb-6">
+        <div className="flex items-center gap-3">
+          <span className="material-symbols-outlined text-primary text-xl">sticky_note_2</span>
+          <h3 className="text-[10px] md:text-xs font-black uppercase tracking-widest text-text-muted">Internal Clinical Notes</h3>
+        </div>
+        <div className="flex items-center justify-end min-w-[80px]">
+          {saveStatus === 'saving' && <span className="text-[10px] font-bold text-primary animate-pulse flex items-center gap-1"><span className="material-symbols-outlined text-[14px]">sync</span> Saving...</span>}
+          {saveStatus === 'saved'  && <span className="text-[10px] font-bold text-green-500 flex items-center gap-1"><span className="material-symbols-outlined text-[14px]">check_circle</span> Saved</span>}
+          {saveStatus === 'error'  && <span className="text-[10px] font-bold text-red-500 flex items-center gap-1"><span className="material-symbols-outlined text-[14px]">error</span> Error</span>}
+        </div>
+      </div>
+      <textarea
+        value={notes}
+        onChange={(e) => setNotes(e.target.value)}
+        placeholder="Add private clinical notes about this client's progress, specific concerns, or internal reminders..."
+        className="w-full bg-white border-black/5 rounded-xl p-4 text-xs font-bold focus:ring-2 focus:ring-primary/20 min-h-[120px] resize-none shadow-sm"
+      />
+      <div className="flex justify-end mt-4">
+        <button
+          onClick={async () => {
+            setSaveStatus('saving');
+            try {
+              await onSave(notes);
+              setSaveStatus('saved');
+              setTimeout(() => setSaveStatus('idle'), 3000);
+            } catch {
+              setSaveStatus('error');
+            }
+          }}
+          className="bg-clinical-dark text-white px-6 py-2 rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-primary transition-colors shadow-lg shadow-clinical-dark/10"
+        >
+          Force Save
+        </button>
+      </div>
+    </Card>
+  );
+};
+
+// ── FeedbackEditor ─────────────────────────────────────────────────────────
+export const FeedbackEditor = ({
+  initialFeedback,
+  onSave,
+}: {
+  initialFeedback: string;
+  onSave: (feedback: string) => Promise<void>;
+}) => {
+  const [feedback, setFeedback] = useState(initialFeedback);
+  useEffect(() => { setFeedback(initialFeedback); }, [initialFeedback]);
+  return (
+    <div className="space-y-4">
+      <textarea
+        value={feedback}
+        onChange={(e) => setFeedback(e.target.value)}
+        placeholder="Enter clinical feedback that will be visible to the client..."
+        className="w-full bg-white/5 border-white/10 rounded-xl p-4 text-xs font-medium focus:ring-2 focus:ring-primary/20 min-h-[200px] resize-none text-white placeholder:text-gray-500"
+      />
+      <button
+        onClick={() => onSave(feedback)}
+        className="w-full bg-primary text-clinical-dark px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest hover:scale-[1.02] transition-transform flex items-center justify-center gap-2"
+      >
+        <span className="material-symbols-outlined text-sm">send</span>
+        Submit Feedback
+      </button>
+    </div>
+  );
+};
