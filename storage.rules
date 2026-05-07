@@ -33,14 +33,15 @@ service firebase.storage {
       // Admins can read everything. Clients can only read their own (if they have an ID)
       allow read: if isAdmin() || isOwner(clientId);
       
-      // Allow write if:
+      // Allow write only if:
       // 1. Admin
-      // 2. Logged in client writing to their own folder
-      // 3. Unauthenticated user writing to a C-* temporary folder (clinical intake)
-      allow write: if isAdmin() || 
+      // 2. Logged-in client writing to their own folder (UID-keyed)
+      // 3. Authenticated (incl. anonymous Firebase Auth) intake to a C-* temp folder
+      // Unauthenticated writes are no longer permitted. Public assessment flows must
+      // sign the user in via Firebase Anonymous Auth (and App Check) before upload.
+      allow write: if isAdmin() ||
                     (isOwner(clientId) && isValidImage()) ||
-                    (clientId.matches('^C-[A-Z0-9]+$') && isValidImage()) ||
-                    (clientId == 'anonymous' && isValidImage());
+                    (isAuthenticated() && clientId.matches('^C-[A-Z0-9]+$') && isValidImage());
     }
     
     // Explicit deny for everything else

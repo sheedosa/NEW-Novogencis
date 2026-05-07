@@ -1,0 +1,187 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 100px;
+}
+
+.organic-shape {
+  border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%;
+  transition: border-radius 1.2s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: border-radius, transform;
+  transform: translateZ(0);
+}
+
+.organic-shape:hover {
+  border-radius: 40% 60% 70% 30% / 30% 70% 40% 60%;
+}
+
+.glass-header {
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  transform: translateZ(0);
+  will-change: transform, background-color;
+}
+
+.premium-card {
+  background: #ffffff;
+  border: 1px solid rgba(208, 187, 149, 0.1);
+  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: transform, box-shadow, border-color;
+  transform: translateZ(0);
+}
+
+.premium-card:hover {
+  border-color: rgba(208, 187, 149, 0.4);
+  transform: translateY(-8px) translateZ(0);
+  box-shadow: 0 30px 60px -20px rgba(208, 187, 149, 0.15);
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.4s ease-out forwards;
+}
+
+@media (min-width: 1024px) {
+  ::-webkit-scrollbar {
+    width: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    background: #fbf9f7;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #d0bb95;
+    border-radius: 10px;
+    border: 2px solid #fbf9f7;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #c9a86a;
+  }
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(208, 187, 149, 0.3);
+  border-radius: 10px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(208, 187, 149, 0.5);
+}
+
+.delay-100 { animation-delay: 100ms; }
+.delay-200 { animation-delay: 200ms; }
+.delay-300 { animation-delay: 300ms; }
+.delay-400 { animation-delay: 400ms; }
+
+@media (max-width: 640px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
+
+section {
+  content-visibility: auto;
+  contain-intrinsic-size: 1px 500px;
+}
+
+.safe-area-bottom {
+  padding-bottom: calc(1.5rem + env(safe-area-inset-bottom, 0px));
+}
+
+@media (max-width: 768px) {
+  .assessment-focused-modal {
+    height: 100%;
+    height: -webkit-fill-available;
+    width: 100%;
+    position: fixed;
+    top: 0;
+    left: 0;
+    border-radius: 0;
+  }
+}
+
+/* Clinical Dashboard Refinements */
+.btn-clinical {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.625rem 1.25rem;
+  font-size: 0.625rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  border-radius: 0.75rem;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+
+.btn-clinical:active {
+  transform: scale(0.98);
+}
+
+.btn-clinical-primary {
+  background-color: #d0bb95;
+  color: #1d1a15;
+  box-shadow: 0 4px 12px -2px rgba(208, 187, 149, 0.2);
+}
+
+.btn-clinical-primary:hover {
+  background-color: #c9a86a;
+  box-shadow: 0 6px 16px -2px rgba(208, 187, 149, 0.3);
+  transform: translateY(-1px);
+}
+
+.btn-clinical-secondary {
+  background-color: #ffffff;
+  color: #5a4a47;
+  border-color: rgba(29, 26, 21, 0.05);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+}
+
+.btn-clinical-secondary:hover {
+  border-color: rgba(208, 187, 149, 0.3);
+  color: #d0bb95;
+  background-color: #fbf9f7;
+}
+
+.card-clinical {
+  background-color: #ffffff;
+  border-radius: 1rem;
+  border: 1px solid rgba(29, 26, 21, 0.04);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.01), 0 10px 20px -12px rgba(0, 0, 0, 0.03);
+  transition: all 0.3s ease;
+}
+
+.card-clinical:hover {
+  border-color: rgba(208, 187, 149, 0.15);
+  box-shadow: 0 20px 40px -15px rgba(208, 187, 149, 0.08);
+}
+
+.sidebar-item-clinical {
+  transition: all 0.2s ease;
+  border-radius: 0.75rem;
+}

@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Page, User, Appointment, Client, Message, GalleryItem } from '../types';
 import { FORMS } from '../constants';
+import { Card } from '../components/Card';
 import { InteractiveForm } from '../components/InteractiveForm';
 import Logo from '../components/Logo';
 import PolicyConfirmationModal from '../components/PolicyConfirmationModal';
