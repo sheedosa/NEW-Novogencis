@@ -68,6 +68,12 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
   const [hasSeenAssessmentAlert, setHasSeenAssessmentAlert] = useState(false);
   const [lightboxImage, setLightboxImage] = useState<GalleryItem | null>(null);
 
+  // Appointment action state
+  const [requestingAptId, setRequestingAptId] = useState<string | null>(null);
+  const [aptAction, setAptAction] = useState<'reschedule' | 'cancel' | null>(null);
+  const [reschedulePreference, setReschedulePreference] = useState('');
+  const [aptRequestSending, setAptRequestSending] = useState(false);
+
   // Profile Edit State
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [isSavingProfile, setIsSavingProfile] = useState(false);
@@ -441,13 +447,68 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
             </div>
           </div>
         );
-      case 'treatments':
-        return (
+      case 'treatments': {
+          const plan = currentClient?.treatmentPlan;
+          const rxList = currentClient?.prescriptions || [];
+          const activeRx = rxList.filter(r => r.status === 'Active');
+          return (
           <div className="animate-fade-up space-y-10">
             <header>
-               <h2 className="text-3xl font-black text-text-main">Protocol History</h2>
-               <p className="text-[10px] font-black text-text-muted uppercase tracking-widest mt-1">Detailed log of your clinical sessions and progress</p>
+               <h2 className="text-3xl font-black text-text-main">My Treatment Plan</h2>
+               <p className="text-[10px] font-black text-text-muted uppercase tracking-widest mt-1">Your personalised clinical roadmap and progress</p>
             </header>
+
+            {/* Treatment phases */}
+            {plan?.phases?.length ? (
+              <div className="bg-white rounded-[2.5rem] p-6 md:p-10 border border-black/5 shadow-sm">
+                <div className="flex items-center justify-between mb-8">
+                  <div className="flex items-center gap-3">
+                    <span className="material-symbols-outlined text-primary">route</span>
+                    <h3 className="text-[11px] font-black uppercase tracking-widest text-text-main">{plan.title || 'Treatment Plan'}</h3>
+                  </div>
+                  <div className="px-4 py-1.5 bg-bg-soft rounded-full text-[9px] font-black text-text-muted uppercase">
+                    {plan.phases.filter(p => p.status === 'Completed').length}/{plan.phases.length} Phases Complete
+                  </div>
+                </div>
+                <div className="space-y-4">
+                  {plan.phases.map((phase, i) => {
+                    const pct = phase.sessionsPlanned > 0 ? Math.round((phase.sessionsCompleted / phase.sessionsPlanned) * 100) : 0;
+                    const statusColor: Record<string, string> = { Active: 'bg-primary text-clinical-dark', Completed: 'bg-green-100 text-green-700', Planned: 'bg-bg-soft text-text-muted border border-black/5', 'On Hold': 'bg-yellow-100 text-yellow-700' };
+                    return (
+                      <div key={phase.id} className={`p-5 md:p-6 rounded-2xl border transition-all ${phase.status === 'Active' ? 'border-primary/30 bg-primary/5' : phase.status === 'Completed' ? 'border-black/5 bg-bg-soft/30' : 'border-black/5 bg-white'}`}>
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center gap-3">
+                            <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-black shrink-0 ${phase.status === 'Completed' ? 'bg-green-500 text-white' : phase.status === 'Active' ? 'bg-primary text-clinical-dark' : 'bg-bg-soft text-text-muted border border-black/10'}`}>
+                              {phase.status === 'Completed' ? '✓' : i + 1}
+                            </div>
+                            <div>
+                              <p className="text-sm font-black text-text-main">{phase.name}</p>
+                              {phase.description && <p className="text-[10px] text-text-muted font-medium">{phase.description}</p>}
+                            </div>
+                          </div>
+                          <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-full shrink-0 ${statusColor[phase.status]}`}>{phase.status}</span>
+                        </div>
+                        {phase.status !== 'Planned' && (
+                          <div className="flex items-center gap-3 mt-3">
+                            <div className="flex-grow h-1 bg-black/5 rounded-full overflow-hidden">
+                              <div className="bg-primary h-full rounded-full" style={{ width: `${pct}%` }} />
+                            </div>
+                            <span className="text-[9px] font-black text-primary shrink-0">{phase.sessionsCompleted}/{phase.sessionsPlanned} sessions</span>
+                          </div>
+                        )}
+                        {phase.notes && <p className="text-[10px] text-text-muted/80 font-medium mt-2 italic">"{phase.notes}"</p>}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : (
+              <div className="bg-white rounded-[2.5rem] p-10 border border-black/5 shadow-sm text-center">
+                <span className="material-symbols-outlined text-4xl text-primary/20 mb-3">medical_services</span>
+                <p className="text-[10px] font-black text-text-muted uppercase tracking-widest">No treatment plan assigned yet</p>
+                <p className="text-xs text-text-muted/60 mt-1 font-medium">Your clinician will create your personalised plan after your first session</p>
+              </div>
+            )}
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 md:gap-10">
                {/* Left: Session Timeline */}
@@ -456,10 +517,10 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
                      <div className="flex justify-between items-center mb-8">
                         <div className="flex items-center gap-3">
                            <span className="material-symbols-outlined text-primary">history</span>
-                           <h3 className="text-[11px] font-black uppercase tracking-widest text-text-main">Treatment Timeline</h3>
+                           <h3 className="text-[11px] font-black uppercase tracking-widest text-text-main">Session Timeline</h3>
                         </div>
                         <div className="px-4 py-1.5 bg-bg-soft rounded-full text-[9px] font-black text-text-muted uppercase">
-                           {userAppointments.filter(a => a.status === 'Completed').length} Sessions Completed
+                           {userAppointments.filter(a => a.status === 'Completed').length} Completed
                         </div>
                      </div>
 
@@ -467,7 +528,7 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
                         {userAppointments
                           .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
                           .map((session, i) => (
-                          <div key={session.id} className={`p-6 rounded-2xl border transition-all ${session.status === 'Completed' ? 'bg-bg-soft/50 border-black/5' : 'bg-white border-dashed border-primary/20'}`}>
+                          <div key={session.id} className={`p-5 md:p-6 rounded-2xl border transition-all ${session.status === 'Completed' ? 'bg-bg-soft/50 border-black/5' : 'bg-white border-dashed border-primary/20'}`}>
                              <div className="flex justify-between items-start mb-3">
                                 <div>
                                    <p className="text-[9px] font-black text-primary uppercase tracking-widest">Session {userAppointments.length - i}</p>
@@ -475,12 +536,13 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
                                 </div>
                                 <span className={`text-[8px] font-black uppercase tracking-widest px-3 py-1 rounded-full ${session.status === 'Completed' ? 'bg-clinical-dark text-white' : 'bg-primary/10 text-primary'}`}>{session.status}</span>
                              </div>
-                             <p className="text-[10px] font-bold text-text-muted uppercase tracking-widest mb-4 flex items-center gap-2">
+                             <p className="text-[10px] font-bold text-text-muted uppercase tracking-widest mb-2 flex items-center gap-2">
                                 <span className="material-symbols-outlined text-sm">event</span>
                                 {new Date(session.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                                {session.time && <span>· {session.time}</span>}
                              </p>
                              {session.notes && (
-                                <p className="text-xs leading-relaxed text-text-muted font-medium pt-4 border-t border-black/5 italic">
+                                <p className="text-xs leading-relaxed text-text-muted font-medium pt-3 border-t border-black/5 italic">
                                    "{session.notes}"
                                 </p>
                              )}
@@ -496,7 +558,7 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
                   </div>
                </div>
 
-               {/* Right: Progress Summary & Gallery */}
+               {/* Right: Progress Summary, Prescriptions & Gallery */}
                <div className="lg:col-span-4 space-y-6">
                   <Card className="p-8 bg-clinical-dark text-white border-none shadow-xl shadow-clinical-dark/20">
                      <h3 className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-6">Program Overview</h3>
@@ -506,19 +568,39 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
                            <p className="text-sm font-black">{currentClient?.package || 'Assessment Underway'}</p>
                         </div>
                         <div>
-                           <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-3">Completion Status</p>
+                           <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-3">Session Progress</p>
                            <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
                               <div className="bg-primary h-full rounded-full" style={{ width: `${progress}%` }} />
                            </div>
                            <p className="text-[9px] font-bold text-right mt-1 text-primary">{progress}%</p>
                         </div>
-                        <button onClick={() => setActiveTab('appointments')} className="w-full bg-white text-clinical-dark py-3 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-white/5 hover:scale-105 transition-all">Book Next Session</button>
+                        <button onClick={() => { setActiveTab('messages'); setMessageInput('Hello, I would like to request a new appointment for...'); }} className="w-full bg-white text-clinical-dark py-3 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-white/5 hover:scale-105 transition-all">Request Next Session</button>
                      </div>
                   </Card>
 
+                  {/* Prescriptions */}
+                  {activeRx.length > 0 && (
+                    <Card className="p-6 md:p-8 border border-black/5 shadow-sm">
+                      <div className="flex items-center gap-3 mb-4">
+                        <span className="material-symbols-outlined text-primary text-xl">medication</span>
+                        <h3 className="text-[10px] font-black uppercase tracking-widest text-text-muted">Active Prescriptions</h3>
+                      </div>
+                      <div className="space-y-3">
+                        {activeRx.map(rx => (
+                          <div key={rx.id} className="p-4 bg-bg-soft rounded-xl">
+                            <p className="text-sm font-black text-text-main">{rx.drugName}</p>
+                            <p className="text-[10px] font-bold text-text-muted mt-0.5">{rx.dosage}</p>
+                            <p className="text-[10px] font-medium text-text-muted/70 mt-1 leading-relaxed">{rx.instructions}</p>
+                            {rx.prescribedBy && <p className="text-[9px] font-black text-primary uppercase tracking-widest mt-2">Prescribed by {rx.prescribedBy}</p>}
+                          </div>
+                        ))}
+                      </div>
+                    </Card>
+                  )}
+
                   <Card className="p-6 md:p-8 border border-black/5 shadow-sm">
                      <div className="flex justify-between items-center mb-6">
-                        <h3 className="text-[10px] font-black uppercase tracking-widest text-text-muted">Clinical Gallery</h3>
+                        <h3 className="text-[10px] font-black uppercase tracking-widest text-text-muted">Progress Photos</h3>
                         <button onClick={() => setShowGalleryUpload(true)} className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center hover:bg-primary hover:text-white transition-all">
                            <span className="material-symbols-outlined text-sm">add_a_photo</span>
                         </button>
@@ -531,23 +613,25 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
                         ))}
                         {(!currentClient?.gallery || currentClient.gallery.length === 0) && (
                            <div className="col-span-2 aspect-video bg-bg-soft border-2 border-dashed border-black/5 rounded-xl flex flex-col items-center justify-center text-center p-4">
+                              <span className="material-symbols-outlined text-2xl text-text-muted/30 mb-1">add_a_photo</span>
                               <p className="text-[8px] font-black text-text-muted/60 uppercase tracking-widest">No photos yet</p>
                            </div>
                         )}
                      </div>
                      {currentClient?.gallery && currentClient.gallery.length > 4 && (
                         <button
-                          onClick={() => setActiveTab('treatments')}
+                          onClick={() => setShowGalleryUpload(true)}
                           className="w-full text-center py-3 text-[9px] font-black text-primary uppercase tracking-widest hover:underline mt-2"
                         >
-                          View All Progress ({currentClient.gallery.length} photos)
+                          View All ({currentClient.gallery.length} photos)
                         </button>
                      )}
                   </Card>
                </div>
             </div>
           </div>
-        );
+          );
+        }
       case 'appointments':
         return (
           <div className="animate-fade-up space-y-10">
@@ -565,53 +649,138 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
-               <div className="lg:col-span-8 space-y-6">
+               <div className="lg:col-span-8 space-y-4">
                   {userAppointments.length > 0 ? (
                     userAppointments
                       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-                      .map((apt, i) => (
-                        <div key={i} className="bg-white p-8 rounded-[2.5rem] border border-black/5 flex items-center justify-between shadow-sm">
-                           <div className="flex items-center gap-6">
-                              <div className="w-16 h-16 bg-bg-soft rounded-3xl flex flex-col items-center justify-center text-center">
-                                 <span className="text-[10px] font-black text-primary uppercase">
-                                   {new Date(apt.date).toLocaleString('default', { month: 'short' })}
-                                 </span>
-                                 <span className="text-xl font-black text-text-main leading-none">
-                                   {new Date(apt.date).getDate()}
-                                 </span>
+                      .map((apt) => {
+                        const isUpcoming = (apt.status === 'Confirmed' || apt.status === 'Pending') && new Date(apt.date) >= new Date(new Date().toDateString());
+                        const isRequestingThis = requestingAptId === apt.id;
+                        return (
+                          <div key={apt.id} className="bg-white rounded-[2.5rem] border border-black/5 shadow-sm overflow-hidden">
+                            <div className="p-6 md:p-8 flex items-center justify-between gap-4">
+                              <div className="flex items-center gap-4 md:gap-6 min-w-0">
+                                <div className="w-14 h-14 md:w-16 md:h-16 bg-bg-soft rounded-3xl flex flex-col items-center justify-center text-center shrink-0">
+                                  <span className="text-[9px] font-black text-primary uppercase">
+                                    {new Date(apt.date).toLocaleString('default', { month: 'short' })}
+                                  </span>
+                                  <span className="text-xl font-black text-text-main leading-none">
+                                    {new Date(apt.date).getDate()}
+                                  </span>
+                                </div>
+                                <div className="min-w-0">
+                                  <h4 className="text-base md:text-lg font-black text-text-main truncate">{apt.type}</h4>
+                                  <p className="text-xs md:text-sm font-medium text-text-muted">{apt.time}</p>
+                                  {apt.doctorName && <p className="text-[9px] font-black text-primary uppercase tracking-widest mt-1">{apt.doctorName}</p>}
+                                </div>
                               </div>
-                              <div>
-                                 <h4 className="text-lg font-black text-text-main">{apt.type}</h4>
-                                 <p className="text-sm font-medium text-text-muted">{apt.time}</p>
+                              <div className="flex items-center gap-2 shrink-0">
+                                <span className={`px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest ${
+                                  apt.status === 'Confirmed' ? 'bg-green-100 text-green-700' :
+                                  apt.status === 'Completed' ? 'bg-blue-100 text-blue-700' :
+                                  apt.status === 'Cancelled' ? 'bg-red-100 text-red-600' :
+                                  'bg-gray-100 text-text-muted'
+                                }`}>{apt.status}</span>
+                                {isUpcoming && (
+                                  <button
+                                    onClick={() => { setRequestingAptId(isRequestingThis ? null : apt.id); setAptAction(null); setReschedulePreference(''); }}
+                                    className="w-8 h-8 rounded-full bg-bg-soft border border-black/10 flex items-center justify-center text-text-muted hover:text-primary transition-colors"
+                                  >
+                                    <span className="material-symbols-outlined text-[16px]">{isRequestingThis ? 'close' : 'more_horiz'}</span>
+                                  </button>
+                                )}
                               </div>
-                           </div>
-                           <span className={`px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest ${
-                             apt.status === 'Confirmed' ? 'bg-green-100 text-green-700' : 
-                             apt.status === 'Completed' ? 'bg-blue-100 text-blue-700' :
-                             'bg-gray-100 text-text-muted'
-                           }`}>{apt.status}</span>
-                        </div>
-                      ))
+                            </div>
+
+                            {/* Inline action panel */}
+                            {isRequestingThis && (
+                              <div className="px-6 md:px-8 pb-6 border-t border-black/5 pt-4">
+                                {!aptAction ? (
+                                  <div className="flex gap-3">
+                                    <button onClick={() => setAptAction('reschedule')} className="flex-1 flex items-center justify-center gap-2 bg-bg-soft hover:bg-primary/10 text-text-main py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors">
+                                      <span className="material-symbols-outlined text-sm text-primary">event_repeat</span> Request Reschedule
+                                    </button>
+                                    <button onClick={async () => {
+                                      if (!user) return;
+                                      setAptRequestSending(true);
+                                      await onSendMessage({
+                                        senderId: user.id,
+                                        recipientId: 'admin',
+                                        subject: 'Cancel Request',
+                                        body: `I would like to cancel my appointment: ${apt.type} on ${new Date(apt.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })} at ${apt.time}. Please confirm cancellation.`,
+                                        read: false,
+                                        createdAt: new Date().toISOString(),
+                                      });
+                                      setAptRequestSending(false);
+                                      setRequestingAptId(null);
+                                    }} disabled={aptRequestSending} className="flex-1 flex items-center justify-center gap-2 bg-red-50 hover:bg-red-100 text-red-600 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors disabled:opacity-50">
+                                      <span className="material-symbols-outlined text-sm">cancel</span> Request Cancel
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <div className="space-y-3">
+                                    <p className="text-[9px] font-black uppercase tracking-widest text-text-muted">Preferred new date/time</p>
+                                    <textarea
+                                      value={reschedulePreference}
+                                      onChange={e => setReschedulePreference(e.target.value)}
+                                      placeholder="e.g. Any morning next week, preferably Tuesday or Thursday..."
+                                      rows={2}
+                                      className="w-full bg-bg-soft border-transparent rounded-xl px-4 py-3 text-xs font-bold focus:ring-2 focus:ring-primary/20 resize-none"
+                                    />
+                                    <div className="flex gap-2">
+                                      <button onClick={() => setAptAction(null)} className="px-4 py-2 text-[9px] font-black uppercase tracking-widest text-text-muted hover:text-text-main">Back</button>
+                                      <button onClick={async () => {
+                                        if (!user) return;
+                                        setAptRequestSending(true);
+                                        await onSendMessage({
+                                          senderId: user.id,
+                                          recipientId: 'admin',
+                                          subject: 'Reschedule Request',
+                                          body: `I would like to reschedule my appointment: ${apt.type} on ${new Date(apt.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })} at ${apt.time}.\n\nPreferred new time: ${reschedulePreference || 'Please contact me to arrange.'}`,
+                                          read: false,
+                                          createdAt: new Date().toISOString(),
+                                        });
+                                        setAptRequestSending(false);
+                                        setRequestingAptId(null);
+                                        setAptAction(null);
+                                      }} disabled={aptRequestSending} className="flex-1 bg-primary text-clinical-dark py-2 rounded-xl text-[10px] font-black uppercase tracking-widest disabled:opacity-50">
+                                        {aptRequestSending ? 'Sending…' : 'Send Reschedule Request'}
+                                      </button>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })
                   ) : (
                     <div className="bg-white p-12 rounded-[2.5rem] border border-black/5 text-center">
                       <p className="text-text-muted font-bold">You have no appointment history.</p>
                     </div>
                   )}
                </div>
-               <div className="lg:col-span-4 bg-primary/5 rounded-[3rem] p-10 border border-primary/10">
-                  <h4 className="text-lg font-black text-text-main uppercase tracking-widest mb-6">Booking Policy</h4>
-                  <ul className="space-y-4">
-                     {[
-                       "Please provide 48 hours' notice for cancellations.",
-                       "Arrive 5 minutes before your scheduled session.",
-                       "Avoid caffeinated drinks 2 hours prior to PRP."
-                     ].map((item, i) => (
-                       <li key={i} className="text-xs font-medium text-text-muted leading-relaxed flex gap-3">
+               <div className="lg:col-span-4 space-y-6">
+                  <div className="bg-primary/5 rounded-[3rem] p-8 md:p-10 border border-primary/10">
+                    <h4 className="text-lg font-black text-text-main uppercase tracking-widest mb-6">Booking Policy</h4>
+                    <ul className="space-y-4">
+                      {[
+                        "Please provide 48 hours' notice for cancellations.",
+                        "Arrive 5 minutes before your scheduled session.",
+                        "Avoid caffeinated drinks 2 hours prior to PRP."
+                      ].map((item, i) => (
+                        <li key={i} className="text-xs font-medium text-text-muted leading-relaxed flex gap-3">
                           <span className="w-1.5 h-1.5 bg-primary rounded-full mt-1.5 shrink-0" />
                           {item}
-                       </li>
-                     ))}
-                  </ul>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                  <div className="bg-clinical-dark text-white rounded-[3rem] p-8 md:p-10">
+                    <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-2">Need to make a change?</p>
+                    <p className="text-sm font-bold text-gray-300 leading-relaxed mb-5">Use the menu on each upcoming appointment to request a reschedule or cancellation. Our team will confirm via message.</p>
+                    <p className="text-[9px] font-black text-primary uppercase tracking-widest">48 hours notice required</p>
+                  </div>
                </div>
             </div>
           </div>

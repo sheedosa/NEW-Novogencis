@@ -79,6 +79,9 @@ export interface Client {
     signature: string;
   }[];
   internalNotes?: string;
+  treatmentPlan?: TreatmentPlan;
+  prescriptions?: Prescription[];
+  payments?: Payment[];
   createdAt: string;
   assessmentData?: {
     answers?: Record<string, { text: string; value: string | string[] }>;
@@ -128,6 +131,52 @@ export interface TreatmentNote {
   createdAt: string;
 }
 
+export interface TreatmentPhase {
+  id: string;
+  name: string;
+  description: string;
+  status: 'Planned' | 'Active' | 'Completed' | 'On Hold';
+  sessionsPlanned: number;
+  sessionsCompleted: number;
+  startDate?: string;
+  endDate?: string;
+  notes?: string;
+}
+
+export interface TreatmentPlan {
+  id: string;
+  clientId: string;
+  title: string;
+  phases: TreatmentPhase[];
+  adminNotes?: string;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface Prescription {
+  id: string;
+  drugName: string;
+  dosage: string;
+  instructions: string;
+  startDate: string;
+  endDate?: string;
+  prescribedBy?: string;
+  status: 'Active' | 'Completed' | 'Discontinued';
+  createdAt: string;
+}
+
+export interface Payment {
+  id: string;
+  description: string;
+  amount: number;
+  currency: string;
+  status: 'Paid' | 'Pending' | 'Overdue' | 'Refunded';
+  dueDate?: string;
+  paidDate?: string;
+  reference?: string;
+  createdAt: string;
+}
+
 export interface Message {
   id: string;
   senderId: string;
@@ -170,7 +219,9 @@ export type NotificationType =
   | 'payment_received'
   | 'welcome'
   | 'daily_briefing'
-  | 'profile_updated';
+  | 'profile_updated'
+  | 'reschedule_request'
+  | 'cancel_request';
 
 export interface AppNotification {
   id: string;

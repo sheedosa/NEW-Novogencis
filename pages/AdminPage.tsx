@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { User, Client, Appointment, Message, GalleryItem, AdminType, AppNotification } from '../types';
+import { User, Client, Appointment, Message, GalleryItem, AdminType, AppNotification, TreatmentPlan, Prescription, Payment } from '../types';
 import { FORMS } from '../constants';
 import { InteractiveForm } from '../components/InteractiveForm';
 import Logo from '../components/Logo';
@@ -274,6 +274,46 @@ const AdminPage: React.FC<AdminPageProps> = ({
     }
   };
 
+  // ── Treatment plan / prescriptions / payments ──────────────────────────────
+  const onSaveTreatmentPlan = async (clientId: string, plan: TreatmentPlan) => {
+    await onUpdateClient(clientId, { treatmentPlan: plan });
+    await logClinicalAction(user?.id || 'admin', 'save_treatment_plan', clientId, `Saved treatment plan: ${plan.title}`);
+  };
+
+  const onAddPrescription = async (clientId: string, rx: Prescription) => {
+    const client = clients.find(c => c.id === clientId);
+    const existing = client?.prescriptions || [];
+    await onUpdateClient(clientId, { prescriptions: [...existing, rx] });
+    await logClinicalAction(user?.id || 'admin', 'add_prescription', clientId, `Added prescription: ${rx.drugName}`);
+  };
+
+  const onUpdatePrescription = async (clientId: string, rxId: string, updates: Partial<Prescription>) => {
+    const client = clients.find(c => c.id === clientId);
+    const existing = client?.prescriptions || [];
+    const updated = existing.map(r => r.id === rxId ? { ...r, ...updates } : r);
+    await onUpdateClient(clientId, { prescriptions: updated });
+  };
+
+  const onAddPayment = async (clientId: string, payment: Payment) => {
+    const client = clients.find(c => c.id === clientId);
+    const existing = client?.payments || [];
+    await onUpdateClient(clientId, { payments: [...existing, payment] });
+    await logClinicalAction(user?.id || 'admin', 'add_payment', clientId, `Added payment: ${payment.description} £${payment.amount}`);
+    if (payment.status === 'Pending') {
+      try {
+        const client = clients.find(c => c.id === clientId);
+        await notifyPaymentSent(clientId, client?.email || '', client?.name || '', `£${payment.amount}`);
+      } catch { /* non-critical */ }
+    }
+  };
+
+  const onUpdatePayment = async (clientId: string, paymentId: string, updates: Partial<Payment>) => {
+    const client = clients.find(c => c.id === clientId);
+    const existing = client?.payments || [];
+    const updated = existing.map(p => p.id === paymentId ? { ...p, ...updates } : p);
+    await onUpdateClient(clientId, { payments: updated });
+  };
+
   const handleSendForm = async (formId: string) => {
     if (!selectedClientId) return;
     const form = FORMS.find(f => f.id === formId);
@@ -333,6 +373,8 @@ const AdminPage: React.FC<AdminPageProps> = ({
     onAddAppointment, onUpdateAppointment, onDeleteAppointment,
     onSendMessage, onMarkMessageRead, onUpdateMessage, onUpdateClient,
     onBootstrapAdmins, onMarkNotificationRead,
+    onSaveTreatmentPlan, onAddPrescription, onUpdatePrescription,
+    onAddPayment, onUpdatePayment,
     // State
     activeTab, setActiveTab,
     effectiveAdminType, setEffectiveAdminType,

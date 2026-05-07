@@ -1,11 +1,11 @@
 import { createContext, useContext, RefObject } from 'react';
 import {
   Page, User, Client, Appointment, Message, GalleryItem,
-  AdminType, AppNotification,
+  AdminType, AppNotification, TreatmentPlan, Prescription, Payment,
 } from '../../types';
 
 export type AdminTab = 'overview' | 'assessments' | 'clients' | 'appointments' | 'messages' | 'platform-health';
-export type ClientRecordTab = 'overview' | 'communications' | 'forms' | 'gallery' | 'assessment';
+export type ClientRecordTab = 'overview' | 'communications' | 'forms' | 'gallery' | 'assessment' | 'treatment' | 'financials';
 export type NotifFilter = 'all' | 'assessment' | 'message' | 'appointment';
 export type AppointmentView = 'list' | 'calendar';
 
@@ -121,6 +121,13 @@ export interface AdminContextValue extends AdminPageProps {
   handleSendForm: (formId: string, clientId: string, clientEmail: string) => Promise<void>;
   changeMonth: (offset: number) => void;
   getCalendarDays: () => CalendarDay[];
+
+  // Clinical data handlers
+  onSaveTreatmentPlan: (clientId: string, plan: TreatmentPlan) => Promise<void>;
+  onAddPrescription: (clientId: string, rx: Prescription) => Promise<void>;
+  onUpdatePrescription: (clientId: string, rxId: string, updates: Partial<Prescription>) => Promise<void>;
+  onAddPayment: (clientId: string, payment: Payment) => Promise<void>;
+  onUpdatePayment: (clientId: string, paymentId: string, updates: Partial<Payment>) => Promise<void>;
 }
 
 export const AdminContext = createContext<AdminContextValue | null>(null);
