@@ -15,35 +15,35 @@ html {
 
 .organic-shape {
   border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%;
-  transition: border-radius 1.2s cubic-bezier(0.4, 0, 0.2, 1);
-  will-change: border-radius, transform;
-  transform: translateZ(0);
 }
 
-.organic-shape:hover {
-  border-radius: 40% 60% 70% 30% / 30% 70% 40% 60%;
+@media (min-width: 1024px) {
+  .organic-shape {
+    transition: border-radius 1.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .organic-shape:hover {
+    border-radius: 40% 60% 70% 30% / 30% 70% 40% 60%;
+  }
 }
 
 .glass-header {
   background: rgba(255, 255, 255, 0.88);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  transform: translateZ(0);
-  will-change: transform, background-color;
 }
 
 .premium-card {
   background: #ffffff;
   border: 1px solid rgba(208, 187, 149, 0.1);
-  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-  will-change: transform, box-shadow, border-color;
-  transform: translateZ(0);
+  transition: border-color 0.3s ease, box-shadow 0.3s ease, transform 0.3s ease;
 }
 
-.premium-card:hover {
-  border-color: rgba(208, 187, 149, 0.4);
-  transform: translateY(-8px) translateZ(0);
-  box-shadow: 0 30px 60px -20px rgba(208, 187, 149, 0.15);
+@media (min-width: 1024px) {
+  .premium-card:hover {
+    border-color: rgba(208, 187, 149, 0.4);
+    transform: translateY(-8px);
+    box-shadow: 0 30px 60px -20px rgba(208, 187, 149, 0.15);
+  }
 }
 
 .animate-fade-in {
@@ -100,11 +100,6 @@ html {
   textarea {
     font-size: 16px !important;
   }
-}
-
-section {
-  content-visibility: auto;
-  contain-intrinsic-size: 1px 500px;
 }
 
 .safe-area-bottom {
@@ -184,4 +179,23 @@ section {
 .sidebar-item-clinical {
   transition: all 0.2s ease;
   border-radius: 0.75rem;
+}
+
+/* Mobile: disable expensive decorative animations to prevent scroll flicker */
+@media (max-width: 1023px) {
+  .animate-pulse-desktop-only,
+  .animate-float {
+    animation: none !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
