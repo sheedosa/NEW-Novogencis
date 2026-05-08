@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { useAdminContext } from '../context';
 import { MessageInputForm } from '../AdminComponents';
 import { FORMS } from '../../../constants';
@@ -309,4 +309,4 @@ const MessagesPanel: React.FC = () => {
   );
 };
 
-export default MessagesPanel;
+export default memo(MessagesPanel);

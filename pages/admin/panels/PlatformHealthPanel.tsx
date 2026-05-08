@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { Card } from '../../../components/Card';
 import { useAdminContext } from '../context';
 
@@ -135,4 +135,4 @@ const PlatformHealthPanel: React.FC = () => {
   );
 };
 
-export default PlatformHealthPanel;
+export default memo(PlatformHealthPanel);

@@ -1,11 +1,11 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { Client } from '../../../types';
 import { useAdminContext } from '../context';
 import { StatusBadge, FeedbackEditor } from '../AdminComponents';
 import { logClinicalAction } from '../../../utils/auditLogger';
 import { notifyFeedbackReceived } from '../../../utils/notificationService';
 
-export default function AssessmentsPanel() {
+function AssessmentsPanel() {
   const {
     filteredClients,
     triageSelectedId,
@@ -234,3 +234,5 @@ export default function AssessmentsPanel() {
     </div>
   );
 }
+
+export default memo(AssessmentsPanel);

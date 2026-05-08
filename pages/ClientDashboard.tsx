@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, memo, useCallback } from 'react';
 import { Page, User, Appointment, Client, Message, GalleryItem } from '../types';
 import { FORMS } from '../constants';
 import { Card } from '../components/Card';
@@ -53,11 +53,160 @@ const SidebarItem: React.FC<SidebarItemProps> = ({ id, label, icon, activeTab, o
 
 import { AppNotification } from '../types';
 
+interface MessagesTabProps {
+  userMessages: Message[];
+  user: User | null;
+  onSendMessage: (message: Omit<Message, 'id'>) => Promise<void>;
+  onOpenForm: (msg: Message) => void;
+}
+
+const MessagesTab = memo(function MessagesTab({ userMessages, user, onSendMessage, onOpenForm }: MessagesTabProps) {
+  const [messageInput, setMessageInput] = useState('');
+  const [isSending, setIsSending] = useState(false);
+
+  return (
+    <div className="animate-fade-up h-[calc(100dvh-12rem)] flex flex-col">
+      <div className="bg-white rounded-[2.5rem] border border-black/5 shadow-sm flex flex-col overflow-hidden flex-grow">
+        <div className="p-6 border-b border-black/5 flex justify-between items-center bg-white z-10">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
+              <span className="material-symbols-outlined">medical_services</span>
+            </div>
+            <div>
+              <h3 className="text-xs font-black text-text-main">Novogenics Clinical Support</h3>
+              <div className="flex items-center gap-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span>
+                <p className="text-[8px] font-black uppercase tracking-widest text-text-muted">Direct Portal Access</p>
+              </div>
+            </div>
+          </div>
+          <div className="hidden md:flex items-center gap-4">
+            <span className="text-[9px] font-black uppercase tracking-widest text-text-muted">Response time: &lt; 24h</span>
+          </div>
+        </div>
+
+        <div className="flex-grow overflow-y-auto p-6 md:p-8 space-y-4 no-scrollbar bg-bg-soft/30">
+          {userMessages.length > 0 ? (
+            userMessages.map((msg) => (
+              <div key={msg.id} className={`flex items-end gap-2 ${msg.senderId === user?.id ? 'flex-row-reverse' : 'flex-row'}`}>
+                {msg.senderId !== user?.id && (
+                  <div className="w-8 h-8 rounded-lg bg-white border border-black/5 flex items-center justify-center text-primary shrink-0 shadow-sm">
+                    <span className="material-symbols-outlined text-xs">medical_services</span>
+                  </div>
+                )}
+                <div className={`max-w-[85%] md:max-w-[70%] p-4 md:p-5 shadow-sm ${
+                  msg.senderId === user?.id
+                    ? 'bg-clinical-dark text-white rounded-t-2xl rounded-bl-2xl rounded-br-sm'
+                    : 'bg-white border border-black/5 text-text-main rounded-t-2xl rounded-br-2xl rounded-bl-sm'
+                }`}>
+                  {msg.type === 'form' ? (
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2 text-primary">
+                        <span className="material-symbols-outlined text-sm">description</span>
+                        <span className="text-[9px] font-black uppercase tracking-widest">Clinical Form</span>
+                      </div>
+                      <p className="text-[11px] font-bold">{FORMS.find(f => f.id === msg.formId)?.title || msg.subject}</p>
+                      <button
+                        onClick={() => onOpenForm(msg)}
+                        className="block w-full bg-primary text-clinical-dark text-center py-2 rounded-xl text-[9px] font-black uppercase tracking-widest hover:scale-[1.02] transition-transform"
+                      >
+                        {msg.isSigned ? 'View Completed Form' : 'Open Interactive Form'}
+                      </button>
+                      {msg.isSigned && (
+                        <div className="flex items-center gap-1 text-green-500 text-[8px] font-black uppercase tracking-widest">
+                          <span className="material-symbols-outlined text-[10px]">check_circle</span>
+                          Signed
+                        </div>
+                      )}
+                    </div>
+                  ) : msg.type === 'payment' ? (
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2 text-primary">
+                        <span className="material-symbols-outlined text-sm">payments</span>
+                        <span className="text-[9px] font-black uppercase tracking-widest">Payment Request</span>
+                      </div>
+                      <p className="text-[11px] font-bold">{msg.body.split(': ')[0]}</p>
+                      <a
+                        href={msg.paymentUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="block w-full bg-primary text-clinical-dark text-center py-2 rounded-xl text-[9px] font-black uppercase tracking-widest hover:scale-[1.02] transition-transform"
+                      >
+                        Complete Payment
+                      </a>
+                    </div>
+                  ) : (
+                    <p className="text-[11px] leading-relaxed mb-2">{msg.body}</p>
+                  )}
+                  <div className={`text-[8px] font-bold uppercase tracking-widest ${
+                    msg.senderId === user?.id ? 'text-white/40 text-right' : 'text-text-muted'
+                  }`}>
+                    {new Date(msg.createdAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
+                  </div>
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="h-full flex flex-col items-center justify-center text-center p-12">
+              <div className="w-20 h-20 bg-white rounded-3xl flex items-center justify-center text-primary/20 mb-4 shadow-sm">
+                <span className="material-symbols-outlined text-4xl">forum</span>
+              </div>
+              <p className="text-xs font-bold text-text-muted">No messages yet. Start a conversation with our clinical team.</p>
+            </div>
+          )}
+        </div>
+
+        <div className="p-4 md:p-6 bg-white/80 backdrop-blur-md border-t border-black/5 sticky bottom-0 z-20">
+          <form
+            onSubmit={async (e) => {
+              e.preventDefault();
+              if (!messageInput.trim() || !user) return;
+              setIsSending(true);
+              try {
+                await onSendMessage({
+                  senderId: user.id,
+                  recipientId: 'admin',
+                  subject: 'Portal Message',
+                  body: messageInput,
+                  read: false,
+                  createdAt: new Date().toISOString()
+                });
+                setMessageInput('');
+              } finally {
+                setIsSending(false);
+              }
+            }}
+            className="flex items-center gap-3"
+          >
+            <input
+              type="text"
+              placeholder="Type your message to the clinic..."
+              value={messageInput}
+              onChange={(e) => setMessageInput(e.target.value)}
+              className="flex-grow bg-bg-soft border-transparent rounded-xl px-6 py-4 text-xs font-bold focus:ring-2 focus:ring-primary/20 transition-all"
+            />
+            <button
+              type="submit"
+              disabled={!messageInput.trim() || isSending}
+              className="w-12 h-12 bg-primary text-clinical-dark rounded-xl flex items-center justify-center shadow-lg shadow-primary/20 hover:scale-105 active:scale-95 transition-all disabled:opacity-50 disabled:scale-100"
+            >
+              {isSending ? (
+                <div className="w-4 h-4 border-2 border-clinical-dark/20 border-t-clinical-dark rounded-full animate-spin" />
+              ) : (
+                <span className="material-symbols-outlined">send</span>
+              )}
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  );
+});
+
 const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNavigate, appointments, clients, messages, notifications, onMarkNotificationRead, onSendMessage, onMarkMessageRead, onUpdateMessage, onUpdateClient, onAcceptPolicies }) => {
   const [activeTab, setActiveTab] = useState<Tab>('overview');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [isSending, setIsSending] = useState(false);
-  const [messageInput, setMessageInput] = useState('');
+  const [isFormSaving, setIsFormSaving] = useState(false);
   const [showPolicyModal, setShowPolicyModal] = useState(!user?.policiesAccepted);
   const [showNotifications, setShowNotifications] = useState(false);
   const [notifFilter, setNotifFilter] = useState<'all' | 'message' | 'appointment' | 'feedback'>('all');
@@ -265,6 +414,11 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
     setIsSidebarOpen(false);
   };
 
+  const handleOpenForm = useCallback((msg: Message) => {
+    setActiveFormMessage(msg);
+    setIsFormModalOpen(true);
+  }, []);
+
   const formatDOB = (dob: string | undefined) => {
     if (!dob) return 'Not provided';
     const parts = dob.split('-');
@@ -380,10 +534,7 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
                 </h3>
                 <div className="grid grid-cols-2 gap-4">
                   <button
-                    onClick={() => {
-                      setActiveTab('messages');
-                      setMessageInput('Hello, I would like to request a new appointment. My preferred date/time is...');
-                    }}
+                    onClick={() => setActiveTab('messages')}
                     className="p-6 bg-bg-soft rounded-3xl text-center group hover:bg-primary transition-all"
                   >
                     <span className="material-symbols-outlined text-3xl text-primary group-hover:text-white mb-2">event</span>
@@ -574,7 +725,7 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
                            </div>
                            <p className="text-[9px] font-bold text-right mt-1 text-primary">{progress}%</p>
                         </div>
-                        <button onClick={() => { setActiveTab('messages'); setMessageInput('Hello, I would like to request a new appointment for...'); }} className="w-full bg-white text-clinical-dark py-3 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-white/5 hover:scale-105 transition-all">Request Next Session</button>
+                        <button onClick={() => setActiveTab('messages')} className="w-full bg-white text-clinical-dark py-3 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-white/5 hover:scale-105 transition-all">Request Next Session</button>
                      </div>
                   </Card>
 
@@ -637,11 +788,8 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
           <div className="animate-fade-up space-y-10">
             <div className="flex justify-between items-end">
               <h2 className="text-3xl font-black text-text-main">My Appointments</h2>
-              <button 
-                onClick={() => {
-                  setActiveTab('messages');
-                  setMessageInput('Hello, I would like to request a new appointment for...');
-                }}
+              <button
+                onClick={() => setActiveTab('messages')}
                 className="bg-primary text-clinical-dark px-8 py-3 rounded-full text-[11px] font-black uppercase tracking-widest shadow-xl shadow-primary/10 hover:scale-105 transition-all active:scale-95"
               >
                 Request New Visit
@@ -904,147 +1052,12 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
         );
       case 'messages':
         return (
-          <div className="animate-fade-up h-[calc(100dvh-12rem)] flex flex-col">
-            <div className="bg-white rounded-[2.5rem] border border-black/5 shadow-sm flex flex-col overflow-hidden flex-grow">
-              {/* Chat Header */}
-              <div className="p-6 border-b border-black/5 flex justify-between items-center bg-white z-10">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
-                    <span className="material-symbols-outlined">medical_services</span>
-                  </div>
-                  <div>
-                    <h3 className="text-xs font-black text-text-main">Novogenics Clinical Support</h3>
-                    <div className="flex items-center gap-2">
-                      <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span>
-                      <p className="text-[8px] font-black uppercase tracking-widest text-text-muted">Direct Portal Access</p>
-                    </div>
-                  </div>
-                </div>
-                <div className="hidden md:flex items-center gap-4">
-                  <span className="text-[9px] font-black uppercase tracking-widest text-text-muted">Response time: &lt; 24h</span>
-                </div>
-              </div>
-
-              {/* Chat Messages */}
-              <div className="flex-grow overflow-y-auto p-6 md:p-8 space-y-4 no-scrollbar bg-bg-soft/30">
-                {userMessages.length > 0 ? (
-                  userMessages.map((msg) => (
-                    <div key={msg.id} className={`flex items-end gap-2 ${msg.senderId === user?.id ? 'flex-row-reverse' : 'flex-row'}`}>
-                      {msg.senderId !== user?.id && (
-                        <div className="w-8 h-8 rounded-lg bg-white border border-black/5 flex items-center justify-center text-primary shrink-0 shadow-sm">
-                          <span className="material-symbols-outlined text-xs">medical_services</span>
-                        </div>
-                      )}
-                      <div className={`max-w-[85%] md:max-w-[70%] p-4 md:p-5 shadow-sm ${
-                        msg.senderId === user?.id 
-                          ? 'bg-clinical-dark text-white rounded-t-2xl rounded-bl-2xl rounded-br-sm' 
-                          : 'bg-white border border-black/5 text-text-main rounded-t-2xl rounded-br-2xl rounded-bl-sm'
-                      }`}>
-                        {msg.type === 'form' ? (
-                          <div className="space-y-3">
-                            <div className="flex items-center gap-2 text-primary">
-                              <span className="material-symbols-outlined text-sm">description</span>
-                              <span className="text-[9px] font-black uppercase tracking-widest">Clinical Form</span>
-                            </div>
-                            <p className="text-[11px] font-bold">{FORMS.find(f => f.id === msg.formId)?.title || msg.subject}</p>
-                            <button 
-                              onClick={() => {
-                                setActiveFormMessage(msg);
-                                setIsFormModalOpen(true);
-                              }}
-                              className="block w-full bg-primary text-clinical-dark text-center py-2 rounded-xl text-[9px] font-black uppercase tracking-widest hover:scale-[1.02] transition-transform"
-                            >
-                              {msg.isSigned ? 'View Completed Form' : 'Open Interactive Form'}
-                            </button>
-                            {msg.isSigned && (
-                              <div className="flex items-center gap-1 text-green-500 text-[8px] font-black uppercase tracking-widest">
-                                <span className="material-symbols-outlined text-[10px]">check_circle</span>
-                                Signed
-                              </div>
-                            )}
-                          </div>
-                        ) : msg.type === 'payment' ? (
-                          <div className="space-y-3">
-                            <div className="flex items-center gap-2 text-primary">
-                              <span className="material-symbols-outlined text-sm">payments</span>
-                              <span className="text-[9px] font-black uppercase tracking-widest">Payment Request</span>
-                            </div>
-                            <p className="text-[11px] font-bold">{msg.body.split(': ')[0]}</p>
-                            <a 
-                              href={msg.paymentUrl} 
-                              target="_blank" 
-                              rel="noopener noreferrer"
-                              className="block w-full bg-primary text-clinical-dark text-center py-2 rounded-xl text-[9px] font-black uppercase tracking-widest hover:scale-[1.02] transition-transform"
-                            >
-                              Complete Payment
-                            </a>
-                          </div>
-                        ) : (
-                          <p className="text-[11px] leading-relaxed mb-2">{msg.body}</p>
-                        )}
-                        <div className={`text-[8px] font-bold uppercase tracking-widest ${
-                          msg.senderId === user?.id ? 'text-white/40 text-right' : 'text-text-muted'
-                        }`}>
-                          {new Date(msg.createdAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
-                        </div>
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <div className="h-full flex flex-col items-center justify-center text-center p-12">
-                    <div className="w-20 h-20 bg-white rounded-3xl flex items-center justify-center text-primary/20 mb-4 shadow-sm">
-                      <span className="material-symbols-outlined text-4xl">forum</span>
-                    </div>
-                    <p className="text-xs font-bold text-text-muted">No messages yet. Start a conversation with our clinical team.</p>
-                  </div>
-                )}
-              </div>
-
-              {/* Chat Input */}
-              <div className="p-4 md:p-6 bg-white/80 backdrop-blur-md border-t border-black/5 sticky bottom-0 z-20">
-                <form 
-                  onSubmit={async (e) => {
-                    e.preventDefault();
-                    if (!messageInput.trim() || !user) return;
-                    setIsSending(true);
-                    try {
-                      await onSendMessage({
-                        senderId: user.id,
-                        recipientId: 'admin',
-                        subject: 'Portal Message',
-                        body: messageInput,
-                        read: false,
-                        createdAt: new Date().toISOString()
-                      });
-                      setMessageInput('');
-                    } finally {
-                      setIsSending(false);
-                    }
-                  }}
-                  className="flex items-center gap-3"
-                >
-                  <input 
-                    type="text" 
-                    placeholder="Type your message to the clinic..." 
-                    value={messageInput}
-                    onChange={(e) => setMessageInput(e.target.value)}
-                    className="flex-grow bg-bg-soft border-transparent rounded-xl px-6 py-4 text-xs font-bold focus:ring-2 focus:ring-primary/20 transition-all"
-                  />
-                  <button 
-                    type="submit"
-                    disabled={!messageInput.trim() || isSending}
-                    className="w-12 h-12 bg-primary text-clinical-dark rounded-xl flex items-center justify-center shadow-lg shadow-primary/20 hover:scale-105 active:scale-95 transition-all disabled:opacity-50 disabled:scale-100"
-                  >
-                    {isSending ? (
-                      <div className="w-4 h-4 border-2 border-clinical-dark/20 border-t-clinical-dark rounded-full animate-spin" />
-                    ) : (
-                      <span className="material-symbols-outlined">send</span>
-                    )}
-                  </button>
-                </form>
-              </div>
-            </div>
-          </div>
+          <MessagesTab
+            userMessages={userMessages}
+            user={user}
+            onSendMessage={onSendMessage}
+            onOpenForm={handleOpenForm}
+          />
         );
       case 'profile':
         return (
@@ -1395,9 +1408,9 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
         <InteractiveForm 
           message={activeFormMessage}
           client={currentClient}
-          isSaving={isSending}
+          isSaving={isFormSaving}
           onSave={async (formData, signature) => {
-            setIsSending(true);
+            setIsFormSaving(true);
             try {
               // 1. Update the message itself
               await onUpdateMessage(activeFormMessage.id, {
@@ -1457,7 +1470,7 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
             } catch (error) {
               console.error('Failed to submit form:', error);
             } finally {
-              setIsSending(false);
+              setIsFormSaving(false);
             }
           } }
           onClose={() => {
@@ -1602,4 +1615,4 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
   );
 };
 
-export default ClientDashboard;
+export default memo(ClientDashboard);

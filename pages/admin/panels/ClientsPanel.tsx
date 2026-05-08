@@ -1,4 +1,5 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useRef, memo } from 'react';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import { Card } from '../../../components/Card';
 import { useAdminContext } from '../context';
 import { AssignedBadge } from '../AdminComponents';
@@ -68,6 +69,30 @@ const ClientsPanel: React.FC = () => {
     const pendingReview = filteredClients.filter(c => c.status === 'Assessment Submitted').length;
     return { last30, growth, total, converted, conversionRate, pendingReview };
   }, [filteredClients]);
+
+  // Virtualiser refs (declared after visibleClients + stats to avoid TDZ)
+  const tableScrollRef = useRef<HTMLDivElement>(null);
+  const sidebarScrollRef = useRef<HTMLDivElement>(null);
+  const mobileScrollRef = useRef<HTMLDivElement>(null);
+
+  const tableVirtualizer = useVirtualizer({
+    count: visibleClients.length,
+    getScrollElement: () => tableScrollRef.current,
+    estimateSize: () => 88,
+    overscan: 5,
+  });
+  const sidebarVirtualizer = useVirtualizer({
+    count: visibleClients.length,
+    getScrollElement: () => sidebarScrollRef.current,
+    estimateSize: () => 74,
+    overscan: 5,
+  });
+  const mobileVirtualizer = useVirtualizer({
+    count: visibleClients.length,
+    getScrollElement: () => mobileScrollRef.current,
+    estimateSize: () => 74,
+    overscan: 5,
+  });
 
   return (
     <div className="animate-fade-up space-y-4 md:space-y-8">
@@ -145,38 +170,44 @@ const ClientsPanel: React.FC = () => {
                   />
                   <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-primary text-sm">search</span>
                 </div>
-                <div className="space-y-1.5 md:space-y-2">
-                  {visibleClients.length === 0 && (
-                    <p className="text-center text-[10px] font-bold text-text-muted uppercase tracking-widest py-8">
-                      {filteredClients.length === 0 ? 'No clients yet' : 'No matches'}
-                    </p>
-                  )}
-                  {visibleClients.map(c => (
-                    <button
-                      key={c.id}
-                      onClick={() => setSelectedClientId(c.id)}
-                      className={`w-full flex items-center gap-3 p-3 md:p-4 rounded-2xl transition-all text-left group border ${selectedClientId === c.id ? 'bg-primary/5 border-primary/20' : 'border-transparent hover:bg-bg-soft hover:border-black/5'}`}
-                    >
-                      <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary font-black text-[10px] md:text-xs group-hover:bg-primary group-hover:text-white transition-all shrink-0">
-                        {getInitials(c.name)}
-                      </div>
-                      <div className="min-w-0 flex-grow">
-                        <div className="flex items-center gap-2">
-                          <p className="text-sm font-black text-text-main truncate">{c.name}</p>
-                          <AssignedBadge isAssigned={isAssignedToMe(c)} />
-                          {c.policiesAccepted && (
-                            <span className="material-symbols-outlined text-green-500 text-sm font-black" title="Policies Accepted">check_circle</span>
-                          )}
+                {visibleClients.length === 0 && (
+                  <p className="text-center text-[10px] font-bold text-text-muted uppercase tracking-widest py-8">
+                    {filteredClients.length === 0 ? 'No clients yet' : 'No matches'}
+                  </p>
+                )}
+                <div ref={mobileScrollRef} className="overflow-y-auto no-scrollbar" style={{ maxHeight: '60vh' }}>
+                  <div style={{ height: mobileVirtualizer.getTotalSize(), position: 'relative' }}>
+                    {mobileVirtualizer.getVirtualItems().map(virtualRow => {
+                      const c = visibleClients[virtualRow.index];
+                      return (
+                        <div key={c.id} style={{ position: 'absolute', top: 0, left: 0, right: 0, transform: `translateY(${virtualRow.start}px)` }} className="py-1">
+                          <button
+                            onClick={() => setSelectedClientId(c.id)}
+                            className={`w-full flex items-center gap-3 p-3 md:p-4 rounded-2xl transition-all text-left group border ${selectedClientId === c.id ? 'bg-primary/5 border-primary/20' : 'border-transparent hover:bg-bg-soft hover:border-black/5'}`}
+                          >
+                            <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary font-black text-[10px] md:text-xs group-hover:bg-primary group-hover:text-white transition-all shrink-0">
+                              {getInitials(c.name)}
+                            </div>
+                            <div className="min-w-0 flex-grow">
+                              <div className="flex items-center gap-2">
+                                <p className="text-sm font-black text-text-main truncate">{c.name}</p>
+                                <AssignedBadge isAssigned={isAssignedToMe(c)} />
+                                {c.policiesAccepted && (
+                                  <span className="material-symbols-outlined text-green-500 text-sm font-black" title="Policies Accepted">check_circle</span>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <p className="text-[9px] font-bold text-text-muted uppercase tracking-widest">{c.id}</p>
+                                <span className="w-1 h-1 bg-gray-300 rounded-full" />
+                                <p className="text-[9px] font-bold text-primary uppercase tracking-widest">{c.status || 'Active'}</p>
+                              </div>
+                            </div>
+                            <span className="material-symbols-outlined text-text-muted/30 group-hover:text-primary transition-colors text-lg">chevron_right</span>
+                          </button>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <p className="text-[9px] font-bold text-text-muted uppercase tracking-widest">{c.id}</p>
-                          <span className="w-1 h-1 bg-gray-300 rounded-full" />
-                          <p className="text-[9px] font-bold text-primary uppercase tracking-widest">{c.status || 'Active'}</p>
-                        </div>
-                      </div>
-                      <span className="material-symbols-outlined text-text-muted/30 group-hover:text-primary transition-colors text-lg">chevron_right</span>
-                    </button>
-                  ))}
+                      );
+                    })}
+                  </div>
                 </div>
               </Card>
             </div>
@@ -226,93 +257,95 @@ const ClientsPanel: React.FC = () => {
                     </div>
                   </div>
                 </div>
-                <div className="overflow-x-auto bg-white">
-                  <table className="w-full text-left">
-                    <thead className="bg-bg-soft/50 text-[10px] font-black text-text-muted uppercase tracking-widest border-b border-black/5">
-                      <tr>
-                        <th className="px-8 py-6">Profile &amp; Contact</th>
-                        <th className="px-8 py-6">Status &amp; Activity</th>
-                        <th className="px-8 py-6 text-right">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-50">
-                      {visibleClients.length === 0 && (
-                        <tr>
-                          <td colSpan={3} className="px-8 py-16 text-center">
-                            <p className="text-[10px] font-black text-text-muted uppercase tracking-widest">
-                              {filteredClients.length === 0 ? 'No clients in registry yet' : 'No clients match your search'}
-                            </p>
-                          </td>
-                        </tr>
-                      )}
-                      {visibleClients.map(c => (
-                        <tr
-                          key={c.id}
-                          onClick={() => setSelectedClientId(c.id)}
-                          className="hover:bg-bg-soft/40 transition-colors cursor-pointer group"
-                        >
-                          <td className="px-8 py-6">
-                            <div className="flex items-center gap-4">
-                              <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary font-black text-xs group-hover:bg-primary group-hover:text-white transition-all">
-                                {getInitials(c.name)}
-                              </div>
-                              <div>
-                                <div className="flex items-center gap-2">
-                                  <p className="text-sm font-black text-text-main">{c.name}</p>
-                                  <AssignedBadge isAssigned={isAssignedToMe(c)} />
-                                </div>
-                                <div className="flex flex-col gap-0.5 mt-1">
-                                  <p className="text-[10px] font-bold text-text-muted uppercase tracking-widest">ID: {c.id}</p>
-                                  <div className="flex items-center gap-2 text-text-muted mt-1">
-                                    <div className="flex items-center gap-1">
-                                      <span className="material-symbols-outlined text-[10px]">mail</span>
-                                      <span className="text-[9px] font-bold">{c.email}</span>
+                <div className="bg-white">
+                  {/* Sticky header */}
+                  <div className="grid grid-cols-[1fr_220px_160px] bg-bg-soft/50 border-b border-black/5 text-[10px] font-black text-text-muted uppercase tracking-widest">
+                    <div className="px-8 py-6">Profile &amp; Contact</div>
+                    <div className="px-8 py-6">Status &amp; Activity</div>
+                    <div className="px-8 py-6 text-right">Actions</div>
+                  </div>
+                  {visibleClients.length === 0 ? (
+                    <div className="px-8 py-16 text-center">
+                      <p className="text-[10px] font-black text-text-muted uppercase tracking-widest">
+                        {filteredClients.length === 0 ? 'No clients in registry yet' : 'No clients match your search'}
+                      </p>
+                    </div>
+                  ) : (
+                    <div ref={tableScrollRef} style={{ maxHeight: '60vh', overflowY: 'auto' }}>
+                      <div style={{ height: tableVirtualizer.getTotalSize(), position: 'relative' }}>
+                        {tableVirtualizer.getVirtualItems().map(virtualRow => {
+                          const c = visibleClients[virtualRow.index];
+                          return (
+                            <div
+                              key={c.id}
+                              onClick={() => setSelectedClientId(c.id)}
+                              className="grid grid-cols-[1fr_220px_160px] hover:bg-bg-soft/40 transition-colors cursor-pointer group border-b border-gray-50"
+                              style={{ position: 'absolute', top: 0, left: 0, right: 0, transform: `translateY(${virtualRow.start}px)` }}
+                            >
+                              <div className="px-8 py-6">
+                                <div className="flex items-center gap-4">
+                                  <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary font-black text-xs group-hover:bg-primary group-hover:text-white transition-all shrink-0">
+                                    {getInitials(c.name)}
+                                  </div>
+                                  <div>
+                                    <div className="flex items-center gap-2">
+                                      <p className="text-sm font-black text-text-main">{c.name}</p>
+                                      <AssignedBadge isAssigned={isAssignedToMe(c)} />
                                     </div>
-                                    <span className="w-1 h-1 bg-gray-300 rounded-full" />
-                                    <div className="flex items-center gap-1">
-                                      <span className="material-symbols-outlined text-[10px]">call</span>
-                                      <span className="text-[9px] font-bold">{c.phone}</span>
+                                    <div className="flex flex-col gap-0.5 mt-1">
+                                      <p className="text-[10px] font-bold text-text-muted uppercase tracking-widest">ID: {c.id}</p>
+                                      <div className="flex items-center gap-2 text-text-muted mt-1">
+                                        <div className="flex items-center gap-1">
+                                          <span className="material-symbols-outlined text-[10px]">mail</span>
+                                          <span className="text-[9px] font-bold">{c.email}</span>
+                                        </div>
+                                        <span className="w-1 h-1 bg-gray-300 rounded-full" />
+                                        <div className="flex items-center gap-1">
+                                          <span className="material-symbols-outlined text-[10px]">call</span>
+                                          <span className="text-[9px] font-bold">{c.phone}</span>
+                                        </div>
+                                      </div>
                                     </div>
                                   </div>
                                 </div>
                               </div>
-                            </div>
-                          </td>
-                          <td className="px-8 py-6">
-                            <div className="flex flex-col gap-2">
-                              <span className={`w-fit px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${
-                                c.status === 'Active' || !c.status ? 'bg-green-100 text-green-700' :
-                                c.status === 'Assessment Submitted' ? 'bg-blue-100 text-blue-700' :
-                                c.status === 'Consultation Pending' ? 'bg-yellow-100 text-yellow-700' :
-                                'bg-gray-100 text-gray-700'
-                              }`}>
-                                {c.status || 'Active'}
-                              </span>
-                              <div>
-                                <p className="text-[9px] font-black text-text-muted uppercase tracking-widest block mb-0.5">Last Interaction</p>
-                                <div className="flex items-center gap-2">
-                                  <p className="text-xs font-bold text-text-main">
-                                    {c.createdAt ? new Date(c.createdAt).toLocaleDateString() : 'Recently'}
-                                  </p>
-                                  <p className="text-[10px] text-text-muted font-medium">
-                                    {c.createdAt ? new Date(c.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '10:45 AM'}
-                                  </p>
+                              <div className="px-8 py-6">
+                                <div className="flex flex-col gap-2">
+                                  <span className={`w-fit px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${
+                                    c.status === 'Active' || !c.status ? 'bg-green-100 text-green-700' :
+                                    c.status === 'Assessment Submitted' ? 'bg-blue-100 text-blue-700' :
+                                    c.status === 'Consultation Pending' ? 'bg-yellow-100 text-yellow-700' :
+                                    'bg-gray-100 text-gray-700'
+                                  }`}>
+                                    {c.status || 'Active'}
+                                  </span>
+                                  <div>
+                                    <p className="text-[9px] font-black text-text-muted uppercase tracking-widest block mb-0.5">Last Interaction</p>
+                                    <div className="flex items-center gap-2">
+                                      <p className="text-xs font-bold text-text-main">
+                                        {c.createdAt ? new Date(c.createdAt).toLocaleDateString() : 'Recently'}
+                                      </p>
+                                      <p className="text-[10px] text-text-muted font-medium">
+                                        {c.createdAt ? new Date(c.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '10:45 AM'}
+                                      </p>
+                                    </div>
+                                  </div>
                                 </div>
                               </div>
+                              <div className="px-8 py-6 text-right">
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); setSelectedClientId(c.id); }}
+                                  className="bg-clinical-dark text-white px-6 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-primary hover:text-clinical-dark transition-all shadow-sm"
+                                >
+                                  View Record
+                                </button>
+                              </div>
                             </div>
-                          </td>
-                          <td className="px-8 py-6 text-right">
-                            <button
-                              onClick={(e) => { e.stopPropagation(); setSelectedClientId(c.id); }}
-                              className="bg-clinical-dark text-white px-6 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-primary hover:text-clinical-dark transition-all shadow-sm"
-                            >
-                              View Record
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </Card>
             </div>
@@ -338,30 +371,36 @@ const ClientsPanel: React.FC = () => {
                 />
                 <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-primary text-sm">search</span>
               </div>
-              <div className="space-y-1.5 md:space-y-2 overflow-y-auto no-scrollbar flex-grow">
-                {visibleClients.map(c => (
-                  <button
-                    key={c.id}
-                    onClick={() => setSelectedClientId(c.id)}
-                    className={`w-full flex items-center gap-3 p-3 md:p-4 rounded-2xl transition-all text-left group border ${selectedClientId === c.id ? 'bg-primary/5 border-primary/20' : 'border-transparent hover:bg-bg-soft hover:border-black/5'}`}
-                  >
-                    <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary font-black text-[10px] md:text-xs group-hover:bg-primary group-hover:text-white transition-all shrink-0">
-                      {getInitials(c.name)}
-                    </div>
-                    <div className="min-w-0 flex-grow">
-                      <div className="flex items-center gap-2">
-                        <p className="text-sm font-black text-text-main truncate">{c.name}</p>
-                        <AssignedBadge isAssigned={isAssignedToMe(c)} />
+              <div ref={sidebarScrollRef} className="overflow-y-auto no-scrollbar flex-grow" style={{ minHeight: 0 }}>
+                <div style={{ height: sidebarVirtualizer.getTotalSize(), position: 'relative' }}>
+                  {sidebarVirtualizer.getVirtualItems().map(virtualRow => {
+                    const c = visibleClients[virtualRow.index];
+                    return (
+                      <div key={c.id} style={{ position: 'absolute', top: 0, left: 0, right: 0, transform: `translateY(${virtualRow.start}px)` }} className="py-1">
+                        <button
+                          onClick={() => setSelectedClientId(c.id)}
+                          className={`w-full flex items-center gap-3 p-3 md:p-4 rounded-2xl transition-all text-left group border ${selectedClientId === c.id ? 'bg-primary/5 border-primary/20' : 'border-transparent hover:bg-bg-soft hover:border-black/5'}`}
+                        >
+                          <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary font-black text-[10px] md:text-xs group-hover:bg-primary group-hover:text-white transition-all shrink-0">
+                            {getInitials(c.name)}
+                          </div>
+                          <div className="min-w-0 flex-grow">
+                            <div className="flex items-center gap-2">
+                              <p className="text-sm font-black text-text-main truncate">{c.name}</p>
+                              <AssignedBadge isAssigned={isAssignedToMe(c)} />
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <p className="text-[9px] font-bold text-text-muted uppercase tracking-widest">{c.id}</p>
+                              <span className="w-1 h-1 bg-gray-300 rounded-full" />
+                              <p className="text-[9px] font-bold text-primary uppercase tracking-widest">{c.status || 'Active'}</p>
+                            </div>
+                          </div>
+                          <span className="material-symbols-outlined text-text-muted/30 group-hover:text-primary transition-colors text-lg">chevron_right</span>
+                        </button>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <p className="text-[9px] font-bold text-text-muted uppercase tracking-widest">{c.id}</p>
-                        <span className="w-1 h-1 bg-gray-300 rounded-full" />
-                        <p className="text-[9px] font-bold text-primary uppercase tracking-widest">{c.status || 'Active'}</p>
-                      </div>
-                    </div>
-                    <span className="material-symbols-outlined text-text-muted/30 group-hover:text-primary transition-colors text-lg">chevron_right</span>
-                  </button>
-                ))}
+                    );
+                  })}
+                </div>
               </div>
             </Card>
           </div>
@@ -374,4 +413,4 @@ const ClientsPanel: React.FC = () => {
   );
 };
 
-export default ClientsPanel;
+export default memo(ClientsPanel);
