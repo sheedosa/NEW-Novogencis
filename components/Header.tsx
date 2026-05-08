@@ -49,6 +49,9 @@ const Header: React.FC<HeaderProps> = React.memo(({ currentPage, onNavigate }) =
   ];
 
   useEffect(() => {
+    // Mobile header is static (no visual change on scroll), so skip the listener entirely
+    if (window.matchMedia('(max-width: 1023px)').matches) return;
+
     let ticking = false;
     const handleScroll = () => {
       scrollRef.current = window.scrollY;
@@ -90,15 +93,15 @@ const Header: React.FC<HeaderProps> = React.memo(({ currentPage, onNavigate }) =
 
   return (
     <>
-      <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ease-out will-change-transform transform translate-z-0 ${
-        scrolled ? 'glass-header py-0 shadow-md' : 'bg-transparent py-2'
+      <header className={`fixed top-0 left-0 right-0 z-50 lg:transition-all lg:duration-300 ease-out py-0 ${
+        scrolled ? 'glass-header shadow-md' : 'glass-header lg:bg-transparent lg:shadow-none lg:py-2'
       }`}>
-        <div className={`max-w-[1440px] mx-auto flex items-center justify-between px-6 md:px-10 lg:px-20 transition-all duration-500 ease-in-out ${
-          scrolled ? 'h-16 md:h-24' : 'h-20 md:h-36'
+        <div className={`max-w-[1440px] mx-auto flex items-center justify-between px-6 md:px-10 lg:px-20 lg:transition-all lg:duration-500 ease-in-out h-16 ${
+          scrolled ? 'lg:h-24' : 'lg:h-36'
         }`}>
           {/* Logo */}
-          <div 
-            className="flex items-center cursor-pointer shrink-0 z-50 transition-transform duration-300 hover:scale-105 active:scale-95 will-change-transform"
+          <div
+            className="flex items-center cursor-pointer shrink-0 z-50 transition-transform duration-300 hover:scale-105 active:scale-95"
             onClick={() => handleNavigate(Page.Home)}
           >
             <Logo size={scrolled || isMobile ? "sm" : "md"} />
@@ -188,7 +191,7 @@ const Header: React.FC<HeaderProps> = React.memo(({ currentPage, onNavigate }) =
 
       {/* Mobile Menu Panel */}
       <div 
-        className={`fixed inset-0 z-[60] xl:hidden transition-all duration-500 ease-in-out transform translate-z-0 ${
+        className={`fixed inset-0 z-[60] xl:hidden transition-all duration-500 ease-in-out ${
           isMenuOpen ? 'opacity-100 visible' : 'opacity-0 invisible'
         }`}
       >
@@ -197,7 +200,7 @@ const Header: React.FC<HeaderProps> = React.memo(({ currentPage, onNavigate }) =
         <nav 
           className={`absolute top-0 right-0 h-full w-[85%] max-w-sm bg-white shadow-2xl transition-transform duration-500 cubic-bezier(0.16, 1, 0.3, 1) ${
             isMenuOpen ? 'translate-x-0' : 'translate-x-full'
-          } will-change-transform flex flex-col`}
+          } flex flex-col`}
         >
           <div className="flex-grow pt-32 pb-10 px-8 flex flex-col gap-1 overflow-y-auto no-scrollbar">
             {navItems.map((item, idx) => (
