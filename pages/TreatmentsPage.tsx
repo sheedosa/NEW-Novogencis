@@ -1,5 +1,6 @@
 import React from 'react';
 import { Page } from '../types';
+import { ShieldCheck, Microscope, Info, CheckCircle, UserSearch } from 'lucide-react';
 
 interface TreatmentsPageProps {
   onNavigate: (page: Page) => void;
@@ -31,37 +32,37 @@ const TreatmentsPage: React.FC<TreatmentsPageProps> = ({ onNavigate }) => {
   ];
 
   return (
-    <div className="animate-fade-in selection:bg-primary/20 bg-bg-soft">
+    <div className="animate-fade-in selection:bg-primary/20 bg-cream">
       {/* Redesigned Hero Section - Optimized for Vertical and Horizontal Spacing */}
       <section className="relative px-6 md:px-20 pt-32 md:pt-44 pb-24 md:pb-32 lg:pb-48 overflow-hidden bg-white">
         {/* Background Decorative Elements */}
-        <div className="absolute top-0 right-0 w-1/2 h-full bg-bg-soft opacity-30 -skew-x-12 translate-x-1/4 pointer-events-none" />
+        <div className="absolute top-0 right-0 w-1/2 h-full bg-cream opacity-30 -skew-x-12 translate-x-1/4 pointer-events-none" />
         <div className="absolute -top-24 -left-24 w-96 h-96 bg-primary/5 rounded-full blur-[120px] pointer-events-none" />
         
         <div className="max-w-[1440px] mx-auto relative z-10 text-center">
-          <span className="text-primary font-black text-[10px] md:text-xs uppercase tracking-[0.4em] block mb-8 animate-fade-in">
+          <span className="text-primary font-medium text-[10px] md:text-xs uppercase tracking-[0.4em] block mb-8 animate-fade-in">
             Clinical Solutions
           </span>
           
           <h1 
-            className="text-4xl sm:text-5xl md:text-7xl lg:text-8xl font-black text-text-main tracking-tight leading-[1.2] mb-10 animate-fade-up max-w-[1200px] mx-auto"
+            className="text-4xl sm:text-5xl md:text-7xl lg:text-8xl font-medium text-obsidian tracking-tight leading-[1.2] mb-10 animate-fade-up max-w-[1200px] mx-auto"
             style={{ wordSpacing: '0.15em' }}
           >
             Advanced <span className="text-primary italic font-serif">Regenerative Treatments</span> for Hair Loss
           </h1>
 
-          <p className="text-text-muted text-lg md:text-2xl max-w-3xl mx-auto font-medium animate-fade-up delay-100 leading-relaxed">
+          <p className="text-muted text-lg md:text-2xl max-w-3xl mx-auto font-medium animate-fade-up delay-100 leading-relaxed">
             Science-backed protocols using your body's own healing potential to restore density and confidence in a private, clinical setting.
           </p>
           
           <div className="mt-16 flex flex-wrap justify-center gap-4 animate-fade-up delay-200">
-            <div className="flex items-center gap-3 px-6 py-4 bg-bg-soft rounded-2xl border border-black/5 shadow-sm hover:shadow-md transition-shadow">
-              <span className="material-symbols-outlined text-primary text-2xl">verified_user</span>
-              <span className="text-xs font-black uppercase tracking-widest text-text-main">Doctor-Led Protocols</span>
+            <div className="flex items-center gap-3 px-6 py-4 bg-cream rounded-2xl border border-black/5 shadow-sm hover:shadow-md transition-shadow">
+              <ShieldCheck size={24} className="text-primary" />
+              <span className="text-xs font-medium uppercase text-obsidian">Doctor-Led Protocols</span>
             </div>
-            <div className="flex items-center gap-3 px-6 py-4 bg-bg-soft rounded-2xl border border-black/5 shadow-sm hover:shadow-md transition-shadow">
-              <span className="material-symbols-outlined text-primary text-2xl">biotech</span>
-              <span className="text-xs font-black uppercase tracking-widest text-text-main">Autologous Cells</span>
+            <div className="flex items-center gap-3 px-6 py-4 bg-cream rounded-2xl border border-black/5 shadow-sm hover:shadow-md transition-shadow">
+              <Microscope size={24} className="text-primary" />
+              <span className="text-xs font-medium uppercase text-obsidian">Autologous Cells</span>
             </div>
           </div>
         </div>
@@ -69,37 +70,37 @@ const TreatmentsPage: React.FC<TreatmentsPageProps> = ({ onNavigate }) => {
 
       {/* Detailed Treatments */}
       {treatments.map((t, i) => (
-        <section key={i} className={`px-6 md:px-10 lg:px-20 py-24 ${i % 2 === 1 ? 'bg-white' : 'bg-bg-soft/40'}`}>
+        <section key={i} className={`px-6 md:px-10 lg:px-20 py-24 ${i % 2 === 1 ? 'bg-white' : 'bg-cream/40'}`}>
           <div className="max-w-[1000px] mx-auto flex flex-col gap-12">
             <div className="flex flex-col items-center text-center gap-4 max-w-2xl mx-auto">
-               <span className="text-primary font-black text-[11px] uppercase tracking-[0.4em]">TREATMENT {i + 1}</span>
-               <h2 className="text-3xl md:text-5xl font-black text-text-main tracking-tight leading-tight">{t.title}</h2>
+               <span className="text-primary font-medium text-[11px] uppercase tracking-[0.4em]">TREATMENT {i + 1}</span>
+               <h2 className="text-3xl md:text-5xl font-medium text-obsidian tracking-tight leading-tight">{t.title}</h2>
                <div className="w-20 h-1.5 bg-primary rounded-full" />
             </div>
             
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
               <div className="lg:col-span-7 space-y-8">
                 <div className="bg-white p-8 md:p-10 rounded-[2.5rem] border border-black/5 shadow-xl shadow-black/[0.02]">
-                  <h4 className="font-black text-primary uppercase text-[11px] tracking-[0.2em] mb-4 flex items-center gap-2">
-                    <span className="material-symbols-outlined text-sm">info</span> What is it?
+                  <h4 className="font-medium text-primary uppercase text-[11px] tracking-[0.2em] mb-4 flex items-center gap-2">
+                    <Info size={16} /> What is it?
                   </h4>
-                  <p className="text-text-muted text-lg md:text-xl leading-relaxed">{t.desc}</p>
+                  <p className="text-muted text-lg md:text-xl leading-relaxed">{t.desc}</p>
                 </div>
                 
                 <div className="p-8 border-l-2 border-primary/20">
-                  <h4 className="font-black text-primary uppercase text-[11px] tracking-[0.2em] mb-4">How it works:</h4>
-                  <p className="text-text-muted leading-relaxed text-lg">{t.works}</p>
+                  <h4 className="font-medium text-primary uppercase text-[11px] tracking-[0.2em] mb-4">How it works:</h4>
+                  <p className="text-muted leading-relaxed text-lg">{t.works}</p>
                 </div>
               </div>
 
               <div className="lg:col-span-5 flex flex-col gap-6">
                 <div className="bg-white/60 backdrop-blur-sm p-8 rounded-[2rem] border border-black/5">
-                  <h4 className="font-black text-text-main text-xs uppercase tracking-[0.2em] mb-6 flex items-center gap-2">
-                    <span className="material-symbols-outlined text-primary text-xl">check_circle</span> Key Benefits
+                  <h4 className="font-medium text-obsidian text-xs uppercase tracking-[0.2em] mb-6 flex items-center gap-2">
+                    <CheckCircle size={20} className="text-primary" /> Key Benefits
                   </h4>
                   <ul className="space-y-4">
                     {t.benefits.map(b => (
-                      <li key={b} className="text-sm md:text-base text-text-muted flex items-start gap-4 group">
+                      <li key={b} className="text-sm md:text-base text-muted flex items-start gap-4 group">
                         <span className="w-2 h-2 bg-primary rounded-full mt-2 shrink-0 group-hover:scale-150 transition-transform"></span> 
                         {b}
                       </li>
@@ -107,13 +108,13 @@ const TreatmentsPage: React.FC<TreatmentsPageProps> = ({ onNavigate }) => {
                   </ul>
                 </div>
 
-                <div className="bg-clinical-dark p-8 rounded-[2rem]">
-                  <h4 className="font-black text-white text-xs uppercase tracking-[0.2em] mb-6 flex items-center gap-2">
-                    <span className="material-symbols-outlined text-primary text-xl">person_search</span> Ideal For
+                <div className="bg-obsidian p-8 rounded-[2rem]">
+                  <h4 className="font-medium text-white text-xs uppercase tracking-[0.2em] mb-6 flex items-center gap-2">
+                    <UserSearch size={20} className="text-primary" /> Ideal For
                   </h4>
                   <div className="flex flex-wrap gap-2">
                     {t.ideal.map(id => (
-                      <span key={id} className="text-[10px] font-black text-white/70 bg-white/10 px-4 py-2 rounded-full uppercase tracking-widest border border-white/5">
+                      <span key={id} className="text-[10px] font-medium text-white/70 bg-white/10 px-4 py-2 rounded-full uppercase border border-white/5">
                         {id}
                       </span>
                     ))}
@@ -125,7 +126,7 @@ const TreatmentsPage: React.FC<TreatmentsPageProps> = ({ onNavigate }) => {
             <div className="flex justify-center mt-8">
               <button 
                 onClick={() => onNavigate(Page.Assessment)} 
-                className="group relative bg-primary text-clinical-dark px-8 py-3 rounded-full font-black text-base overflow-hidden shadow-2xl shadow-primary/20 hover:scale-105 active:scale-95 transition-all duration-300"
+                className="group relative bg-primary text-clinical-dark px-8 py-3 rounded-full font-medium text-base overflow-hidden shadow-2xl shadow-primary/20 hover:scale-105 active:scale-95 transition-all duration-300"
               >
                 <span className="relative z-10 uppercase tracking-[0.1em]">Start Virtual Assessment</span>
                 <div className="absolute inset-0 bg-white translate-y-full group-hover:translate-y-0 transition-transform duration-500 ease-in-out" />
@@ -136,11 +137,11 @@ const TreatmentsPage: React.FC<TreatmentsPageProps> = ({ onNavigate }) => {
       ))}
 
       {/* Journey Section */}
-      <section className="px-6 md:px-20 py-24 bg-clinical-dark text-white rounded-t-[4rem] relative overflow-hidden">
+      <section className="px-6 md:px-20 py-24 bg-obsidian text-white rounded-t-[4rem] relative overflow-hidden">
         <div className="absolute top-0 right-0 w-96 h-96 bg-primary/10 rounded-full blur-[120px] pointer-events-none" />
         
         <div className="max-w-[1440px] mx-auto relative z-10 text-center lg:text-left">
-          <h2 className="text-3xl md:text-5xl font-black text-center mb-20 tracking-tight leading-tight">Your Treatment <span className="text-primary italic font-serif">Journey</span></h2>
+          <h2 className="text-3xl md:text-5xl font-medium text-center mb-20 tracking-tight leading-tight">Your Treatment <span className="text-primary italic font-serif">Journey</span></h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12">
             {[
               { step: "01", stepName: "Consultation", desc: "Comprehensive assessment of your hair loss, medical history, and goals." },
@@ -149,7 +150,7 @@ const TreatmentsPage: React.FC<TreatmentsPageProps> = ({ onNavigate }) => {
               { step: "04", stepName: "Ongoing Support", desc: "Regular follow-ups to monitor progress and adjust treatment as needed." }
             ].map((j, i) => (
               <div key={i} className="flex flex-col gap-4 relative group items-center lg:items-start text-center lg:text-left">
-                <div className="text-7xl font-black text-white/5 absolute -top-12 lg:-left-4 group-hover:text-primary/10 transition-colors duration-500">{j.step}</div>
+                <div className="text-7xl font-medium text-white/5 absolute -top-12 lg:-left-4 group-hover:text-primary/10 transition-colors duration-500">{j.step}</div>
                 <h4 className="text-xl font-bold mt-4 text-primary">{j.stepName}</h4>
                 <p className="text-gray-400 text-sm leading-relaxed">{j.desc}</p>
                 <div className="w-0 h-[1px] bg-primary group-hover:w-full transition-all duration-1000" />
@@ -163,16 +164,16 @@ const TreatmentsPage: React.FC<TreatmentsPageProps> = ({ onNavigate }) => {
       <section className="px-6 md:px-20 py-32 bg-white">
         <div className="max-w-[1000px] mx-auto text-center flex flex-col items-center gap-10">
           <div className="w-16 h-1 bg-primary mb-2 rounded-full" />
-          <h2 className="text-4xl md:text-6xl font-black tracking-tight leading-[1.1]">
+          <h2 className="text-4xl md:text-6xl font-medium tracking-tight leading-[1.1]">
             Tailored to <span className="text-primary italic font-serif">Your</span> Biology.
           </h2>
-          <p className="text-text-muted text-lg md:text-xl max-w-3xl leading-relaxed">
+          <p className="text-muted text-lg md:text-xl max-w-3xl leading-relaxed">
             Many clients achieve optimal results through a combination of treatments. During your consultation, we'll assess your specific hair loss pattern, medical history, and goals to create a bespoke treatment plan.
           </p>
           <div className="flex flex-col items-center gap-4">
             <button 
               onClick={() => onNavigate(Page.Assessment)} 
-              className="bg-primary text-clinical-dark px-8 py-3 rounded-full font-black text-sm uppercase tracking-widest hover:bg-clinical-dark hover:text-white transition-all shadow-xl shadow-primary/20 hover:scale-105 active:scale-95"
+              className="bg-primary text-clinical-dark px-8 py-3 rounded-full font-medium text-sm uppercase hover:bg-obsidian hover:text-white transition-all shadow-xl shadow-primary/20 hover:scale-105 active:scale-95"
             >
               Start Free Assessment
             </button>

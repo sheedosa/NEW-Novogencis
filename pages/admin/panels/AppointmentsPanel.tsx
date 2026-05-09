@@ -2,6 +2,7 @@ import React, { memo } from 'react';
 import { Card } from '../../../components/Card';
 import { useAdminContext } from '../context';
 import { StatusBadge } from '../AdminComponents';
+import { ChevronLeft, ChevronRight, CheckCircle, Trash2 } from 'lucide-react';
 
 const AppointmentsPanel: React.FC = () => {
   const {
@@ -19,12 +20,12 @@ const AppointmentsPanel: React.FC = () => {
   return (
     <div className="animate-fade-up space-y-4 md:space-y-8">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <h2 className="text-xl md:text-3xl font-black text-text-main">Appointment Manager</h2>
+        <h2 className="text-xl md:text-3xl font-medium text-obsidian">Appointment Manager</h2>
         <div className="flex gap-2 w-full sm:w-auto">
           {user?.adminType !== 'technical' && (
             <button
               onClick={() => setShowOnlyAssigned(!showOnlyAssigned)}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all shadow-sm border ${showOnlyAssigned ? 'bg-primary text-white border-primary' : 'bg-white text-text-muted border-black/5 hover:border-primary/30'}`}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-full text-2xs font-medium text-hint transition-all shadow-sm border ${showOnlyAssigned ? 'bg-primary text-white border-primary' : 'bg-white text-muted border-black/5 hover:border-primary/30'}`}
             >
               <span className="material-symbols-outlined text-sm">{showOnlyAssigned ? 'person' : 'group'}</span>
               {showOnlyAssigned ? 'My Assignments' : 'All Appointments'}
@@ -32,7 +33,7 @@ const AppointmentsPanel: React.FC = () => {
           )}
           <button
             onClick={() => openBookingModal()}
-            className="w-full sm:w-auto bg-primary text-clinical-dark px-8 py-3 rounded-full text-[10px] md:text-[11px] font-black uppercase tracking-widest shadow-lg shadow-primary/10 transition-transform active:scale-95"
+            className="w-full sm:w-auto bg-primary text-clinical-dark px-8 py-3 rounded-full text-[10px] md:text-xs font-medium shadow-lg shadow-primary/10 transition-transform active:scale-95"
           >
             Book New Appointment
           </button>
@@ -44,24 +45,24 @@ const AppointmentsPanel: React.FC = () => {
           <Card className="md:border-none md:bg-transparent md:shadow-none">
             <div className="flex p-4 md:p-8 bg-white rounded-t-2xl md:rounded-t-[2.5rem] border border-black/5 md:border-b-0 justify-between items-center gap-4 mb-2 md:mb-0">
               <div className="flex items-center gap-2 md:gap-4">
-                <button onClick={() => changeMonth(-1)} className="p-1.5 md:p-2 hover:bg-bg-soft rounded-lg transition-colors">
-                  <span className="material-symbols-outlined text-lg md:text-xl">chevron_left</span>
+                <button onClick={() => changeMonth(-1)} className="p-1.5 md:p-2 hover:bg-cream rounded-lg transition-colors">
+                  <ChevronLeft size={20} />
                 </button>
-                <h3 className="text-[10px] md:text-sm font-black uppercase tracking-widest text-text-main">
+                <h3 className="text-[10px] md:text-sm font-medium uppercase text-obsidian">
                   {currentCalendarDate.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })}
                 </h3>
-                <button onClick={() => changeMonth(1)} className="p-1.5 md:p-2 hover:bg-bg-soft rounded-lg transition-colors">
-                  <span className="material-symbols-outlined text-lg md:text-xl">chevron_right</span>
+                <button onClick={() => changeMonth(1)} className="p-1.5 md:p-2 hover:bg-cream rounded-lg transition-colors">
+                  <ChevronRight size={20} />
                 </button>
               </div>
-              <div className="flex bg-bg-soft p-1 rounded-xl">
+              <div className="flex bg-cream p-1 rounded-xl">
                 <button
                   onClick={() => setAppointmentView('list')}
-                  className={`px-3 md:px-4 py-1.5 md:py-2 rounded-lg text-[8px] md:text-[10px] font-black uppercase tracking-widest transition-all ${appointmentView === 'list' ? 'bg-white text-primary shadow-sm' : 'text-text-muted'}`}
+                  className={`px-3 md:px-4 py-1.5 md:py-2 rounded-lg text-[8px] md:text-2xs font-medium text-hint transition-all ${appointmentView === 'list' ? 'bg-white text-primary shadow-sm' : 'text-muted'}`}
                 >List</button>
                 <button
                   onClick={() => setAppointmentView('calendar')}
-                  className={`px-3 md:px-4 py-1.5 md:py-2 rounded-lg text-[8px] md:text-[10px] font-black uppercase tracking-widest transition-all ${appointmentView === 'calendar' ? 'bg-white text-primary shadow-sm' : 'text-text-muted'}`}
+                  className={`px-3 md:px-4 py-1.5 md:py-2 rounded-lg text-[8px] md:text-2xs font-medium text-hint transition-all ${appointmentView === 'calendar' ? 'bg-white text-primary shadow-sm' : 'text-muted'}`}
                 >Cal</button>
               </div>
             </div>
@@ -76,35 +77,35 @@ const AppointmentsPanel: React.FC = () => {
                       <div key={apt.id} className="bg-white p-5 rounded-2xl border border-black/5 shadow-sm space-y-4">
                         <div className="flex justify-between items-start">
                           <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-black text-[10px]">
+                            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-medium text-[10px]">
                               {getInitials(apt.clientName)}
                             </div>
                             <div>
-                              <p className="text-sm font-black text-text-main">{apt.clientName}</p>
-                              <p className="text-[9px] font-bold text-text-muted uppercase tracking-widest">{apt.type}</p>
+                              <p className="text-sm font-medium text-obsidian">{apt.clientName}</p>
+                              <p className="text-[9px] font-bold text-muted uppercase">{apt.type}</p>
                             </div>
                           </div>
                           <StatusBadge status={apt.status} />
                         </div>
                         <div className="flex items-center justify-between pt-4 border-t border-gray-50">
                           <div className="flex flex-col">
-                            <span className="text-[9px] font-black text-primary uppercase tracking-widest">Schedule</span>
-                            <span className="text-[11px] font-bold text-text-main">
+                            <span className="text-[9px] font-medium text-primary uppercase">Schedule</span>
+                            <span className="text-[11px] font-bold text-obsidian">
                               {new Date(apt.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })} • {apt.time}
                             </span>
                           </div>
                           <div className="flex gap-2">
                             <button
                               onClick={() => onUpdateAppointment(apt.id, { status: apt.status === 'Confirmed' ? 'Completed' : 'Confirmed' })}
-                              className="p-2 bg-bg-soft text-text-muted rounded-xl hover:text-primary transition-colors"
+                              className="p-2 bg-cream text-muted rounded-xl hover:text-primary transition-colors"
                             >
-                              <span className="material-symbols-outlined text-lg">check_circle</span>
+                              <CheckCircle size={18} />
                             </button>
                             <button
                               onClick={() => onDeleteAppointment(apt.id)}
-                              className="p-2 bg-bg-soft text-text-muted rounded-xl hover:text-red-500 transition-colors"
+                              className="p-2 bg-cream text-muted rounded-xl hover:text-red-500 transition-colors"
                             >
-                              <span className="material-symbols-outlined text-lg">delete</span>
+                              <Trash2 size={18} />
                             </button>
                           </div>
                         </div>
@@ -116,7 +117,7 @@ const AppointmentsPanel: React.FC = () => {
                 <div className="hidden lg:block bg-white rounded-b-[2.5rem] border border-black/5 shadow-sm overflow-hidden">
                   <div className="overflow-x-auto">
                     <table className="w-full text-left">
-                      <thead className="bg-bg-soft text-[10px] font-black text-text-muted uppercase tracking-widest border-b border-black/5">
+                      <thead className="bg-cream text-[10px] font-medium text-muted uppercase border-b border-black/5">
                         <tr>
                           <th className="px-8 py-5">Client &amp; Treatment</th>
                           <th className="px-8 py-5">Schedule &amp; Status</th>
@@ -127,27 +128,27 @@ const AppointmentsPanel: React.FC = () => {
                         {appointments
                           .sort((a, b) => new Date(a.date || 0).getTime() - new Date(b.date || 0).getTime())
                           .map((apt) => (
-                            <tr key={apt.id} className="hover:bg-bg-soft/40 transition-colors group">
+                            <tr key={apt.id} className="hover:bg-cream/40 transition-colors group">
                               <td className="px-8 py-6">
                                 <div className="flex items-center gap-3">
-                                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-black text-[9px]">
+                                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-medium text-[9px]">
                                     {getInitials(apt.clientName)}
                                   </div>
                                   <div className="flex flex-col">
-                                    <span className="text-sm font-bold text-text-main">{apt.clientName}</span>
-                                    <span className="text-[10px] font-bold text-text-muted uppercase tracking-widest mt-1">{apt.type}</span>
+                                    <span className="text-sm font-bold text-obsidian">{apt.clientName}</span>
+                                    <span className="text-[10px] font-bold text-muted uppercase mt-1">{apt.type}</span>
                                   </div>
                                 </div>
                               </td>
                               <td className="px-8 py-6">
                                 <div className="flex flex-col items-start gap-2">
                                   <div>
-                                    <span className="text-sm font-black text-text-main">
+                                    <span className="text-sm font-medium text-obsidian">
                                       {new Date(apt.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
                                     </span>
-                                    <span className="text-[10px] font-bold text-text-muted uppercase tracking-widest ml-2">{apt.time}</span>
+                                    <span className="text-[10px] font-bold text-muted uppercase ml-2">{apt.time}</span>
                                   </div>
-                                  <span className={`px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest ${
+                                  <span className={`px-3 py-1 rounded-full text-[8px] font-medium uppercase ${
                                     apt.status === 'Confirmed' ? 'bg-green-100 text-green-700' :
                                     apt.status === 'Completed' ? 'bg-blue-100 text-blue-700' :
                                     apt.status === 'Cancelled' ? 'bg-red-100 text-red-700' :
@@ -161,17 +162,17 @@ const AppointmentsPanel: React.FC = () => {
                                 <div className="flex justify-end gap-2">
                                   <button
                                     onClick={() => onUpdateAppointment(apt.id, { status: apt.status === 'Confirmed' ? 'Completed' : 'Confirmed' })}
-                                    className="p-2 text-text-muted hover:text-primary transition-colors"
+                                    className="p-2 text-muted hover:text-primary transition-colors"
                                     title="Toggle Status"
                                   >
-                                    <span className="material-symbols-outlined text-lg">check_circle</span>
+                                    <CheckCircle size={18} />
                                   </button>
                                   <button
                                     onClick={() => onDeleteAppointment(apt.id)}
-                                    className="p-2 text-text-muted hover:text-red-500 transition-colors"
+                                    className="p-2 text-muted hover:text-red-500 transition-colors"
                                     title="Delete"
                                   >
-                                    <span className="material-symbols-outlined text-lg">delete</span>
+                                    <Trash2 size={18} />
                                   </button>
                                 </div>
                               </td>
@@ -186,8 +187,8 @@ const AppointmentsPanel: React.FC = () => {
               <div className="bg-white rounded-b-2xl md:rounded-b-[2.5rem] border border-black/5 shadow-sm p-2 md:p-8 overflow-x-auto no-scrollbar">
                 <div className="min-w-[600px] md:min-w-0 grid grid-cols-7 gap-px bg-gray-100 border border-gray-100 rounded-2xl overflow-hidden">
                   {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-                    <div key={day} className="bg-bg-soft py-3 text-center">
-                      <span className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-text-muted">{day}</span>
+                    <div key={day} className="bg-cream py-3 text-center">
+                      <span className="text-[9px] md:text-2xs font-medium text-hint text-muted">{day}</span>
                     </div>
                   ))}
                   {getCalendarDays().map((dateObj, i) => {
@@ -196,13 +197,13 @@ const AppointmentsPanel: React.FC = () => {
                     return (
                       <div
                         key={i}
-                        className={`bg-white min-h-[80px] md:min-h-[140px] p-1.5 md:p-4 transition-all hover:bg-bg-soft/50 ${!dateObj.currentMonth ? 'opacity-30' : ''}`}
+                        className={`bg-white min-h-[80px] md:min-h-[140px] p-1.5 md:p-4 transition-all hover:bg-cream/50 ${!dateObj.currentMonth ? 'opacity-30' : ''}`}
                       >
-                        <span className={`text-[10px] md:text-xs font-black ${
+                        <span className={`text-[10px] md:text-xs font-medium ${
                           dateObj.day === new Date().getDate() &&
                           dateObj.month === new Date().getMonth() &&
                           dateObj.year === new Date().getFullYear()
-                            ? 'text-primary' : 'text-text-muted'
+                            ? 'text-primary' : 'text-muted'
                         }`}>
                           {dateObj.day}
                         </span>

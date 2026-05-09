@@ -9,7 +9,7 @@ const WhatsAppWidget: React.FC = React.memo(() => {
     <div className="fixed bottom-6 right-6 z-[100] flex flex-col items-end group">
       {/* Tooltip Label */}
       <div 
-        className={`mb-3 px-4 py-2 bg-white text-clinical-dark text-xs font-black uppercase tracking-widest rounded-xl shadow-xl border border-primary/10 transition-all duration-300 transform origin-right ${
+        className={`mb-3 px-4 py-2 bg-white text-clinical-dark text-xs font-medium uppercase rounded-xl shadow-xl border border-primary/10 transition-all duration-300 transform origin-right ${
           isHovered ? 'opacity-100 translate-x-0 scale-100' : 'opacity-0 translate-x-4 scale-90 pointer-events-none'
         }`}
       >

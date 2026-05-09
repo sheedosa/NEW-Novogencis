@@ -1,4 +1,5 @@
 import React, { useMemo, useState, useRef, memo } from 'react';
+import { Download, Search, CheckCircle, ChevronRight, Mail, Phone } from 'lucide-react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { Card } from '../../../components/Card';
 import { useAdminContext } from '../context';
@@ -97,12 +98,12 @@ const ClientsPanel: React.FC = () => {
   return (
     <div className="animate-fade-up space-y-4 md:space-y-8">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <h2 className="text-xl md:text-3xl font-black text-text-main">Client Registry</h2>
+        <h2 className="text-xl md:text-3xl font-medium text-obsidian">Client Registry</h2>
         <div className="flex gap-2 w-full sm:w-auto">
           {user?.adminType !== 'technical' && (
             <button
               onClick={() => setShowOnlyAssigned(!showOnlyAssigned)}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all shadow-sm border ${showOnlyAssigned ? 'bg-primary text-white border-primary' : 'bg-white text-text-muted border-black/5 hover:border-primary/30'}`}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-full text-2xs font-medium text-hint transition-all shadow-sm border ${showOnlyAssigned ? 'bg-primary text-white border-primary' : 'bg-white text-muted border-black/5 hover:border-primary/30'}`}
             >
               <span className="material-symbols-outlined text-sm">{showOnlyAssigned ? 'person' : 'group'}</span>
               {showOnlyAssigned ? 'My Assignments' : 'All Clients'}
@@ -111,9 +112,9 @@ const ClientsPanel: React.FC = () => {
           <button
             onClick={() => exportClientsToCSV(visibleClients)}
             disabled={visibleClients.length === 0}
-            className="bg-primary text-clinical-dark px-8 py-3 rounded-full text-[10px] md:text-[11px] font-black uppercase tracking-widest shadow-lg shadow-primary/10 transition-transform active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2"
+            className="bg-primary text-clinical-dark px-8 py-3 rounded-full text-[10px] md:text-xs font-medium shadow-lg shadow-primary/10 transition-transform active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2"
           >
-            <span className="material-symbols-outlined text-sm">download</span>
+            <Download size={16} />
             Export CSV
           </button>
         </div>
@@ -124,9 +125,9 @@ const ClientsPanel: React.FC = () => {
           {/* Desktop Stats — computed from real data */}
           <div className="hidden lg:grid grid-cols-4 gap-6 mb-8">
             <div className="bg-white p-8 rounded-[2.5rem] border border-black/5 shadow-sm">
-              <p className="text-[10px] font-black text-text-muted uppercase tracking-widest mb-2">Total Registry</p>
+              <p className="text-[10px] font-medium text-muted uppercase mb-2">Total Registry</p>
               <div className="flex items-end gap-2">
-                <p className="text-3xl font-black text-text-main leading-none">{stats.total}</p>
+                <p className="text-3xl font-medium text-obsidian leading-none">{stats.total}</p>
                 {stats.last30 > 0 && (
                   <span className={`text-[10px] font-bold mb-1 ${stats.growth >= 0 ? 'text-green-500' : 'text-red-500'}`}>
                     {stats.growth >= 0 ? '+' : ''}{stats.growth}% / 30d
@@ -135,23 +136,23 @@ const ClientsPanel: React.FC = () => {
               </div>
             </div>
             <div className="bg-white p-8 rounded-[2.5rem] border border-black/5 shadow-sm">
-              <p className="text-[10px] font-black text-text-muted uppercase tracking-widest mb-2">Active Protocols</p>
+              <p className="text-[10px] font-medium text-muted uppercase mb-2">Active Protocols</p>
               <div className="flex items-end gap-2">
-                <p className="text-3xl font-black text-text-main leading-none">{filteredClients.filter(c => c.status === 'Active' || c.status === 'Ongoing').length}</p>
+                <p className="text-3xl font-medium text-obsidian leading-none">{filteredClients.filter(c => c.status === 'Active' || c.status === 'Ongoing').length}</p>
               </div>
             </div>
             <div className="bg-white p-8 rounded-[2.5rem] border border-black/5 shadow-sm">
-              <p className="text-[10px] font-black text-text-muted uppercase tracking-widest mb-2">Pending Review</p>
+              <p className="text-[10px] font-medium text-muted uppercase mb-2">Pending Review</p>
               <div className="flex items-end gap-2">
-                <p className="text-3xl font-black text-text-main leading-none">{stats.pendingReview}</p>
+                <p className="text-3xl font-medium text-obsidian leading-none">{stats.pendingReview}</p>
                 {stats.pendingReview > 0 && <span className="text-[10px] font-bold text-red-500 mb-1">Action Required</span>}
               </div>
             </div>
             <div className="bg-white p-8 rounded-[2.5rem] border border-black/5 shadow-sm">
-              <p className="text-[10px] font-black text-text-muted uppercase tracking-widest mb-2">Conversion Rate</p>
+              <p className="text-[10px] font-medium text-muted uppercase mb-2">Conversion Rate</p>
               <div className="flex items-end gap-2">
-                <p className="text-3xl font-black text-text-main leading-none">{stats.conversionRate}%</p>
-                <span className="text-[10px] font-bold text-text-muted mb-1">{stats.converted}/{stats.total}</span>
+                <p className="text-3xl font-medium text-obsidian leading-none">{stats.conversionRate}%</p>
+                <span className="text-[10px] font-bold text-muted mb-1">{stats.converted}/{stats.total}</span>
               </div>
             </div>
           </div>
@@ -166,12 +167,12 @@ const ClientsPanel: React.FC = () => {
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                     placeholder="Search registry..."
-                    className="w-full bg-bg-soft border-transparent rounded-xl px-10 py-3.5 md:py-4 text-xs font-bold focus:ring-2 focus:ring-primary/20"
+                    className="w-full bg-cream border-transparent rounded-xl px-10 py-3.5 md:py-4 text-xs font-bold focus:ring-2 focus:ring-primary/20"
                   />
-                  <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-primary text-sm">search</span>
+                  <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-primary" />
                 </div>
                 {visibleClients.length === 0 && (
-                  <p className="text-center text-[10px] font-bold text-text-muted uppercase tracking-widest py-8">
+                  <p className="text-center text-[10px] font-bold text-muted uppercase py-8">
                     {filteredClients.length === 0 ? 'No clients yet' : 'No matches'}
                   </p>
                 )}
@@ -183,26 +184,26 @@ const ClientsPanel: React.FC = () => {
                         <div key={c.id} style={{ position: 'absolute', top: 0, left: 0, right: 0, transform: `translateY(${virtualRow.start}px)` }} className="py-1">
                           <button
                             onClick={() => setSelectedClientId(c.id)}
-                            className={`w-full flex items-center gap-3 p-3 md:p-4 rounded-2xl transition-all text-left group border ${selectedClientId === c.id ? 'bg-primary/5 border-primary/20' : 'border-transparent hover:bg-bg-soft hover:border-black/5'}`}
+                            className={`w-full flex items-center gap-3 p-3 md:p-4 rounded-2xl transition-all text-left group border ${selectedClientId === c.id ? 'bg-primary/5 border-primary/20' : 'border-transparent hover:bg-cream hover:border-black/5'}`}
                           >
-                            <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary font-black text-[10px] md:text-xs group-hover:bg-primary group-hover:text-white transition-all shrink-0">
+                            <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary font-medium text-[10px] md:text-xs group-hover:bg-primary group-hover:text-white transition-all shrink-0">
                               {getInitials(c.name)}
                             </div>
                             <div className="min-w-0 flex-grow">
                               <div className="flex items-center gap-2">
-                                <p className="text-sm font-black text-text-main truncate">{c.name}</p>
+                                <p className="text-sm font-medium text-obsidian truncate">{c.name}</p>
                                 <AssignedBadge isAssigned={isAssignedToMe(c)} />
                                 {c.policiesAccepted && (
-                                  <span className="material-symbols-outlined text-green-500 text-sm font-black" title="Policies Accepted">check_circle</span>
+                                  <span title="Policies Accepted"><CheckCircle size={16} className="text-green-500" /></span>
                                 )}
                               </div>
                               <div className="flex items-center gap-2">
-                                <p className="text-[9px] font-bold text-text-muted uppercase tracking-widest">{c.id}</p>
+                                <p className="text-[9px] font-bold text-muted uppercase">{c.id}</p>
                                 <span className="w-1 h-1 bg-gray-300 rounded-full" />
-                                <p className="text-[9px] font-bold text-primary uppercase tracking-widest">{c.status || 'Active'}</p>
+                                <p className="text-[9px] font-bold text-primary uppercase">{c.status || 'Active'}</p>
                               </div>
                             </div>
-                            <span className="material-symbols-outlined text-text-muted/30 group-hover:text-primary transition-colors text-lg">chevron_right</span>
+                            <ChevronRight size={20} className="text-muted/30 group-hover:text-primary transition-colors" />
                           </button>
                         </div>
                       );
@@ -222,22 +223,22 @@ const ClientsPanel: React.FC = () => {
                       value={search}
                       onChange={(e) => setSearch(e.target.value)}
                       placeholder="Search by name, email or ID..."
-                      className="w-full bg-bg-soft border-transparent rounded-2xl px-12 py-4 text-sm font-bold focus:ring-2 focus:ring-primary/20 transition-all"
+                      className="w-full bg-cream border-transparent rounded-2xl px-12 py-4 text-sm font-bold focus:ring-2 focus:ring-primary/20 transition-all"
                     />
-                    <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-primary">search</span>
+                    <Search size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-primary" />
                   </div>
                   <div className="flex gap-4 items-center">
                     <button
                       onClick={() => exportClientsToCSV(visibleClients)}
                       disabled={visibleClients.length === 0}
-                      className="px-6 py-3 bg-bg-soft text-text-muted rounded-xl text-[10px] font-black uppercase tracking-widest border border-black/5 hover:border-primary/30 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                      className="px-6 py-3 bg-cream text-muted rounded-xl text-2xs font-medium text-hint border border-black/5 hover:border-primary/30 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                     >
                       Export CSV
                     </button>
                     <div className="relative">
                       <button
                         onClick={() => setShowFilterMenu(s => !s)}
-                        className={`px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all ${statusFilter !== 'All' ? 'bg-primary text-clinical-dark border-primary' : 'bg-bg-soft text-text-muted border-black/5 hover:border-primary/30'}`}
+                        className={`px-6 py-3 rounded-xl text-2xs font-medium text-hint border transition-all ${statusFilter !== 'All' ? 'bg-primary text-clinical-dark border-primary' : 'bg-cream text-muted border-black/5 hover:border-primary/30'}`}
                       >
                         Filter{statusFilter !== 'All' ? `: ${statusFilter}` : ''}
                       </button>
@@ -247,7 +248,7 @@ const ClientsPanel: React.FC = () => {
                             <button
                               key={s}
                               onClick={() => { setStatusFilter(s); setShowFilterMenu(false); }}
-                              className={`w-full text-left px-5 py-3 text-[10px] font-black uppercase tracking-widest transition-colors ${statusFilter === s ? 'bg-primary/10 text-primary' : 'text-text-muted hover:bg-bg-soft'}`}
+                              className={`w-full text-left px-5 py-3 text-2xs font-medium text-hint transition-colors ${statusFilter === s ? 'bg-primary/10 text-primary' : 'text-muted hover:bg-cream'}`}
                             >
                               {s}
                             </button>
@@ -259,14 +260,14 @@ const ClientsPanel: React.FC = () => {
                 </div>
                 <div className="bg-white">
                   {/* Sticky header */}
-                  <div className="grid grid-cols-[1fr_220px_160px] bg-bg-soft/50 border-b border-black/5 text-[10px] font-black text-text-muted uppercase tracking-widest">
+                  <div className="grid grid-cols-[1fr_220px_160px] bg-cream/50 border-b border-black/5 text-[10px] font-medium text-muted uppercase">
                     <div className="px-8 py-6">Profile &amp; Contact</div>
                     <div className="px-8 py-6">Status &amp; Activity</div>
                     <div className="px-8 py-6 text-right">Actions</div>
                   </div>
                   {visibleClients.length === 0 ? (
                     <div className="px-8 py-16 text-center">
-                      <p className="text-[10px] font-black text-text-muted uppercase tracking-widest">
+                      <p className="text-[10px] font-medium text-muted uppercase">
                         {filteredClients.length === 0 ? 'No clients in registry yet' : 'No clients match your search'}
                       </p>
                     </div>
@@ -279,29 +280,29 @@ const ClientsPanel: React.FC = () => {
                             <div
                               key={c.id}
                               onClick={() => setSelectedClientId(c.id)}
-                              className="grid grid-cols-[1fr_220px_160px] hover:bg-bg-soft/40 transition-colors cursor-pointer group border-b border-gray-50"
+                              className="grid grid-cols-[1fr_220px_160px] hover:bg-cream/40 transition-colors cursor-pointer group border-b border-gray-50"
                               style={{ position: 'absolute', top: 0, left: 0, right: 0, transform: `translateY(${virtualRow.start}px)` }}
                             >
                               <div className="px-8 py-6">
                                 <div className="flex items-center gap-4">
-                                  <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary font-black text-xs group-hover:bg-primary group-hover:text-white transition-all shrink-0">
+                                  <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary font-medium text-xs group-hover:bg-primary group-hover:text-white transition-all shrink-0">
                                     {getInitials(c.name)}
                                   </div>
                                   <div>
                                     <div className="flex items-center gap-2">
-                                      <p className="text-sm font-black text-text-main">{c.name}</p>
+                                      <p className="text-sm font-medium text-obsidian">{c.name}</p>
                                       <AssignedBadge isAssigned={isAssignedToMe(c)} />
                                     </div>
                                     <div className="flex flex-col gap-0.5 mt-1">
-                                      <p className="text-[10px] font-bold text-text-muted uppercase tracking-widest">ID: {c.id}</p>
-                                      <div className="flex items-center gap-2 text-text-muted mt-1">
+                                      <p className="text-[10px] font-bold text-muted uppercase">ID: {c.id}</p>
+                                      <div className="flex items-center gap-2 text-muted mt-1">
                                         <div className="flex items-center gap-1">
-                                          <span className="material-symbols-outlined text-[10px]">mail</span>
+                                          <Mail size={10} />
                                           <span className="text-[9px] font-bold">{c.email}</span>
                                         </div>
                                         <span className="w-1 h-1 bg-gray-300 rounded-full" />
                                         <div className="flex items-center gap-1">
-                                          <span className="material-symbols-outlined text-[10px]">call</span>
+                                          <Phone size={10} />
                                           <span className="text-[9px] font-bold">{c.phone}</span>
                                         </div>
                                       </div>
@@ -311,7 +312,7 @@ const ClientsPanel: React.FC = () => {
                               </div>
                               <div className="px-8 py-6">
                                 <div className="flex flex-col gap-2">
-                                  <span className={`w-fit px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${
+                                  <span className={`w-fit px-3 py-1 rounded-full text-2xs font-medium text-hint ${
                                     c.status === 'Active' || !c.status ? 'bg-green-100 text-green-700' :
                                     c.status === 'Assessment Submitted' ? 'bg-blue-100 text-blue-700' :
                                     c.status === 'Consultation Pending' ? 'bg-yellow-100 text-yellow-700' :
@@ -320,12 +321,12 @@ const ClientsPanel: React.FC = () => {
                                     {c.status || 'Active'}
                                   </span>
                                   <div>
-                                    <p className="text-[9px] font-black text-text-muted uppercase tracking-widest block mb-0.5">Last Interaction</p>
+                                    <p className="text-[9px] font-medium text-muted uppercase block mb-0.5">Last Interaction</p>
                                     <div className="flex items-center gap-2">
-                                      <p className="text-xs font-bold text-text-main">
+                                      <p className="text-xs font-bold text-obsidian">
                                         {c.createdAt ? new Date(c.createdAt).toLocaleDateString() : 'Recently'}
                                       </p>
-                                      <p className="text-[10px] text-text-muted font-medium">
+                                      <p className="text-[10px] text-muted font-medium">
                                         {c.createdAt ? new Date(c.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '10:45 AM'}
                                       </p>
                                     </div>
@@ -335,7 +336,7 @@ const ClientsPanel: React.FC = () => {
                               <div className="px-8 py-6 text-right">
                                 <button
                                   onClick={(e) => { e.stopPropagation(); setSelectedClientId(c.id); }}
-                                  className="bg-clinical-dark text-white px-6 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-primary hover:text-clinical-dark transition-all shadow-sm"
+                                  className="bg-obsidian text-white px-6 py-2.5 rounded-xl text-2xs font-medium text-hint hover:bg-primary hover:text-clinical-dark transition-all shadow-sm"
                                 >
                                   View Record
                                 </button>
@@ -356,8 +357,8 @@ const ClientsPanel: React.FC = () => {
           <div className={`lg:col-span-4 ${selectedClientId ? 'hidden lg:block' : 'block'}`}>
             <Card className="p-4 md:p-6 h-full lg:h-[calc(100vh-16rem)] flex flex-col">
               <div className="flex items-center justify-between mb-6">
-                <h3 className="text-xs font-black uppercase tracking-widest text-text-muted">Registry</h3>
-                <button onClick={() => setSelectedClientId(null)} className="text-[10px] font-black text-primary uppercase hover:underline">
+                <h3 className="text-xs font-medium uppercase text-muted">Registry</h3>
+                <button onClick={() => setSelectedClientId(null)} className="text-[10px] font-medium text-primary uppercase hover:underline">
                   Back to Table
                 </button>
               </div>
@@ -367,9 +368,9 @@ const ClientsPanel: React.FC = () => {
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder="Search registry..."
-                  className="w-full bg-bg-soft border-transparent rounded-xl px-10 py-3.5 md:py-4 text-xs font-bold focus:ring-2 focus:ring-primary/20"
+                  className="w-full bg-cream border-transparent rounded-xl px-10 py-3.5 md:py-4 text-xs font-bold focus:ring-2 focus:ring-primary/20"
                 />
-                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-primary text-sm">search</span>
+                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-primary" />
               </div>
               <div ref={sidebarScrollRef} className="overflow-y-auto no-scrollbar flex-grow" style={{ minHeight: 0 }}>
                 <div style={{ height: sidebarVirtualizer.getTotalSize(), position: 'relative' }}>
@@ -379,23 +380,23 @@ const ClientsPanel: React.FC = () => {
                       <div key={c.id} style={{ position: 'absolute', top: 0, left: 0, right: 0, transform: `translateY(${virtualRow.start}px)` }} className="py-1">
                         <button
                           onClick={() => setSelectedClientId(c.id)}
-                          className={`w-full flex items-center gap-3 p-3 md:p-4 rounded-2xl transition-all text-left group border ${selectedClientId === c.id ? 'bg-primary/5 border-primary/20' : 'border-transparent hover:bg-bg-soft hover:border-black/5'}`}
+                          className={`w-full flex items-center gap-3 p-3 md:p-4 rounded-2xl transition-all text-left group border ${selectedClientId === c.id ? 'bg-primary/5 border-primary/20' : 'border-transparent hover:bg-cream hover:border-black/5'}`}
                         >
-                          <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary font-black text-[10px] md:text-xs group-hover:bg-primary group-hover:text-white transition-all shrink-0">
+                          <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary font-medium text-[10px] md:text-xs group-hover:bg-primary group-hover:text-white transition-all shrink-0">
                             {getInitials(c.name)}
                           </div>
                           <div className="min-w-0 flex-grow">
                             <div className="flex items-center gap-2">
-                              <p className="text-sm font-black text-text-main truncate">{c.name}</p>
+                              <p className="text-sm font-medium text-obsidian truncate">{c.name}</p>
                               <AssignedBadge isAssigned={isAssignedToMe(c)} />
                             </div>
                             <div className="flex items-center gap-2">
-                              <p className="text-[9px] font-bold text-text-muted uppercase tracking-widest">{c.id}</p>
+                              <p className="text-[9px] font-bold text-muted uppercase">{c.id}</p>
                               <span className="w-1 h-1 bg-gray-300 rounded-full" />
-                              <p className="text-[9px] font-bold text-primary uppercase tracking-widest">{c.status || 'Active'}</p>
+                              <p className="text-[9px] font-bold text-primary uppercase">{c.status || 'Active'}</p>
                             </div>
                           </div>
-                          <span className="material-symbols-outlined text-text-muted/30 group-hover:text-primary transition-colors text-lg">chevron_right</span>
+                          <ChevronRight size={20} className="text-muted/30 group-hover:text-primary transition-colors" />
                         </button>
                       </div>
                     );

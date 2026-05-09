@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { ChevronDown } from 'lucide-react';
 
 const FAQPage: React.FC = () => {
   const faqCategories = [
@@ -152,12 +153,12 @@ const FAQPage: React.FC = () => {
   };
 
   return (
-    <div className="animate-fade-in px-6 md:px-20 pt-32 md:pt-44 pb-24 bg-bg-soft min-h-screen">
+    <div className="animate-fade-in px-6 md:px-20 pt-32 md:pt-44 pb-24 bg-cream min-h-screen">
       <div className="max-w-[1000px] mx-auto">
         <div className="text-center mb-16 md:mb-24">
-          <span className="text-primary font-black text-[10px] md:text-xs uppercase tracking-[0.4em] block mb-4">Support & Information</span>
-          <h1 className="text-4xl md:text-7xl font-black text-text-main tracking-tight leading-[1.1] mb-6">Frequently asked <span className="text-primary italic font-serif">questions</span></h1>
-          <p className="text-text-muted text-lg md:text-xl max-w-2xl mx-auto font-medium">
+          <span className="text-primary font-medium text-[10px] md:text-xs uppercase tracking-[0.4em] block mb-4">Support & Information</span>
+          <h1 className="text-4xl md:text-7xl font-medium text-obsidian tracking-tight leading-[1.1] mb-6">Frequently asked <span className="text-primary italic font-serif">questions</span></h1>
+          <p className="text-muted text-lg md:text-xl max-w-2xl mx-auto font-medium">
             Everything you need to know about our regenerative hair therapies and clinical protocols.
           </p>
         </div>
@@ -165,7 +166,7 @@ const FAQPage: React.FC = () => {
         <div className="space-y-16">
           {faqCategories.map((category, catIdx) => (
             <div key={catIdx} className="space-y-6">
-              <h2 className="text-xl md:text-2xl font-black text-text-main uppercase tracking-widest border-l-4 border-primary pl-6">
+              <h2 className="text-xl md:text-2xl font-medium text-obsidian uppercase border-l-4 border-primary pl-6">
                 {category.title}
               </h2>
               <div className="space-y-4">
@@ -183,15 +184,13 @@ const FAQPage: React.FC = () => {
                         onClick={() => toggle(catIdx, itemIdx)}
                         className="w-full flex items-center justify-between p-6 md:p-8 text-left hover:bg-gray-50 transition-colors group"
                       >
-                        <span className={`font-black text-base md:text-lg pr-8 tracking-tight transition-colors ${isOpen ? 'text-primary' : 'text-text-main'}`}>
+                        <span className={`font-medium text-base md:text-lg pr-8 tracking-tight transition-colors ${isOpen ? 'text-primary' : 'text-obsidian'}`}>
                           {item.q}
                         </span>
                         <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 border transition-all ${
                           isOpen ? 'bg-primary border-primary text-white' : 'border-gray-100 text-primary group-hover:border-primary/30'
                         }`}>
-                          <span className={`material-symbols-outlined text-xl transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`}>
-                            expand_more
-                          </span>
+                          <ChevronDown size={20} className={`transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`} />
                         </div>
                       </button>
                       <div 
@@ -200,7 +199,7 @@ const FAQPage: React.FC = () => {
                         }`}
                       >
                         <div className="p-6 md:p-8 pt-0 border-t border-gray-50 bg-gray-50/30">
-                          <p className="text-text-muted leading-relaxed text-sm md:text-base font-medium">
+                          <p className="text-muted leading-relaxed text-sm md:text-base font-medium">
                             {item.a}
                           </p>
                         </div>
@@ -213,18 +212,18 @@ const FAQPage: React.FC = () => {
           ))}
         </div>
 
-        <div className="mt-20 p-10 md:p-16 bg-clinical-dark rounded-[3rem] text-center relative overflow-hidden shadow-2xl">
+        <div className="mt-20 p-10 md:p-16 bg-obsidian rounded-[3rem] text-center relative overflow-hidden shadow-2xl">
           <div className="absolute top-0 right-0 w-64 h-64 bg-primary/10 rounded-full blur-[100px] pointer-events-none" />
           <div className="relative z-10">
-            <h3 className="text-2xl md:text-3xl font-black text-white mb-4">Still have questions?</h3>
+            <h3 className="text-2xl md:text-3xl font-medium text-white mb-4">Still have questions?</h3>
             <p className="text-gray-400 mb-10 max-w-xl mx-auto">
               Our clinical team is happy to provide more detailed information tailored to your specific situation.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <a href="mailto:info@novogenics.co.uk" className="bg-primary text-clinical-dark px-8 py-4 rounded-full font-black text-sm uppercase tracking-widest hover:bg-white transition-all shadow-xl shadow-primary/10">
+              <a href="mailto:info@novogenics.co.uk" className="bg-primary text-clinical-dark px-8 py-4 rounded-full font-medium text-sm uppercase hover:bg-white transition-all shadow-xl shadow-primary/10">
                 Email Dr Amer
               </a>
-              <a href="tel:+447356255598" className="bg-white/10 text-white border border-white/10 px-8 py-4 rounded-full font-black text-sm uppercase tracking-widest hover:bg-white/20 transition-all">
+              <a href="tel:+447356255598" className="bg-white/10 text-white border border-white/10 px-8 py-4 rounded-full font-medium text-sm uppercase hover:bg-white/20 transition-all">
                 Call the Clinic
               </a>
             </div>

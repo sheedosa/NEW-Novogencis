@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Page } from '../types';
+import { ShieldCheck, Shield, CalendarX2, Check } from 'lucide-react';
 
 interface PolicyConfirmationModalProps {
   isOpen: boolean;
@@ -22,7 +23,7 @@ const PolicyConfirmationModal: React.FC<PolicyConfirmationModalProps> = ({ isOpe
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="absolute inset-0 bg-clinical-dark/60 backdrop-blur-sm"
+            className="absolute inset-0 bg-obsidian/60 backdrop-blur-sm"
           />
           
           <motion.div
@@ -34,24 +35,24 @@ const PolicyConfirmationModal: React.FC<PolicyConfirmationModalProps> = ({ isOpe
             <div className="p-8 md:p-12 overflow-y-auto no-scrollbar">
               <div className="text-center mb-10">
                 <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-6">
-                  <span className="material-symbols-outlined text-3xl text-primary">verified_user</span>
+                  <ShieldCheck size={32} className="text-primary" />
                 </div>
-                <h2 className="text-3xl font-black text-text-main tracking-tight uppercase">Clinical Agreement</h2>
-                <p className="text-text-muted mt-2 font-medium">Please review and confirm our clinical policies to continue to your dashboard.</p>
+                <h2 className="text-3xl font-medium text-obsidian tracking-tight uppercase">Clinical Agreement</h2>
+                <p className="text-muted mt-2 font-medium">Please review and confirm our clinical policies to continue to your dashboard.</p>
               </div>
 
               <div className="space-y-8">
-                <div className="p-6 bg-bg-soft rounded-3xl border border-black/5">
-                  <h3 className="text-sm font-black text-text-main uppercase tracking-widest mb-4 flex items-center gap-2">
-                    <span className="material-symbols-outlined text-primary text-lg">privacy_tip</span>
+                <div className="p-6 bg-cream rounded-3xl border border-black/5">
+                  <h3 className="text-sm font-medium text-obsidian uppercase mb-4 flex items-center gap-2">
+                    <Shield size={18} className="text-primary" />
                     Privacy Policy
                   </h3>
-                  <p className="text-xs text-text-muted leading-relaxed mb-4">
+                  <p className="text-xs text-muted leading-relaxed mb-4">
                     Your clinical data is handled with the highest level of confidentiality. We use advanced encryption and strictly adhere to medical data protection standards.
                   </p>
                   <button 
                     onClick={() => onNavigate(Page.PrivacyPolicy)}
-                    className="text-[10px] font-black text-primary uppercase tracking-widest hover:underline"
+                    className="text-[10px] font-medium text-primary uppercase hover:underline"
                   >
                     Read Full Privacy Policy
                   </button>
@@ -60,23 +61,23 @@ const PolicyConfirmationModal: React.FC<PolicyConfirmationModalProps> = ({ isOpe
                       onClick={() => setHasReadPrivacy(!hasReadPrivacy)}
                       className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all ${hasReadPrivacy ? 'bg-primary border-primary text-white' : 'border-black/10 bg-white'}`}
                     >
-                      {hasReadPrivacy && <span className="material-symbols-outlined text-sm font-black">check</span>}
+                      {hasReadPrivacy && <Check size={14} />}
                     </button>
-                    <span className="text-[11px] font-bold text-text-main">I have read and accept the Privacy Policy</span>
+                    <span className="text-[11px] font-bold text-obsidian">I have read and accept the Privacy Policy</span>
                   </div>
                 </div>
 
-                <div className="p-6 bg-bg-soft rounded-3xl border border-black/5">
-                  <h3 className="text-sm font-black text-text-main uppercase tracking-widest mb-4 flex items-center gap-2">
-                    <span className="material-symbols-outlined text-primary text-lg">event_busy</span>
+                <div className="p-6 bg-cream rounded-3xl border border-black/5">
+                  <h3 className="text-sm font-medium text-obsidian uppercase mb-4 flex items-center gap-2">
+                    <CalendarX2 size={18} className="text-primary" />
                     Cancellation Policy
                   </h3>
-                  <p className="text-xs text-text-muted leading-relaxed mb-4">
+                  <p className="text-xs text-muted leading-relaxed mb-4">
                     To ensure all patients receive timely care, we require at least 48 hours notice for cancellations or rescheduling.
                   </p>
                   <button 
                     onClick={() => onNavigate(Page.CancellationPolicy)}
-                    className="text-[10px] font-black text-primary uppercase tracking-widest hover:underline"
+                    className="text-[10px] font-medium text-primary uppercase hover:underline"
                   >
                     Read Full Cancellation Policy
                   </button>
@@ -85,19 +86,19 @@ const PolicyConfirmationModal: React.FC<PolicyConfirmationModalProps> = ({ isOpe
                       onClick={() => setHasReadCancellation(!hasReadCancellation)}
                       className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all ${hasReadCancellation ? 'bg-primary border-primary text-white' : 'border-black/10 bg-white'}`}
                     >
-                      {hasReadCancellation && <span className="material-symbols-outlined text-sm font-black">check</span>}
+                      {hasReadCancellation && <Check size={14} />}
                     </button>
-                    <span className="text-[11px] font-bold text-text-main">I have read and accept the Cancellation Policy</span>
+                    <span className="text-[11px] font-bold text-obsidian">I have read and accept the Cancellation Policy</span>
                   </div>
                 </div>
               </div>
             </div>
 
-            <div className="p-8 bg-bg-soft border-t border-black/5">
+            <div className="p-8 bg-cream border-t border-black/5">
               <button
                 disabled={!canConfirm}
                 onClick={onConfirm}
-                className={`w-full py-5 rounded-2xl text-[12px] font-black uppercase tracking-[0.2em] transition-all shadow-xl ${
+                className={`w-full py-5 rounded-2xl text-[12px] font-medium uppercase tracking-[0.2em] transition-all shadow-xl ${
                   canConfirm 
                     ? 'bg-primary text-clinical-dark shadow-primary/20 hover:scale-[1.02] active:scale-[0.98]' 
                     : 'bg-gray-200 text-gray-400 cursor-not-allowed'

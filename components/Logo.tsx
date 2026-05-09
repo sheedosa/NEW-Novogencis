@@ -32,7 +32,7 @@ const Logo: React.FC<LogoProps> = React.memo(({ size = 'md', className = '' }) =
       ) : (
         // Fallback in case image still fails to load
         <div className="flex flex-col items-center">
-          <h2 className="font-serif text-2xl md:text-3xl tracking-widest text-brand-green uppercase">Novogenics</h2>
+          <h2 className="font-serif text-2xl md:text-3xl text-brand-green uppercase">Novogenics</h2>
           <p className="text-[10px] font-bold tracking-[0.2em] text-primary uppercase">Dr Aminah Amer</p>
         </div>
       )}

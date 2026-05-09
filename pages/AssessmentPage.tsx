@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useRef } from 'react';
 import { Page } from '../types';
+import { ShieldCheck, X, User, FileUp, Camera, Eye, EyeOff, ArrowLeft, Check } from 'lucide-react';
 import { storage, auth } from '../firebase';
 import { signInAnonymously } from 'firebase/auth';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
@@ -399,19 +400,19 @@ const AssessmentPage: React.FC<AssessmentPageProps> = ({ onNavigate, onIntakeCom
 
   if (accountCreated) {
     return (
-      <div className="animate-fade-in bg-bg-soft h-screen w-screen fixed inset-0 flex flex-col items-center justify-center p-4 overflow-hidden">
+      <div className="animate-fade-in bg-cream h-screen w-screen fixed inset-0 flex flex-col items-center justify-center p-4 overflow-hidden">
         <div className="max-w-2xl w-full bg-white rounded-[2rem] md:rounded-[2.5rem] p-8 md:p-20 shadow-2xl border border-black/5 text-center space-y-6">
           <div className="w-16 h-16 md:w-20 md:h-20 bg-primary/10 rounded-full flex items-center justify-center text-primary mx-auto mb-4">
-            <span className="material-symbols-outlined text-3xl md:text-4xl">verified_user</span>
+            <ShieldCheck size={36} />
           </div>
-          <h2 className="text-2xl md:text-5xl font-black tracking-tight leading-tight uppercase">Account Created</h2>
-          <p className="text-text-muted text-base md:text-xl leading-relaxed">
+          <h2 className="text-2xl md:text-5xl font-medium tracking-tight leading-tight uppercase">Account Created</h2>
+          <p className="text-muted text-base md:text-xl leading-relaxed">
             Your clinical portal is now active. You can access your dashboard immediately to view your assessment status.
           </p>
           <div className="pt-6">
             <button 
               onClick={() => onNavigate ? onNavigate(Page.ClientDashboard) : window.location.hash = 'client-dashboard'}
-              className="w-full sm:w-auto bg-primary text-white px-12 py-5 rounded-full font-black text-xs md:text-sm uppercase tracking-widest shadow-xl shadow-primary/20 hover:scale-105 transition-transform"
+              className="w-full sm:w-auto bg-primary text-white px-12 py-5 rounded-full font-medium text-xs md:text-sm uppercase shadow-xl shadow-primary/20 hover:scale-105 transition-transform"
             >
               Go to My Dashboard
             </button>
@@ -424,34 +425,34 @@ const AssessmentPage: React.FC<AssessmentPageProps> = ({ onNavigate, onIntakeCom
 
 
   return (
-    <div className="animate-fade-in bg-bg-soft h-screen w-screen fixed inset-0 flex flex-col items-center justify-center p-0 md:p-6 overflow-hidden">
+    <div className="animate-fade-in bg-cream h-screen w-screen fixed inset-0 flex flex-col items-center justify-center p-0 md:p-6 overflow-hidden">
       {/* Exit Button */}
       <button 
         onClick={() => window.location.hash = 'home'}
-        className="absolute top-4 right-4 md:top-6 md:right-6 w-10 h-10 bg-white/80 backdrop-blur-md rounded-full shadow-lg flex items-center justify-center text-text-muted hover:text-primary transition-all z-50 border border-black/5"
+        className="absolute top-4 right-4 md:top-6 md:right-6 w-10 h-10 bg-white/80 backdrop-blur-md rounded-full shadow-lg flex items-center justify-center text-muted hover:text-primary transition-all z-50 border border-black/5"
         title="Exit Assessment"
       >
-        <span className="material-symbols-outlined text-xl">close</span>
+        <X size={20} />
       </button>
 
       <div className="w-full max-w-[1200px] mx-auto flex flex-col h-full md:h-auto max-h-screen">
         <div className="text-center mb-4 md:mb-10 px-4 pt-8 md:pt-0 flex-shrink-0">
-          <span className="text-primary font-black text-[8px] md:text-xs uppercase tracking-[0.4em] block mb-1 md:mb-2">
+          <span className="text-primary font-medium text-[8px] md:text-xs uppercase tracking-[0.4em] block mb-1 md:mb-2">
             {phase === 'gender' ? 'Free Instant Hair Assessment' : phase === 'intake' ? 'Almost Done' : `Step ${step + 1} of ${currentQuestions.length}`}
           </span>
-          <h1 className="text-xl md:text-5xl font-black text-text-main tracking-tight leading-tight mb-1">
+          <h1 className="text-xl md:text-5xl font-medium text-obsidian tracking-tight leading-tight mb-1">
             {phase === 'gender' ? 'Start Your ' : ''}
             <span className="text-primary italic font-serif">
               {phase === 'gender' ? 'Assessment' : phase === 'intake' ? 'Get Your Results' : currentQuestion?.category || 'Clinical Assessment'}
             </span>
           </h1>
           {phase === 'gender' && (
-            <p className="text-text-muted text-[10px] md:text-lg max-w-2xl mx-auto font-medium hidden sm:block">
+            <p className="text-muted text-[10px] md:text-lg max-w-2xl mx-auto font-medium hidden sm:block">
               A quick screening to determine your suitability for regenerative hair restoration treatments.
             </p>
           )}
           {phase === 'intake' && (
-            <p className="text-text-muted text-[10px] md:text-lg max-w-2xl mx-auto font-medium hidden sm:block">
+            <p className="text-muted text-[10px] md:text-lg max-w-2xl mx-auto font-medium hidden sm:block">
               Create your secure clinical portal to view your assessment results and recommendations.
             </p>
           )}
@@ -459,7 +460,7 @@ const AssessmentPage: React.FC<AssessmentPageProps> = ({ onNavigate, onIntakeCom
 
         <div id="assessment-card" className="w-full max-w-[700px] mx-auto bg-white md:rounded-[2.5rem] shadow-2xl border-t md:border border-black/5 overflow-hidden flex flex-col flex-grow md:flex-grow-0 h-full md:max-h-[80vh]">
           {phase === 'assessment' && (
-            <div className="w-full h-1 md:h-2 bg-bg-soft flex-shrink-0">
+            <div className="w-full h-1 md:h-2 bg-cream flex-shrink-0">
               <div 
                 className="h-full bg-primary transition-all duration-500" 
                 style={{ width: `${((step + 1) / currentQuestions.length) * 100}%` }}
@@ -470,7 +471,7 @@ const AssessmentPage: React.FC<AssessmentPageProps> = ({ onNavigate, onIntakeCom
           <div ref={scrollContainerRef} className="p-5 md:p-12 overflow-y-auto flex-grow custom-scrollbar">
             {phase === 'assessment' && currentQuestion && (
               <div className="mb-5 md:mb-8">
-                <h2 className="text-lg md:text-2xl font-bold text-text-main leading-tight">
+                <h2 className="text-lg md:text-2xl font-bold text-obsidian leading-tight">
                   {currentQuestion.text}
                 </h2>
               </div>
@@ -478,14 +479,14 @@ const AssessmentPage: React.FC<AssessmentPageProps> = ({ onNavigate, onIntakeCom
 
             {phase === 'gender' ? (
               <div className="space-y-6 flex flex-col items-center justify-center h-full min-h-[40vh]">
-                <h2 className="text-xl md:text-2xl font-bold text-text-main mb-4">Are you completing this assessment for a male or female?</h2>
+                <h2 className="text-xl md:text-2xl font-bold text-obsidian mb-4">Are you completing this assessment for a male or female?</h2>
                 <div className="flex w-full gap-4 max-w-md">
                   {(['male', 'female'] as const).map(g => (
                     <button 
                       key={g} onClick={() => handleGenderSelect(g)}
-                      className={`flex-1 py-8 md:py-10 rounded-2xl font-black uppercase tracking-widest text-sm md:text-base border-2 transition-all flex flex-col items-center justify-center ${gender === g && genderSelected ? 'border-primary bg-primary/5 text-primary scale-105' : 'border-gray-100 text-text-muted hover:border-primary/30 hover:bg-gray-50'}`}
+                      className={`flex-1 py-8 md:py-10 rounded-2xl font-medium uppercase text-sm md:text-base border-2 transition-all flex flex-col items-center justify-center ${gender === g && genderSelected ? 'border-primary bg-primary/5 text-primary scale-105' : 'border-gray-100 text-muted hover:border-primary/30 hover:bg-gray-50'}`}
                     >
-                      <span className="material-symbols-outlined block text-3xl mb-2">{g === 'male' ? 'man' : 'woman'}</span>
+                      <User size={30} className="mb-2" />
                       {g}
                     </button>
                   ))}
@@ -495,20 +496,20 @@ const AssessmentPage: React.FC<AssessmentPageProps> = ({ onNavigate, onIntakeCom
               <div className="space-y-6">
                 <div className="grid grid-cols-1 gap-4 md:gap-5">
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black text-text-main uppercase tracking-widest ml-1">Full Name*</label>
+                    <label className="text-[10px] font-medium text-obsidian uppercase ml-1">Full Name*</label>
                     <input 
                       type="text" name="fullName" value={formData.fullName} onChange={handleInputChange}
-                      className="w-full bg-bg-soft border-none rounded-xl md:rounded-2xl px-5 md:px-6 py-3.5 md:py-4 focus:ring-2 focus:ring-primary/20 text-sm font-bold" 
+                      className="w-full bg-cream border-none rounded-xl md:rounded-2xl px-5 md:px-6 py-3.5 md:py-4 focus:ring-2 focus:ring-primary/20 text-sm font-bold" 
                     />
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <label className="text-[10px] font-black text-text-main uppercase tracking-widest ml-1">Date of Birth*</label>
+                      <label className="text-[10px] font-medium text-obsidian uppercase ml-1">Date of Birth*</label>
                       <div className="grid grid-cols-3 gap-2">
                         <select 
                           value={formData.dateOfBirth.split('-')[2] || ''} 
                           onChange={(e) => handleDOBChange('day', e.target.value)}
-                          className="w-full bg-bg-soft border-none rounded-xl md:rounded-2xl px-3 py-3.5 md:py-4 focus:ring-2 focus:ring-primary/20 text-sm font-bold cursor-pointer"
+                          className="w-full bg-cream border-none rounded-xl md:rounded-2xl px-3 py-3.5 md:py-4 focus:ring-2 focus:ring-primary/20 text-sm font-bold cursor-pointer"
                         >
                           <option value="" disabled>Day</option>
                           {days.map(d => <option key={d} value={d}>{d}</option>)}
@@ -516,7 +517,7 @@ const AssessmentPage: React.FC<AssessmentPageProps> = ({ onNavigate, onIntakeCom
                         <select 
                           value={formData.dateOfBirth.split('-')[1] || ''} 
                           onChange={(e) => handleDOBChange('month', e.target.value)}
-                          className="w-full bg-bg-soft border-none rounded-xl md:rounded-2xl px-3 py-3.5 md:py-4 focus:ring-2 focus:ring-primary/20 text-sm font-bold cursor-pointer"
+                          className="w-full bg-cream border-none rounded-xl md:rounded-2xl px-3 py-3.5 md:py-4 focus:ring-2 focus:ring-primary/20 text-sm font-bold cursor-pointer"
                         >
                           <option value="" disabled>Month</option>
                           {months.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
@@ -524,7 +525,7 @@ const AssessmentPage: React.FC<AssessmentPageProps> = ({ onNavigate, onIntakeCom
                         <select 
                           value={formData.dateOfBirth.split('-')[0] || ''} 
                           onChange={(e) => handleDOBChange('year', e.target.value)}
-                          className="w-full bg-bg-soft border-none rounded-xl md:rounded-2xl px-3 py-3.5 md:py-4 focus:ring-2 focus:ring-primary/20 text-sm font-bold cursor-pointer"
+                          className="w-full bg-cream border-none rounded-xl md:rounded-2xl px-3 py-3.5 md:py-4 focus:ring-2 focus:ring-primary/20 text-sm font-bold cursor-pointer"
                         >
                           <option value="" disabled>Year</option>
                           {years.map(y => <option key={y} value={y}>{y}</option>)}
@@ -532,66 +533,64 @@ const AssessmentPage: React.FC<AssessmentPageProps> = ({ onNavigate, onIntakeCom
                       </div>
                     </div>
                     <div className="space-y-2">
-                      <label className="text-[10px] font-black text-text-main uppercase tracking-widest ml-1">City (UK)*</label>
+                      <label className="text-[10px] font-medium text-obsidian uppercase ml-1">City (UK)*</label>
                       <input 
                         type="text" name="city" value={formData.city} onChange={handleInputChange}
-                        className="w-full bg-bg-soft border-none rounded-xl md:rounded-2xl px-4 md:px-5 py-3.5 md:py-4 focus:ring-2 focus:ring-primary/20 text-sm font-bold" 
+                        className="w-full bg-cream border-none rounded-xl md:rounded-2xl px-4 md:px-5 py-3.5 md:py-4 focus:ring-2 focus:ring-primary/20 text-sm font-bold" 
                       />
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black text-text-main uppercase tracking-widest ml-1">Email Address*</label>
+                    <label className="text-[10px] font-medium text-obsidian uppercase ml-1">Email Address*</label>
                     <input 
                       type="email" name="email" value={formData.email} onChange={handleInputChange}
-                      className={`w-full bg-bg-soft border-2 rounded-xl md:rounded-2xl px-5 md:px-6 py-3.5 md:py-4 focus:ring-2 focus:ring-primary/20 text-sm font-bold transition-all ${formData.email && !isValidEmail ? 'border-red-500/50 bg-red-50/30' : 'border-transparent'}`} 
+                      className={`w-full bg-cream border-2 rounded-xl md:rounded-2xl px-5 md:px-6 py-3.5 md:py-4 focus:ring-2 focus:ring-primary/20 text-sm font-bold transition-all ${formData.email && !isValidEmail ? 'border-red-500/50 bg-red-50/30' : 'border-transparent'}`} 
                       placeholder="e.g. name@example.com"
                     />
                     {formData.email && !isValidEmail && (
-                      <span className="text-[9px] font-black text-red-500 uppercase tracking-widest ml-1">Please enter a valid clinical email</span>
+                      <span className="text-[9px] font-medium text-red-500 uppercase ml-1">Please enter a valid clinical email</span>
                     )}
                   </div>
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black text-text-main uppercase tracking-widest ml-1">Phone Number*</label>
+                    <label className="text-[10px] font-medium text-obsidian uppercase ml-1">Phone Number*</label>
                     <input 
                       type="tel" name="phone" value={formData.phone} onChange={handleInputChange}
-                      className={`w-full bg-bg-soft border-2 rounded-xl md:rounded-2xl px-5 md:px-6 py-3.5 md:py-4 focus:ring-2 focus:ring-primary/20 text-sm font-bold transition-all ${formData.phone && !isValidUKPhone ? 'border-red-500/50 bg-red-50/30' : 'border-transparent'}`} 
+                      className={`w-full bg-cream border-2 rounded-xl md:rounded-2xl px-5 md:px-6 py-3.5 md:py-4 focus:ring-2 focus:ring-primary/20 text-sm font-bold transition-all ${formData.phone && !isValidUKPhone ? 'border-red-500/50 bg-red-50/30' : 'border-transparent'}`} 
                       placeholder="e.g. 07123 456789"
                     />
                     {formData.phone && !isValidUKPhone && (
-                      <span className="text-[9px] font-black text-red-500 uppercase tracking-widest ml-1">Please enter a valid UK phone number</span>
+                      <span className="text-[9px] font-medium text-red-500 uppercase ml-1">Please enter a valid UK phone number</span>
                     )}
                   </div>
                   
                   {/* Password Field Integration */}
                   <div className="space-y-2 border-t border-gray-100 pt-4 mt-2">
-                    <label className="text-[10px] font-black text-text-main uppercase tracking-widest ml-1">Create Password to Access Results*</label>
+                    <label className="text-[10px] font-medium text-obsidian uppercase ml-1">Create Password to Access Results*</label>
                     <div className="relative">
                       <input 
                         type={showPassword ? "text" : "password"} 
                         required
                         value={accountForm.password}
                         onChange={(e) => setAccountForm(prev => ({ ...prev, password: e.target.value }))}
-                        className="w-full bg-bg-soft border-transparent rounded-xl md:rounded-2xl px-5 md:px-6 py-3.5 md:py-4 text-sm font-bold focus:ring-primary focus:border-primary transition-all pr-12"
+                        className="w-full bg-cream border-transparent rounded-xl md:rounded-2xl px-5 md:px-6 py-3.5 md:py-4 text-sm font-bold focus:ring-primary focus:border-primary transition-all pr-12"
                         placeholder="••••••••"
                       />
                       <button
                         type="button"
                         onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-4 top-1/2 -translate-y-1/2 text-text-muted hover:text-primary transition-colors"
+                        className="absolute right-4 top-1/2 -translate-y-1/2 text-muted hover:text-primary transition-colors"
                       >
-                        <span className="material-symbols-outlined text-xl">
-                          {showPassword ? 'visibility_off' : 'visibility'}
-                        </span>
+                        {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                       </button>
                     </div>
                     {accountForm.password && accountForm.password.length < 6 && (
-                      <span className="text-[9px] font-black text-red-500 uppercase tracking-widest ml-1">Password must be at least 6 characters</span>
+                      <span className="text-[9px] font-medium text-red-500 uppercase ml-1">Password must be at least 6 characters</span>
                     )}
                   </div>
                 </div>
 
                 {error && error === 'email_exists' ? (
-                  <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 text-[10px] font-bold uppercase tracking-widest p-5 rounded-2xl text-center space-y-4">
+                  <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 text-[10px] font-bold uppercase p-5 rounded-2xl text-center space-y-4">
                     <p>An account with this email already exists.</p>
                     <button 
                       type="button"
@@ -602,7 +601,7 @@ const AssessmentPage: React.FC<AssessmentPageProps> = ({ onNavigate, onIntakeCom
                     </button>
                   </div>
                 ) : error ? (
-                  <div className="bg-red-50 text-red-500 text-[10px] font-black uppercase tracking-widest p-4 rounded-xl text-center">
+                  <div className="bg-red-50 text-red-500 text-2xs font-medium text-hint p-4 rounded-xl text-center">
                     {error}
                   </div>
                 ) : null}
@@ -613,7 +612,7 @@ const AssessmentPage: React.FC<AssessmentPageProps> = ({ onNavigate, onIntakeCom
                       type="checkbox" name="agreedToPrivacy" checked={formData.agreedToPrivacy} onChange={handleInputChange}
                       className="mt-1 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
                     />
-                    <span className="text-[9px] md:text-[10px] font-bold text-text-muted leading-relaxed uppercase tracking-tight">I agree to the Privacy Policy and clinical data processing.</span>
+                    <span className="text-[9px] md:text-[10px] font-bold text-muted leading-relaxed uppercase tracking-tight">I agree to the Privacy Policy and clinical data processing.</span>
                   </label>
                 </div>
               </div>
@@ -625,9 +624,9 @@ const AssessmentPage: React.FC<AssessmentPageProps> = ({ onNavigate, onIntakeCom
                       key={opt} onClick={() => handleSelectOption(currentQuestion.id, opt)}
                       className={`p-4 md:p-6 rounded-xl md:rounded-2xl border-2 text-left transition-all flex items-center justify-between group ${answers[currentQuestion.id]?.value === opt ? 'border-primary bg-primary/5' : 'border-gray-100 hover:border-primary/30'}`}
                     >
-                      <span className={`text-sm md:text-lg font-bold ${answers[currentQuestion.id]?.value === opt ? 'text-primary' : 'text-text-main'}`}>{opt}</span>
+                      <span className={`text-sm md:text-lg font-bold ${answers[currentQuestion.id]?.value === opt ? 'text-primary' : 'text-obsidian'}`}>{opt}</span>
                       <div className={`w-5 h-5 md:w-6 md:h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 ml-4 ${answers[currentQuestion.id]?.value === opt ? 'bg-primary border-primary text-white' : 'border-gray-200'}`}>
-                        {answers[currentQuestion.id]?.value === opt && <span className="material-symbols-outlined text-[10px] md:text-sm">check</span>}
+                        {answers[currentQuestion.id]?.value === opt && <Check size={14} />}
                       </div>
                     </button>
                   ))}
@@ -637,9 +636,9 @@ const AssessmentPage: React.FC<AssessmentPageProps> = ({ onNavigate, onIntakeCom
                       key={opt} onClick={() => handleToggleCheckbox(currentQuestion.id, opt)}
                       className={`p-4 md:p-6 rounded-xl md:rounded-2xl border-2 text-left transition-all flex items-center justify-between group ${(answers[currentQuestion.id]?.value as string[])?.includes(opt) ? 'border-primary bg-primary/5' : 'border-gray-100 hover:border-primary/30'}`}
                     >
-                      <span className={`text-sm md:text-lg font-bold ${(answers[currentQuestion.id]?.value as string[])?.includes(opt) ? 'text-primary' : 'text-text-main'}`}>{opt}</span>
+                      <span className={`text-sm md:text-lg font-bold ${(answers[currentQuestion.id]?.value as string[])?.includes(opt) ? 'text-primary' : 'text-obsidian'}`}>{opt}</span>
                       <div className={`w-5 h-5 md:w-6 md:h-6 rounded-lg md:rounded-xl border-2 flex items-center justify-center flex-shrink-0 ml-4 ${(answers[currentQuestion.id]?.value as string[])?.includes(opt) ? 'bg-primary border-primary text-white' : 'border-gray-200'}`}>
-                        {(answers[currentQuestion.id]?.value as string[])?.includes(opt) && <span className="material-symbols-outlined text-[10px] md:text-sm">check</span>}
+                        {(answers[currentQuestion.id]?.value as string[])?.includes(opt) && <Check size={14} />}
                       </div>
                     </button>
                   ))}
@@ -654,13 +653,13 @@ const AssessmentPage: React.FC<AssessmentPageProps> = ({ onNavigate, onIntakeCom
                               onClick={takePhoto}
                               className="w-12 h-12 rounded-full bg-white flex items-center justify-center text-clinical-dark shadow-lg"
                             >
-                              <span className="material-symbols-outlined">photo_camera</span>
+                              <Camera size={18} />
                             </button>
-                            <button 
+                            <button
                               onClick={stopCamera}
                               className="w-12 h-12 rounded-full bg-red-500 flex items-center justify-center text-white shadow-lg"
                             >
-                              <span className="material-symbols-outlined">close</span>
+                              <X size={18} />
                             </button>
                           </div>
                         </div>
@@ -670,8 +669,8 @@ const AssessmentPage: React.FC<AssessmentPageProps> = ({ onNavigate, onIntakeCom
                             onClick={() => fileInputRef.current?.click()}
                             className="border-2 border-dashed border-gray-200 rounded-2xl p-8 text-center hover:border-primary/50 transition-colors cursor-pointer group flex flex-col items-center justify-center"
                           >
-                            <span className="material-symbols-outlined text-3xl text-gray-300 group-hover:text-primary transition-colors mb-2">upload_file</span>
-                            <p className="text-sm font-bold text-text-main">Upload from device</p>
+                            <FileUp size={30} className="text-gray-300 group-hover:text-primary transition-colors mb-2" />
+                            <p className="text-sm font-bold text-obsidian">Upload from device</p>
                             <input 
                               type="file" 
                               ref={fileInputRef}
@@ -689,8 +688,8 @@ const AssessmentPage: React.FC<AssessmentPageProps> = ({ onNavigate, onIntakeCom
                             onClick={startCamera}
                             className="border-2 border-dashed border-gray-200 rounded-2xl p-8 text-center hover:border-primary/50 transition-colors cursor-pointer group flex flex-col items-center justify-center"
                           >
-                            <span className="material-symbols-outlined text-3xl text-gray-300 group-hover:text-primary transition-colors mb-2">add_a_photo</span>
-                            <p className="text-sm font-bold text-text-main">Take a photo</p>
+                            <Camera size={30} className="text-gray-300 group-hover:text-primary transition-colors mb-2" />
+                            <p className="text-sm font-bold text-obsidian">Take a photo</p>
                           </div>
                         </div>
                       )}
@@ -700,7 +699,7 @@ const AssessmentPage: React.FC<AssessmentPageProps> = ({ onNavigate, onIntakeCom
                       {uploading && (
                         <div className="flex items-center justify-center gap-3 py-4">
                           <span className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                          <span className="text-xs font-black uppercase tracking-widest text-primary">Uploading clinical images...</span>
+                          <span className="text-xs font-medium uppercase text-primary">Uploading clinical images...</span>
                         </div>
                       )}
 
@@ -721,7 +720,7 @@ const AssessmentPage: React.FC<AssessmentPageProps> = ({ onNavigate, onIntakeCom
                                 }}
                                 className="absolute top-2 right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
                               >
-                                <span className="material-symbols-outlined text-xs">close</span>
+                                <X size={12} />
                               </button>
                             </div>
                           ))}
@@ -738,16 +737,16 @@ const AssessmentPage: React.FC<AssessmentPageProps> = ({ onNavigate, onIntakeCom
             {(phase === 'assessment' || phase === 'intake') && (
               <button 
                 onClick={handleBack}
-                className="flex items-center gap-2 text-[10px] md:text-xs font-black uppercase tracking-widest text-text-muted hover:text-primary transition-colors"
+                className="flex items-center gap-2 text-[10px] md:text-xs font-medium uppercase text-muted hover:text-primary transition-colors"
               >
-                <span className="material-symbols-outlined text-sm">west</span> Back
+                <ArrowLeft size={16} /> Back
               </button>
             )}
             {phase === 'intake' ? (
               <button 
                 onClick={handleAccountSubmit}
                 disabled={!isStepValid || loading || error === 'email_exists'}
-                className={`ml-auto px-8 md:px-12 py-4 md:py-5 rounded-full font-black text-[10px] md:text-xs uppercase tracking-widest transition-all ${(!isStepValid || loading || error === 'email_exists') ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-primary text-clinical-dark shadow-xl shadow-primary/20 hover:scale-105 active:scale-95 flex items-center gap-2'}`}
+                className={`ml-auto px-8 md:px-12 py-4 md:py-5 rounded-full font-medium text-[10px] md:text-xs uppercase transition-all ${(!isStepValid || loading || error === 'email_exists') ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-primary text-clinical-dark shadow-xl shadow-primary/20 hover:scale-105 active:scale-95 flex items-center gap-2'}`}
               >
                 {loading ? (
                   <>
@@ -762,7 +761,7 @@ const AssessmentPage: React.FC<AssessmentPageProps> = ({ onNavigate, onIntakeCom
               <button 
                 onClick={handleNext}
                 disabled={!isStepValid}
-                className={`ml-auto px-8 md:px-12 py-4 md:py-5 rounded-full font-black text-[10px] md:text-xs uppercase tracking-widest transition-all ${!isStepValid ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-primary text-white shadow-xl shadow-primary/20 hover:scale-105 active:scale-95'}`}
+                className={`ml-auto px-8 md:px-12 py-4 md:py-5 rounded-full font-medium text-[10px] md:text-xs uppercase transition-all ${!isStepValid ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-primary text-white shadow-xl shadow-primary/20 hover:scale-105 active:scale-95'}`}
               >
                 Continue
               </button>
