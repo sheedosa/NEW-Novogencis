@@ -6,11 +6,7 @@ import { InteractiveForm } from '../components/InteractiveForm';
 import Logo from '../components/Logo';
 import { storage } from '../firebase';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
-import {
-  Camera, Upload, X,
-  LayoutDashboard, Users, ClipboardList, CalendarDays, MessageCircle,
-  BarChart2, Sparkles, Bell, Search, Menu, ChevronRight, LogOut,
-} from 'lucide-react';
+import { Camera, Upload, X } from 'lucide-react';
 import { processImageForUpload, validateImageFile, ACCEPTED_IMAGE_TYPES } from '../imageUtils';
 import { logClinicalAction } from '../utils/auditLogger';
 import { notifyPaymentSent } from '../utils/notificationService';
@@ -439,124 +435,93 @@ const AdminPage: React.FC<AdminPageProps> = ({
     }
   };
 
-  const sidebarWidth = isSidebarCollapsed ? 64 : 240;
-
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <AdminContext.Provider value={ctx}>
-      <div className="portal-shell">
-
-        {/* Mobile sidebar overlay */}
-        {isSidebarOpen && (
-          <div className="sidebar-overlay lg:hidden" onClick={() => setIsSidebarOpen(false)} />
-        )}
-
+      <div className="min-h-screen bg-[#FDFCFB] flex font-sans selection:bg-primary/20">
         {/* Sidebar */}
-        <aside
-          className={`portal-sidebar ${isSidebarOpen ? 'open' : ''} ${isSidebarCollapsed ? 'collapsed' : ''}`}
-          style={{ width: sidebarWidth, transition: 'width 0.3s cubic-bezier(0.16,1,0.3,1)' }}
-        >
-          {/* Logo row */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 2px 16px', borderBottom: '0.5px solid var(--color-sand)', marginBottom: 12 }}>
-            {!isSidebarCollapsed && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <div style={{ width: 28, height: 28, background: 'var(--color-obsidian)', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#C9A86A" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                    <path d="M2 15c6.667-6 13.333 0 20-6"/><path d="M9 22c1.798-1.998 2.518-3.995 2.807-5.993"/>
-                    <path d="M15 2c-1.798 1.998-2.518 3.995-2.807 5.993"/><path d="m17 6-2.5-2.5"/>
-                    <path d="m14 8-1-1"/><path d="m7 18 2.5 2.5"/><path d="m10 16 1 1"/>
-                  </svg>
-                </div>
-                <div>
-                  <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--color-obsidian)', lineHeight: 1.2 }}>Novogenics</div>
-                  <div style={{ fontSize: 10, color: 'var(--color-hint)' }}>Clinical portal</div>
-                </div>
-              </div>
-            )}
-            {isSidebarCollapsed && (
-              <div style={{ width: 28, height: 28, background: 'var(--color-obsidian)', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto' }}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#C9A86A" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <path d="M2 15c6.667-6 13.333 0 20-6"/><path d="M9 22c1.798-1.998 2.518-3.995 2.807-5.993"/>
-                </svg>
-              </div>
-            )}
-            <button onClick={() => setIsSidebarCollapsed(v => !v)} className="btn-icon hidden lg:flex" style={{ width: 28, height: 28, padding: 0, marginLeft: isSidebarCollapsed ? 'auto' : 0 }} aria-label={isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}>
-              <Menu size={14} />
-            </button>
-            <button onClick={() => setIsSidebarOpen(false)} className="btn-icon lg:hidden" style={{ width: 28, height: 28, padding: 0 }} aria-label="Close menu">
-              <X size={14} />
-            </button>
+        <aside className={`h-screen fixed left-0 top-0 bg-white border-r border-black/5 flex flex-col p-8 z-50 transition-all duration-500 ease-in-out lg:translate-x-0 lg:bg-gradient-to-b lg:from-white lg:to-bg-soft/30 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} ${isSidebarCollapsed ? 'w-24' : 'w-[300px]'}`}>
+          <div className="flex items-center justify-between mb-12">
+            {!isSidebarCollapsed && <Logo size="sm" className="!justify-start scale-90 -ml-4 lg:scale-100 lg:-ml-2" />}
+            <div className="flex items-center gap-2">
+              <button onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)} className="hidden lg:flex w-8 h-8 rounded-full bg-bg-soft items-center justify-center text-text-muted hover:text-primary transition-colors">
+                <span className="material-symbols-outlined text-lg">{isSidebarCollapsed ? 'menu_open' : 'menu'}</span>
+              </button>
+              <button onClick={() => setIsSidebarOpen(false)} className="lg:hidden text-text-muted hover:text-primary">
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
           </div>
 
-          {/* Nav sections */}
-          <nav style={{ flex: 1, overflowY: 'auto' }} className="no-scrollbar">
-            {!isSidebarCollapsed && <div className="nav-section-label">Workspace</div>}
-            <SidebarItem id="overview"      label="Overview"      icon={<LayoutDashboard size={16} />} activeTab={activeTab} selectedClientId={selectedClientId} onClick={handleSidebarClick} isCollapsed={isSidebarCollapsed} />
-            <SidebarItem id="clients"       label="Clients"       icon={<Users size={16} />}           activeTab={activeTab} selectedClientId={selectedClientId} onClick={handleSidebarClick} isCollapsed={isSidebarCollapsed} badge={clients.length > 0 ? { value: clients.length, variant: 'blue' } : undefined} />
-            <SidebarItem id="assessments"   label="Assessments"   icon={<ClipboardList size={16} />}   activeTab={activeTab} selectedClientId={selectedClientId} onClick={handleSidebarClick} isCollapsed={isSidebarCollapsed} badge={clients.filter(c => c.status === 'Assessment Submitted').length > 0 ? { value: clients.filter(c => c.status === 'Assessment Submitted').length, variant: 'gold' } : undefined} />
-            <SidebarItem id="appointments"  label="Appointments"  icon={<CalendarDays size={16} />}    activeTab={activeTab} selectedClientId={selectedClientId} onClick={handleSidebarClick} isCollapsed={isSidebarCollapsed} />
-            <SidebarItem id="messages"      label="Messages"      icon={<MessageCircle size={16} />}   activeTab={activeTab} selectedClientId={selectedClientId} onClick={handleSidebarClick} isCollapsed={isSidebarCollapsed} badge={unreadCount > 0 ? { value: unreadCount, variant: 'gold' } : undefined} />
+          <nav className="flex-grow space-y-2">
+            <SidebarItem id="overview"         label="Overview"        icon="space_dashboard"    activeTab={activeTab} selectedClientId={selectedClientId} onClick={handleSidebarClick} isCollapsed={isSidebarCollapsed} />
+            <SidebarItem id="assessments"      label="Assessments"     icon="assignment"         activeTab={activeTab} selectedClientId={selectedClientId} onClick={handleSidebarClick} isCollapsed={isSidebarCollapsed} />
+            <SidebarItem id="clients"          label="Clients"         icon="database"           activeTab={activeTab} selectedClientId={selectedClientId} onClick={handleSidebarClick} isCollapsed={isSidebarCollapsed} />
+            <SidebarItem id="appointments"     label="Appointments"    icon="calendar_month"     activeTab={activeTab} selectedClientId={selectedClientId} onClick={handleSidebarClick} isCollapsed={isSidebarCollapsed} />
             {user?.adminType === 'technical' && (
-              <>
-                {!isSidebarCollapsed && <div className="nav-section-label">Clinical</div>}
-                <SidebarItem id="platform-health" label="Platform health" icon={<Sparkles size={16} />} activeTab={activeTab} selectedClientId={selectedClientId} onClick={handleSidebarClick} isCollapsed={isSidebarCollapsed} />
-              </>
+              <SidebarItem id="platform-health" label="Platform Health" icon="health_and_safety" activeTab={activeTab} selectedClientId={selectedClientId} onClick={handleSidebarClick} isCollapsed={isSidebarCollapsed} />
             )}
+            <SidebarItem id="messages"         label="Messages"        icon="forum"              activeTab={activeTab} selectedClientId={selectedClientId} onClick={handleSidebarClick} isCollapsed={isSidebarCollapsed} />
           </nav>
 
-          {/* Doctor chip */}
-          <div style={{ marginTop: 'auto', paddingTop: 12, borderTop: '0.5px solid var(--color-sand)' }}>
+          <div className="mt-auto pt-8 border-t border-gray-100 relative">
             {user?.adminType === 'technical' && showAccountSwitcher && (
               <motion.div
                 initial={{ opacity: 0, y: 10, scale: 0.95 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
-                style={{ position: 'absolute', bottom: '100%', left: 0, right: 0, margin: '0 12px 8px', background: '#fff', border: '0.5px solid var(--color-sand)', borderRadius: 'var(--radius-lg)', padding: 12, boxShadow: 'var(--shadow-panel)', zIndex: 60 }}
+                className="absolute bottom-full left-0 w-full mb-4 p-4 bg-white rounded-2xl border border-black/5 shadow-2xl z-[60]"
               >
-                <p className="text-2xs font-medium text-hint uppercase tracking-wide mb-2">Switch view mode</p>
-                {[
-                  { id: 'all', label: 'All access' },
-                  { id: 'doctor-female', label: 'Dr. Aminah (F)' },
-                  { id: 'doctor-male', label: 'Dr. Waqas (M)' },
-                ].map((mode) => (
-                  <button key={mode.id} onClick={() => { setEffectiveAdminType(mode.id as AdminType | 'all'); setShowAccountSwitcher(false); }}
-                    className={`nav-item ${effectiveAdminType === mode.id ? 'active' : ''}`}
-                    style={{ marginBottom: 2 }}>
-                    {mode.label}
-                  </button>
-                ))}
+                <p className="text-[8px] font-black text-text-muted uppercase tracking-widest mb-3 flex items-center gap-2">
+                  <span className="material-symbols-outlined text-sm">visibility</span>
+                  Switch View Mode
+                </p>
+                <div className="grid grid-cols-1 gap-1">
+                  {[
+                    { id: 'all', label: 'Ultimate Access', icon: 'hub' },
+                    { id: 'doctor-female', label: 'Dr. Aminah (F)', icon: 'female' },
+                    { id: 'doctor-male', label: 'Dr. Waqas (M)', icon: 'male' },
+                  ].map((mode) => (
+                    <button
+                      key={mode.id}
+                      onClick={() => { setEffectiveAdminType(mode.id as AdminType | 'all'); setShowAccountSwitcher(false); }}
+                      className={`flex items-center gap-3 px-3 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${effectiveAdminType === mode.id ? 'bg-primary text-clinical-dark shadow-sm' : 'text-text-muted hover:bg-bg-soft hover:text-clinical-dark'}`}
+                    >
+                      <span className="material-symbols-outlined text-base">{mode.icon}</span>
+                      {mode.label}
+                    </button>
+                  ))}
+                </div>
               </motion.div>
             )}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '8px 10px' }}>
-              <div
-                className="avatar avatar-sm"
-                style={{ flexShrink: 0, cursor: user?.adminType === 'technical' ? 'pointer' : 'default' }}
-                onClick={() => user?.adminType === 'technical' && setShowAccountSwitcher(!showAccountSwitcher)}
-                title={user?.adminType === 'technical' ? 'Switch view' : undefined}
-              >
+            <button
+              onClick={() => user?.adminType === 'technical' && setShowAccountSwitcher(!showAccountSwitcher)}
+              className={`w-full flex items-center gap-4 px-4 py-3 rounded-2xl transition-all mb-4 text-left group ${showAccountSwitcher ? 'bg-primary/10 ring-2 ring-primary/20' : 'bg-clinical-dark text-white hover:bg-primary transition-colors'}`}
+            >
+              <div className={`w-10 h-10 rounded-full flex items-center justify-center font-black text-xs transition-colors ${showAccountSwitcher ? 'bg-primary text-white' : 'bg-primary/20 text-primary group-hover:bg-white group-hover:text-primary'}`}>
                 {getInitials(user?.fullName)}
               </div>
-              {!isSidebarCollapsed && (
-                <>
-                  <div style={{ minWidth: 0, flex: 1 }}>
-                    <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--color-obsidian)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user?.fullName ?? 'Doctor'}</div>
-                    <div style={{ fontSize: 10, color: 'var(--color-hint)' }}>
-                      {user?.adminType === 'technical' ? 'Technical admin' : user?.adminType === 'doctor-female' ? 'GP · Female' : 'GP · Male'}
-                    </div>
-                  </div>
-                  <button onClick={onLogout} className="btn-icon" style={{ width: 26, height: 26, padding: 0, flexShrink: 0 }} title="Sign out" aria-label="Sign out">
-                    <LogOut size={13} />
-                  </button>
-                </>
-              )}
-            </div>
+              <div className="flex flex-col min-w-0 flex-grow">
+                <span className={`text-[10px] font-black truncate uppercase tracking-widest transition-colors ${showAccountSwitcher ? 'text-clinical-dark' : 'text-white group-hover:text-clinical-dark'}`}>{user?.fullName}</span>
+                <span className={`text-[8px] font-bold truncate lowercase tracking-widest transition-colors ${showAccountSwitcher ? 'text-primary' : 'text-primary/60 group-hover:text-clinical-dark/60'}`}>@{user?.username}</span>
+                <span className={`text-[8px] font-bold uppercase tracking-widest transition-colors ${showAccountSwitcher ? 'text-text-muted' : 'text-gray-500 group-hover:text-clinical-dark/40'}`}>
+                  {user?.adminType === 'technical' ? (
+                    <span className="flex items-center gap-1">
+                      {effectiveAdminType === 'all' ? 'Technical Admin' : effectiveAdminType === 'doctor-female' ? 'Viewing as Aminah' : 'Viewing as Waqas'}
+                      <span className="material-symbols-outlined text-[10px]">unfold_more</span>
+                    </span>
+                  ) : user?.adminType === 'doctor-female' ? 'Clinical Director (F)' : user?.adminType === 'doctor-male' ? 'Clinical Director (M)' : 'System Admin'}
+                </span>
+              </div>
+            </button>
+            <button onClick={onLogout} className="w-full flex items-center gap-4 px-6 py-4 rounded-2xl text-text-muted hover:text-red-500 hover:bg-red-50 transition-all group">
+              <span className="material-symbols-outlined group-hover:rotate-180 transition-transform">logout</span>
+              <span className="text-[11px] font-black uppercase tracking-widest">End Session</span>
+            </button>
           </div>
         </aside>
 
-        {/* Main area */}
-        <div
-          className="portal-main"
-          style={{ marginLeft: sidebarWidth, transition: 'margin-left 0.3s cubic-bezier(0.16,1,0.3,1)' }}
-        >
+        {/* Main content */}
+        <main className={`flex-grow min-h-screen transition-all duration-500 ease-in-out ${isSidebarCollapsed ? 'lg:pl-24' : 'lg:pl-[300px]'}`}>
           {/* Morning briefing toast */}
           {showMorningBriefing && (() => {
             const todayAppts = filteredAppointments.filter(a => a.date === new Date().toISOString().split('T')[0] && a.status !== 'Cancelled');
@@ -598,45 +563,33 @@ const AdminPage: React.FC<AdminPageProps> = ({
             );
           })()}
 
-          {/* Topbar */}
-          <header className="portal-topbar">
-            <button onClick={() => setIsSidebarOpen(true)} className="btn-icon lg:hidden" style={{ width: 34, height: 34, padding: 0 }} aria-label="Open menu">
-              <Menu size={18} />
-            </button>
-
-            {/* Breadcrumb */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--color-hint)' }}>
-              <span>Admin</span>
-              <ChevronRight size={12} />
-              <span style={{ color: 'var(--color-obsidian)', fontWeight: 500, textTransform: 'capitalize' }}>
-                {activeTab.replace(/-/g, ' ')}
-              </span>
-              {selectedClientId && (
-                <>
-                  <ChevronRight size={12} />
-                  <span style={{ color: 'var(--color-obsidian)', fontWeight: 500 }}>Client record</span>
-                </>
-              )}
+          {/* Header */}
+          <header className="h-20 bg-white/60 backdrop-blur-xl border-b border-black/5 px-6 lg:px-12 flex items-center justify-between sticky top-0 z-40">
+            <div className="flex items-center gap-4 lg:gap-8">
+              <button onClick={() => setIsSidebarOpen(true)} className="lg:hidden text-text-muted hover:text-primary">
+                <span className="material-symbols-outlined">menu</span>
+              </button>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-text-muted hidden sm:inline">ADMIN PORTAL</span>
+                <span className="text-text-muted/30 hidden sm:inline">/</span>
+                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">{activeTab}</span>
+              </div>
+              <div className="hidden lg:flex items-center relative w-96">
+                <span className="material-symbols-outlined absolute left-4 text-primary text-xl">search</span>
+                <input type="text" placeholder="Search clients, appointments, or messages..." className="w-full bg-bg-soft/50 border-transparent rounded-full pl-12 pr-6 py-2.5 text-xs font-bold focus:ring-2 focus:ring-primary/20 focus:bg-white transition-all border border-black/5" />
+              </div>
             </div>
-
-            {/* Search — desktop only */}
-            <div className="search-wrap hidden lg:block" style={{ flex: 1, maxWidth: 360 }}>
-              <Search className="search-icon" size={14} aria-hidden />
-              <input type="text" className="search-input" placeholder="Search clients, appointments…" />
-            </div>
-
-            {/* Actions */}
-            <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
-              <div style={{ position: 'relative' }}>
+            <div className="flex items-center gap-3 sm:gap-6">
+              <div className="relative">
                 <button
                   onClick={() => setShowNotifications(!showNotifications)}
-                  className="btn-icon"
-                  style={{ width: 34, height: 34, padding: 0, position: 'relative' }}
-                  aria-label="Notifications"
+                  className={`relative p-2 transition-colors rounded-full hover:bg-bg-soft ${showNotifications ? 'text-primary bg-bg-soft' : 'text-text-muted'}`}
                 >
-                  <Bell size={16} />
+                  <span className="material-symbols-outlined">notifications</span>
                   {unreadCount > 0 && (
-                    <span style={{ position: 'absolute', top: 5, right: 5, width: 7, height: 7, borderRadius: '50%', background: 'var(--color-gold)', border: '1.5px solid var(--color-ivory)' }} />
+                    <span className="absolute top-1.5 right-1.5 w-4 h-4 bg-red-500 rounded-full border-2 border-white text-[8px] font-black text-white flex items-center justify-center">
+                      {unreadCount > 9 ? '9+' : unreadCount}
+                    </span>
                   )}
                 </button>
 
@@ -688,10 +641,20 @@ const AdminPage: React.FC<AdminPageProps> = ({
                   </>
                 )}
               </div>
+              <div className="h-8 w-[1px] bg-gray-100 hidden sm:block" />
+              <div className="items-center gap-3 hidden sm:flex">
+                <p className="text-[10px] font-black text-text-main uppercase tracking-widest">Live Mode</p>
+                <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+              </div>
+              <div className="h-8 w-[1px] bg-gray-100 hidden sm:block" />
+              <button onClick={onLogout} className="flex items-center gap-2 text-text-muted hover:text-red-500 transition-colors group">
+                <span className="material-symbols-outlined text-xl group-hover:rotate-180 transition-transform">logout</span>
+                <span className="text-[10px] font-black uppercase tracking-widest hidden md:inline">Sign Out</span>
+              </button>
             </div>
           </header>
 
-          <div style={{ padding: 'var(--panel-gap)', flex: 1 }}>
+          <div className="p-4 sm:p-6 lg:p-12 xl:p-16 2xl:p-20 max-w-[1600px] mx-auto">
             {renderPanel()}
           </div>
 
@@ -748,7 +711,7 @@ const AdminPage: React.FC<AdminPageProps> = ({
               </motion.div>
             </div>
           )}
-        </div>
+        </main>
 
         {/* Form viewer */}
         {viewingForm && (
