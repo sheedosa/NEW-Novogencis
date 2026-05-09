@@ -201,7 +201,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
         <div className="max-w-[1440px] mx-auto px-6 md:px-20">
           <div className="flex flex-col lg:flex-row items-center gap-12 md:gap-24">
             <div className="w-full lg:w-1/2 relative">
-              <div className="absolute -inset-4 border-2 border-primary/10 rounded-[2rem] -z-10 animate-pulse" />
+              <div className="hidden lg:block absolute -inset-4 border-2 border-primary/10 rounded-[2rem] -z-10 animate-pulse" />
               <div className="relative z-10 rounded-[2.5rem] overflow-hidden shadow-[0_48px_80px_-24px_rgba(208,187,149,0.25)] border-8 border-white bg-bg-soft">
                 <img 
                   src="https://lh3.googleusercontent.com/d/1Jb1arkWJebGZjOaHX1PYRms2zPtYiI5P" 
@@ -357,9 +357,12 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
               width: fit-content;
               animation: marquee 60s linear infinite;
             }
-            @media (max-width: 768px) {
+            /* Pause marquee while user is scrolling — combined GPU work
+               causes flicker on mobile during fast scroll */
+            @media (max-width: 1023px) {
               .animate-marquee {
-                animation-duration: 40s;
+                animation-duration: 80s;
+                animation-play-state: var(--marquee-state, running);
               }
             }
           `}
