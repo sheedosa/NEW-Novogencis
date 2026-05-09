@@ -168,7 +168,7 @@ const PricingPage: React.FC<PricingPageProps> = ({ onNavigate }) => {
           <PricingSection title="Single / Top Up Treatments" items={singleTreatments} icon="medical_services" onNavigate={onNavigate} />
 
           {/* Assessment CTA */}
-          <div className="mt-20 max-w-[1200px] mx-auto bg-clinical-dark rounded-[2.5rem] md:rounded-[3rem] p-8 md:p-20 relative overflow-hidden shadow-2xl transform translate-z-0">
+          <div className="mt-20 max-w-[1200px] mx-auto bg-clinical-dark rounded-[2.5rem] md:rounded-[3rem] p-8 md:p-20 relative overflow-hidden shadow-2xl">
             <div className="absolute top-0 right-0 w-96 h-96 bg-primary/5 rounded-full blur-[120px] pointer-events-none" />
             <div className="absolute -bottom-20 -left-20 w-96 h-96 bg-accent-gold/5 rounded-full blur-[120px] pointer-events-none" />
             
@@ -196,7 +196,7 @@ const PricingPage: React.FC<PricingPageProps> = ({ onNavigate }) => {
                     decoding="async"
                     src="https://lh3.googleusercontent.com/d/1uoDkwYFGc3Ffdawu71C8fGKdt2eB1NLp" 
                     alt="Virtual Assessment Clinical Image" 
-                    className="relative z-10 rounded-3xl w-full object-cover shadow-2xl grayscale-[30%] group-hover:grayscale-0 transition-all duration-1000 transform will-change-transform"
+                    className="relative z-10 rounded-3xl w-full object-cover shadow-2xl grayscale-[30%] group-hover:grayscale-0 transition-all duration-1000 transform"
                     referrerPolicy="no-referrer"
                   />
                 </div>

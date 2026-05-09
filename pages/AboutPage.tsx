@@ -21,7 +21,7 @@ const AboutPage: React.FC<AboutPageProps> = ({ onNavigate }) => {
       <section className="relative px-6 md:px-20 pt-32 md:pt-44 pb-16 md:pb-24 overflow-hidden">
         {/* Background Decorative Elements */}
         <div className="absolute top-0 right-0 w-1/2 h-full bg-white/50 -skew-x-12 translate-x-1/4 pointer-events-none" />
-        <div className="absolute -top-24 -left-24 w-96 h-96 bg-primary/5 rounded-full blur-[120px] pointer-events-none animate-pulse" />
+        <div className="hidden lg:block absolute -top-24 -left-24 w-96 h-96 bg-primary/5 rounded-full blur-[120px] pointer-events-none animate-pulse" />
         
         <div className="max-w-[1200px] mx-auto relative z-10">
           <div className="text-center mb-16 md:mb-24">
@@ -187,7 +187,7 @@ const AboutPage: React.FC<AboutPageProps> = ({ onNavigate }) => {
             </button>
           </div>
           <div className="w-full relative">
-            <div className="absolute -inset-4 border border-primary/20 rounded-[3rem] -z-10 animate-pulse" />
+            <div className="hidden lg:block absolute -inset-4 border border-primary/20 rounded-[3rem] -z-10 animate-pulse" />
             <div className="overflow-hidden rounded-[2.5rem] shadow-2xl">
               <img 
                 src={clinicSpaceImgUrl} 

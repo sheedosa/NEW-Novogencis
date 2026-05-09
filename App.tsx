@@ -59,11 +59,9 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boole
   }
 }
 
-// Direct imports for troubleshooting
-import AuthPages from './pages/AuthPages';
-import AssessmentPage from './pages/AssessmentPage';
-
 // Lazy load pages for better performance
+const AuthPages = lazy(() => import('./pages/AuthPages'));
+const AssessmentPage = lazy(() => import('./pages/AssessmentPage'));
 const HomePage = lazy(() => import('./pages/HomePage'));
 const AboutPage = lazy(() => import('./pages/AboutPage'));
 const TreatmentsPage = lazy(() => import('./pages/TreatmentsPage'));
@@ -108,7 +106,6 @@ const App: React.FC = () => {
           if (userDoc.exists()) {
             const userData = userDoc.data() as User;
             const userWithId = { ...userData, id: userData.id || firebaseUser.uid };
-            console.log('Auth Listener: User document found:', userWithId.email, userWithId.role);
             setCurrentUser(userWithId);
           } else {
             console.warn('Auth Listener: User document not found for UID:', firebaseUser.uid);
@@ -377,7 +374,6 @@ const App: React.FC = () => {
     // Only update state if it's different to avoid redundant renders
     setCurrentPage(prev => {
       if (prev === page) return prev;
-      console.log(`Navigating to: ${page}`);
       return page;
     });
   }, []);
@@ -479,7 +475,6 @@ const App: React.FC = () => {
           }
 
           await setDoc(doc(db, 'clients', user.id), cleanData(clientUpdates), { merge: true });
-          console.log("Successfully linked pending assessment.");
           localStorage.removeItem('pendingAssessment');
         } catch (error) {
           console.error("Error linking pending assessment:", error);
@@ -586,7 +581,6 @@ const App: React.FC = () => {
       const validPage = Object.values(Page).includes(hash) ? hash : Page.Home;
       setCurrentPage(prev => {
         if (prev === validPage) return prev;
-        console.log(`Hash changed to: ${validPage}`);
         return validPage;
       });
     };
@@ -773,7 +767,6 @@ const App: React.FC = () => {
     for (const admin of admins) {
       try {
         await handleCreateAccount(admin.password, admin.email, admin.fullName, admin.username);
-        console.log(`Successfully bootstrapped ${admin.username}`);
       } catch (error) {
         console.error(`Failed to bootstrap ${admin.username}:`, error);
       }
@@ -801,7 +794,6 @@ const App: React.FC = () => {
   };
 
   const renderPage = () => {
-    console.log("Rendering page:", currentPage);
     switch (currentPage) {
       case Page.Home:
         return <HomePage onNavigate={navigateTo} />;

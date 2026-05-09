@@ -10,15 +10,15 @@ const HeroImage = ({ className = "" }: { className?: string }) => {
   const reviewsUrl = "https://www.google.com/search?q=novogenics#lrd=0x487bb3b413601afd:0x4d09d8314222a8e3,1,,,,";
 
   return (
-    <div className={`relative ${className} transform translate-z-0`}>
-      <div className="absolute -top-10 -right-10 w-48 md:w-72 h-48 md:h-72 bg-primary/10 rounded-full blur-[60px] md:blur-[80px] animate-pulse"></div>
-      <div className="absolute -bottom-10 -left-10 w-48 md:w-72 h-48 md:h-72 bg-accent-gold/5 rounded-full blur-[60px] md:blur-[80px] animate-pulse delay-700"></div>
-      
+    <div className={`relative ${className}`}>
+      <div className="hidden md:block absolute -top-10 -right-10 w-72 h-72 bg-primary/10 rounded-full blur-[80px] animate-pulse"></div>
+      <div className="hidden md:block absolute -bottom-10 -left-10 w-72 h-72 bg-accent-gold/5 rounded-full blur-[80px] animate-pulse delay-700"></div>
+
       <div className="relative z-10 w-full aspect-[4/3] min-h-[250px] bg-bg-soft shadow-[0_32px_64px_-16px_rgba(208,187,149,0.25)] overflow-hidden border-[6px] md:border-[12px] border-white organic-shape animate-fade-up">
-        <img 
+        <img
           src={heroImgUrl}
           alt="Dr Aminah Amer consulting with a client at Novogenics clinic"
-          className="w-full h-full object-cover transition-transform duration-[3s] ease-out hover:scale-105"
+          className="w-full h-full object-cover lg:transition-transform lg:duration-[3s] lg:ease-out lg:hover:scale-105"
           referrerPolicy="no-referrer"
           crossOrigin="anonymous"
           loading="eager"
@@ -63,7 +63,7 @@ const HeroImage = ({ className = "" }: { className?: string }) => {
         </div>
       </a>
 
-      <div className="absolute -bottom-6 -right-6 z-20 bg-white p-3 md:p-4 rounded-2xl shadow-xl border border-primary/10 animate-float hidden md:flex items-center gap-3 will-change-transform transform translate-z-0">
+      <div className="absolute -bottom-6 -right-6 z-20 bg-white p-3 md:p-4 rounded-2xl shadow-xl border border-primary/10 animate-float hidden md:flex items-center gap-3">
         <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center text-primary">
           <span className="material-symbols-outlined text-xl">verified_user</span>
         </div>
@@ -120,12 +120,12 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
         <div className="flex flex-col lg:flex-row gap-12 md:gap-24 items-center">
           
           <div className="w-full lg:w-1/2 flex flex-col gap-6 md:gap-8 text-center lg:text-left">
-            <div className="inline-flex items-center gap-2 px-5 py-2 rounded-full bg-primary/5 text-primary border border-primary/10 w-fit mx-auto lg:mx-0 animate-fade-in will-change-opacity">
-              <span className="material-symbols-outlined text-base animate-pulse">medical_services</span>
+            <div className="inline-flex items-center gap-2 px-5 py-2 rounded-full bg-primary/5 text-primary border border-primary/10 w-fit mx-auto lg:mx-0 animate-fade-in">
+              <span className="material-symbols-outlined text-base">medical_services</span>
               <span className="text-[10px] md:text-[11px] font-black uppercase tracking-[0.2em]">Hair Loss Specialists</span>
             </div>
-            
-            <h1 className="text-text-main text-4xl xs:text-5xl sm:text-7xl lg:text-8xl font-black leading-[1.05] tracking-tight animate-fade-up will-change-transform" style={{ animationDelay: '150ms' }}>
+
+            <h1 className="text-text-main text-4xl xs:text-5xl sm:text-7xl lg:text-8xl font-black leading-[1.05] tracking-tight animate-fade-up" style={{ animationDelay: '150ms' }}>
               Restore <span className="text-primary italic font-serif">Confidence</span> Naturally
             </h1>
 
@@ -133,7 +133,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
               <HeroImage />
             </div>
 
-            <p className="text-text-muted text-base md:text-xl leading-relaxed max-w-[560px] mx-auto lg:mx-0 opacity-0 animate-fade-up will-change-opacity" style={{ animationDelay: '250ms' }}>
+            <p className="text-text-muted text-base md:text-xl leading-relaxed max-w-[560px] mx-auto lg:mx-0 opacity-0 animate-fade-up" style={{ animationDelay: '250ms' }}>
               Specialised regenerative care. Experience evidence-based hair restoration in a private, supportive clinical environment.
             </p>
 
@@ -184,7 +184,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
               { label: 'Personal', title: 'Private & Discrete', desc: 'A serene clinic environment in Cheadle designed exclusively for your comfort.', icon: 'shield_person' }
             ].map((item, idx) => (
               <div key={idx} className="flex flex-col items-center md:items-start text-center md:text-left group animate-fade-up" style={{ animationDelay: `${idx * 100}ms` }}>
-                <div className="w-14 h-14 md:w-16 md:h-16 bg-bg-soft rounded-2xl flex items-center justify-center text-primary mb-6 md:mb-8 group-hover:bg-primary group-hover:text-white transition-all duration-500 shadow-sm transform translate-z-0">
+                <div className="w-14 h-14 md:w-16 md:h-16 bg-bg-soft rounded-2xl flex items-center justify-center text-primary mb-6 md:mb-8 group-hover:bg-primary group-hover:text-white transition-all duration-500 shadow-sm">
                   <span className="material-symbols-outlined text-2xl md:text-3xl font-light">{item.icon}</span>
                 </div>
                 <span className="text-[10px] font-black uppercase tracking-[0.3em] text-accent-gold mb-3">{item.label}</span>
@@ -201,7 +201,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
         <div className="max-w-[1440px] mx-auto px-6 md:px-20">
           <div className="flex flex-col lg:flex-row items-center gap-12 md:gap-24">
             <div className="w-full lg:w-1/2 relative">
-              <div className="absolute -inset-4 border-2 border-primary/10 rounded-[2rem] -z-10 animate-pulse" />
+              <div className="hidden lg:block absolute -inset-4 border-2 border-primary/10 rounded-[2rem] -z-10 animate-pulse" />
               <div className="relative z-10 rounded-[2.5rem] overflow-hidden shadow-[0_48px_80px_-24px_rgba(208,187,149,0.25)] border-8 border-white bg-bg-soft">
                 <img 
                   src="https://lh3.googleusercontent.com/d/1Jb1arkWJebGZjOaHX1PYRms2zPtYiI5P" 
@@ -306,7 +306,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
 
       {/* Assessment CTA */}
       <section className="px-4 md:px-10 lg:px-20 py-16 md:py-32 bg-bg-soft">
-        <div className="max-w-[1200px] mx-auto bg-clinical-dark rounded-[2.5rem] md:rounded-[3rem] p-8 md:p-20 relative overflow-hidden shadow-2xl transform translate-z-0">
+        <div className="max-w-[1200px] mx-auto bg-clinical-dark rounded-[2.5rem] md:rounded-[3rem] p-8 md:p-20 relative overflow-hidden shadow-2xl">
           <div className="absolute top-0 right-0 w-96 h-96 bg-primary/5 rounded-full blur-[120px] pointer-events-none" />
           <div className="absolute -bottom-20 -left-20 w-96 h-96 bg-accent-gold/5 rounded-full blur-[120px] pointer-events-none" />
           
@@ -334,7 +334,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
                   decoding="async"
                   src="https://lh3.googleusercontent.com/d/1uoDkwYFGc3Ffdawu71C8fGKdt2eB1NLp" 
                   alt="Virtual Assessment Clinical Image" 
-                  className="relative z-10 rounded-3xl w-full object-cover shadow-2xl grayscale-[30%] group-hover:grayscale-0 transition-all duration-1000 transform will-change-transform"
+                  className="relative z-10 rounded-3xl w-full object-cover shadow-2xl grayscale-[30%] group-hover:grayscale-0 transition-all duration-1000 transform"
                   referrerPolicy="no-referrer"
                   crossOrigin="anonymous"
                 />
@@ -357,9 +357,12 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
               width: fit-content;
               animation: marquee 60s linear infinite;
             }
-            @media (max-width: 768px) {
+            /* Pause marquee while user is scrolling — combined GPU work
+               causes flicker on mobile during fast scroll */
+            @media (max-width: 1023px) {
               .animate-marquee {
-                animation-duration: 40s;
+                animation-duration: 80s;
+                animation-play-state: var(--marquee-state, running);
               }
             }
           `}

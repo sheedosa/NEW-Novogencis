@@ -1,9 +1,9 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { useAdminContext } from '../context';
 import { Card } from '../../../components/Card';
 import { FORMS } from '../../../constants';
 
-export default function OverviewPanel() {
+function OverviewPanel() {
   const {
     filteredClients,
     filteredAppointments,
@@ -221,3 +221,5 @@ export default function OverviewPanel() {
     </div>
   );
 }
+
+export default memo(OverviewPanel);

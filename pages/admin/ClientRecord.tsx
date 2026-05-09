@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, memo } from 'react';
 import { useAdminContext } from './context';
 import { ClientRecordTab } from './context';
 import { Card } from '../../components/Card';
@@ -1370,4 +1370,4 @@ const ClientRecord: React.FC = () => {
   );
 };
 
-export default ClientRecord;
+export default memo(ClientRecord);

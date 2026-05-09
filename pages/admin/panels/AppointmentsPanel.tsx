@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { Card } from '../../../components/Card';
 import { useAdminContext } from '../context';
 import { StatusBadge } from '../AdminComponents';
@@ -234,4 +234,4 @@ const AppointmentsPanel: React.FC = () => {
   );
 };
 
-export default AppointmentsPanel;
+export default memo(AppointmentsPanel);
