@@ -70,11 +70,13 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="dns-prefetch" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://lh3.googleusercontent.com">
-    <!-- Material Symbols — full subset of all icons used in the app, non-blocking -->
+    <!-- Material Symbols Outlined — full font, non-blocking. Icons are referenced
+         dynamically across the app (e.g. male/female, calendar_month, space_dashboard),
+         so loading the full set is more reliable than maintaining a subset list. -->
     <link rel="preload" as="style"
-          href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined&icon_names=add,add_a_photo,admin_panel_settings,analytics,arrow_back,arrow_forward,assignment,biotech,block,bolt,calendar_today,call,cancel,chat_bubble,check,check_circle,chevron_left,chevron_right,clinical_notes,close,compare,delete,description,download,draw,east,edit,edit_note,emergency,error,event,event_busy,event_repeat,expand_more,format_quote,forum,history,home_pin,hub,inbox,info,logout,mail,man,medical_services,medication,menu,menu_open,notifications,notifications_active,notifications_none,notifications_off,open_in_new,payments,person,person_add,person_off,person_search,photo_camera,print,priority_high,privacy_tip,rate_review,route,science,search,security,send,settings,signature,star,sticky_note_2,sync,unfold_more,upcoming,upload,upload_file,verified,verified_user,visibility,warning,waving_hand,wb_sunny,west,woman&display=block"
+          href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=block"
           onload="this.onload=null;this.rel='stylesheet'">
-    <noscript><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined&icon_names=add,add_a_photo,admin_panel_settings,analytics,arrow_back,arrow_forward,assignment,biotech,block,bolt,calendar_today,call,cancel,chat_bubble,check,check_circle,chevron_left,chevron_right,clinical_notes,close,compare,delete,description,download,draw,east,edit,edit_note,emergency,error,event,event_busy,event_repeat,expand_more,format_quote,forum,history,home_pin,hub,inbox,info,logout,mail,man,medical_services,medication,menu,menu_open,notifications,notifications_active,notifications_none,notifications_off,open_in_new,payments,person,person_add,person_off,person_search,photo_camera,print,priority_high,privacy_tip,rate_review,route,science,search,security,send,settings,signature,star,sticky_note_2,sync,unfold_more,upcoming,upload,upload_file,verified,verified_user,visibility,warning,waving_hand,wb_sunny,west,woman&display=block" rel="stylesheet"></noscript>
+    <noscript><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=block" rel="stylesheet"></noscript>
     <!-- Google Fonts: Inter (UI), Playfair Display (brand), JetBrains Mono — non-blocking -->
     <link rel="preload" as="style"
           href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Playfair+Display:ital,wght@0,500;0,700;1,500&family=JetBrains+Mono:wght@400;500&display=swap"
@@ -96,6 +98,9 @@
         word-wrap: normal;
         direction: ltr;
         -webkit-font-smoothing: antialiased;
+        font-feature-settings: 'liga';
+        -webkit-font-feature-settings: 'liga';
+        font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
       }
     </style>
 </head>
