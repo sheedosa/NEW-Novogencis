@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { Menu, X, ChevronDown, ArrowRight, User } from 'lucide-react';
 import { Page } from '../types';
 import Logo from './Logo';
 
@@ -14,67 +15,55 @@ interface HeaderProps {
 }
 
 const Header: React.FC<HeaderProps> = React.memo(({ currentPage, onNavigate }) => {
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [scrolled, setScrolled] = useState(false);
+  const [isMenuOpen, setIsMenuOpen]         = useState(false);
+  const [scrolled, setScrolled]             = useState(false);
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   const [mobileExpanded, setMobileExpanded] = useState<string | null>(null);
-  const [isMobile, setIsMobile] = useState(false);
   const scrollRef = useRef<number>(0);
 
-  useEffect(() => {
-    const checkMobile = () => setIsMobile(window.innerWidth < 768);
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
-
   const navItems: NavItem[] = [
-    { label: 'Home', page: Page.Home },
-    { label: 'About', page: Page.About },
-    { 
-      label: 'Treatments', 
+    { label: 'Home',    page: Page.Home },
+    { label: 'About',   page: Page.About },
+    {
+      label: 'Treatments',
       subItems: [
-        { label: 'Overview', page: Page.Treatments },
-        { label: 'Pricing', page: Page.Pricing },
-      ]
+        { label: 'Treatment overview', page: Page.Treatments },
+        { label: 'Pricing & packages', page: Page.Pricing },
+      ],
     },
-    { 
-      label: 'Resources', 
+    {
+      label: 'Resources',
       subItems: [
-        { label: "FAQ's", page: Page.FAQ },
-        { label: 'Medical Blog', page: Page.Blog },
-      ]
+        { label: 'FAQ',          page: Page.FAQ },
+        { label: 'Medical blog', page: Page.Blog },
+      ],
     },
     { label: 'Contact', page: Page.Contact },
   ];
 
+  // Skip scroll listener on mobile — avoids setState on every scroll frame
   useEffect(() => {
-    // Mobile header is static (no visual change on scroll), so skip the listener entirely
     if (window.matchMedia('(max-width: 1023px)').matches) return;
 
     let ticking = false;
-    const handleScroll = () => {
+    const onScroll = () => {
       scrollRef.current = window.scrollY;
       if (!ticking) {
-        window.requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
           setScrolled(scrollRef.current > 20);
           ticking = false;
         });
         ticking = true;
       }
     };
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
+  // Lock body scroll when mobile menu open
   useEffect(() => {
-    if (isMenuOpen) {
-      document.body.style.overflow = 'hidden';
-      document.body.style.touchAction = 'none';
-    } else {
-      document.body.style.overflow = 'unset';
-      document.body.style.touchAction = 'auto';
-    }
+    document.body.style.overflow = isMenuOpen ? 'hidden' : '';
+    return () => { document.body.style.overflow = ''; };
   }, [isMenuOpen]);
 
   const handleNavigate = (page: Page) => {
@@ -83,180 +72,280 @@ const Header: React.FC<HeaderProps> = React.memo(({ currentPage, onNavigate }) =
     onNavigate(page);
   };
 
-  const isGroupActive = (item: NavItem) => {
-    if (item.page === currentPage) return true;
-    if (item.subItems) {
-      return item.subItems.some(sub => sub.page === currentPage);
-    }
-    return false;
-  };
+  const isGroupActive = (item: NavItem) =>
+    item.page === currentPage || !!item.subItems?.some(s => s.page === currentPage);
 
   return (
     <>
-      <header className={`fixed top-0 left-0 right-0 z-50 lg:transition-all lg:duration-300 ease-out py-0 ${
-        scrolled ? 'glass-header shadow-md' : 'glass-header lg:bg-transparent lg:shadow-none lg:py-2'
-      }`}>
-        <div className={`max-w-[1440px] mx-auto flex items-center justify-between px-6 md:px-10 lg:px-20 lg:transition-all lg:duration-500 ease-in-out h-16 ${
-          scrolled ? 'lg:h-24' : 'lg:h-36'
-        }`}>
+      <header
+        style={{
+          position: 'fixed',
+          top: 0, left: 0, right: 0,
+          zIndex: 50,
+          transition: 'all 0.25s ease',
+          ...(scrolled
+            ? {
+                background: 'rgba(253,252,251,0.92)',
+                backdropFilter: 'blur(16px)',
+                WebkitBackdropFilter: 'blur(16px)',
+                borderBottom: '0.5px solid var(--color-sand)',
+              }
+            : { background: 'transparent' }),
+        }}
+      >
+        <div
+          style={{
+            maxWidth: 1280,
+            margin: '0 auto',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '0 32px',
+            height: scrolled ? 56 : 72,
+            transition: 'height 0.25s ease',
+          }}
+        >
           {/* Logo */}
           <div
-            className="flex items-center cursor-pointer shrink-0 z-50 transition-transform duration-300 hover:scale-105 active:scale-95"
             onClick={() => handleNavigate(Page.Home)}
+            style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', flexShrink: 0 }}
           >
-            <Logo size={scrolled || isMobile ? "sm" : "md"} />
+            <Logo size={scrolled ? 'sm' : 'md'} />
           </div>
 
-          {/* Desktop Navigation */}
-          <div className="hidden xl:flex items-center gap-10">
-            <nav className="flex items-center gap-8 lg:gap-10">
-              {navItems.map((item) => (
-                <div 
-                  key={item.label} 
-                  className="relative group py-4"
-                  onMouseEnter={() => item.subItems && setActiveDropdown(item.label)}
-                  onMouseLeave={() => setActiveDropdown(null)}
+          {/* Desktop nav */}
+          <nav style={{ display: 'flex', alignItems: 'center', gap: 4 }}
+               className="hidden xl:flex">
+            {navItems.map(item => (
+              <div
+                key={item.label}
+                style={{ position: 'relative' }}
+                onMouseEnter={() => item.subItems && setActiveDropdown(item.label)}
+                onMouseLeave={() => setActiveDropdown(null)}
+              >
+                <button
+                  onClick={() => item.page && handleNavigate(item.page)}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 4,
+                    padding: '8px 12px',
+                    borderRadius: 8,
+                    fontSize: 13,
+                    fontWeight: isGroupActive(item) ? 500 : 400,
+                    color: isGroupActive(item) ? 'var(--color-obsidian)' : 'var(--color-muted)',
+                    background: 'transparent',
+                    border: 'none',
+                    cursor: 'pointer',
+                    transition: 'color 0.15s, background 0.15s',
+                    fontFamily: 'inherit',
+                  }}
+                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = 'var(--color-obsidian)'; }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = isGroupActive(item) ? 'var(--color-obsidian)' : 'var(--color-muted)'; }}
                 >
-                  <button
-                    onClick={() => item.page && handleNavigate(item.page)}
-                    className={`text-[11px] lg:text-[12px] font-bold tracking-widest uppercase transition-all duration-300 hover:text-primary flex items-center gap-1.5 ${
-                      isGroupActive(item) ? 'text-primary' : 'text-text-main'
-                    }`}
-                  >
-                    {item.label}
-                    {item.subItems && (
-                      <span className={`material-symbols-outlined text-[16px] transition-transform duration-300 ${activeDropdown === item.label ? 'rotate-180' : ''}`}>
-                        expand_more
-                      </span>
-                    )}
-                    <span className={`absolute bottom-2 left-0 h-[2px] bg-primary transition-all duration-300 ease-out ${
-                      isGroupActive(item) ? 'w-full' : 'w-0'
-                    }`} />
-                  </button>
-
-                  {/* Dropdown Menu */}
+                  {item.label}
                   {item.subItems && (
-                    <div className={`absolute top-full left-1/2 -translate-x-1/2 w-48 bg-white shadow-2xl rounded-2xl border border-black/5 p-2 transition-all duration-300 transform origin-top ${
-                      activeDropdown === item.label ? 'opacity-100 scale-100 translate-y-0' : 'opacity-0 scale-95 -translate-y-2 pointer-events-none'
-                    }`}>
-                      {item.subItems.map((sub) => (
-                        <button
-                          key={sub.label}
-                          onClick={() => handleNavigate(sub.page)}
-                          className={`w-full text-left px-5 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all hover:bg-bg-soft ${
-                            currentPage === sub.page ? 'text-primary bg-primary/5' : 'text-text-muted hover:text-text-main'
-                          }`}
-                        >
-                          {sub.label}
-                        </button>
-                      ))}
-                    </div>
+                    <ChevronDown
+                      size={13}
+                      style={{
+                        transform: activeDropdown === item.label ? 'rotate(180deg)' : 'none',
+                        transition: 'transform 0.2s',
+                      }}
+                    />
                   )}
-                </div>
-              ))}
-            </nav>
+                </button>
 
-            {/* Added Sign In Button */}
-            <button 
+                {/* Dropdown */}
+                {item.subItems && (
+                  <div
+                    style={{
+                      position: 'absolute', top: '100%', left: '50%',
+                      transform: 'translateX(-50%)',
+                      marginTop: 4,
+                      width: 200,
+                      background: '#fff',
+                      border: '0.5px solid var(--color-sand)',
+                      borderRadius: 'var(--radius-lg)',
+                      padding: 6,
+                      boxShadow: 'var(--shadow-panel)',
+                      opacity: activeDropdown === item.label ? 1 : 0,
+                      pointerEvents: activeDropdown === item.label ? 'all' : 'none',
+                      transition: 'opacity 0.15s',
+                      zIndex: 60,
+                    }}
+                  >
+                    {item.subItems.map(sub => (
+                      <button
+                        key={sub.label}
+                        onClick={() => handleNavigate(sub.page)}
+                        style={{
+                          display: 'block', width: '100%', textAlign: 'left',
+                          padding: '9px 12px',
+                          borderRadius: 8,
+                          fontSize: 13,
+                          fontWeight: currentPage === sub.page ? 500 : 400,
+                          color: currentPage === sub.page ? 'var(--color-obsidian)' : 'var(--color-muted)',
+                          background: currentPage === sub.page ? 'var(--color-cream)' : 'transparent',
+                          border: 'none', cursor: 'pointer', transition: 'background 0.1s, color 0.1s',
+                          fontFamily: 'inherit',
+                        }}
+                        onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'var(--color-cream)'; (e.currentTarget as HTMLElement).style.color = 'var(--color-obsidian)'; }}
+                        onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = currentPage === sub.page ? 'var(--color-cream)' : 'transparent'; (e.currentTarget as HTMLElement).style.color = currentPage === sub.page ? 'var(--color-obsidian)' : 'var(--color-muted)'; }}
+                      >
+                        {sub.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+          </nav>
+
+          {/* CTA + Sign in */}
+          <div className="hidden xl:flex" style={{ alignItems: 'center', gap: 8 }}>
+            <button
               onClick={() => handleNavigate(Page.SignIn)}
-              className="bg-primary/10 text-primary border border-primary/20 px-6 py-2 rounded-full text-[11px] font-black uppercase tracking-widest hover:bg-primary hover:text-white transition-all duration-300"
+              className="btn btn-ghost btn-sm"
             >
-              Sign In
+              <User size={13} /> Sign in
+            </button>
+            <button
+              onClick={() => handleNavigate(Page.Assessment)}
+              className="btn btn-primary btn-sm"
+            >
+              Free assessment <ArrowRight size={13} />
             </button>
           </div>
 
-          {/* Mobile Toggle */}
-          <div className="flex xl:hidden items-center gap-2 z-50">
-            <button 
+          {/* Mobile controls */}
+          <div className="flex xl:hidden" style={{ alignItems: 'center', gap: 6 }}>
+            <button
               onClick={() => handleNavigate(Page.SignIn)}
-              className="p-2 rounded-full text-primary hover:bg-primary/10 transition-colors duration-200"
+              className="btn-icon"
+              style={{ width: 36, height: 36, padding: 0 }}
               aria-label="Sign in"
             >
-              <span className="material-symbols-outlined text-3xl">
-                account_circle
-              </span>
+              <User size={18} />
             </button>
-            <button 
-              onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="p-2 rounded-full text-primary hover:bg-primary/10 transition-colors duration-200"
+            <button
+              onClick={() => setIsMenuOpen(v => !v)}
+              className="btn-icon"
+              style={{ width: 36, height: 36, padding: 0 }}
               aria-label="Toggle menu"
+              aria-expanded={isMenuOpen}
             >
-              <span className="material-symbols-outlined text-3xl transition-transform duration-500 ease-in-out" style={{ transform: isMenuOpen ? 'rotate(180deg)' : 'rotate(0)' }}>
-                {isMenuOpen ? 'close' : 'menu'}
-              </span>
+              {isMenuOpen ? <X size={18} /> : <Menu size={18} />}
             </button>
           </div>
         </div>
       </header>
 
-      {/* Mobile Menu Panel */}
-      <div 
-        className={`fixed inset-0 z-[60] xl:hidden transition-all duration-500 ease-in-out ${
-          isMenuOpen ? 'opacity-100 visible' : 'opacity-0 invisible'
-        }`}
+      {/* ── Mobile menu ───────────────────────────────────────── */}
+      <div
+        style={{
+          position: 'fixed', inset: 0, zIndex: 60,
+          opacity: isMenuOpen ? 1 : 0,
+          visibility: isMenuOpen ? 'visible' : 'hidden',
+          transition: 'opacity 0.25s, visibility 0.25s',
+          pointerEvents: isMenuOpen ? 'all' : 'none',
+        }}
+        className="xl:hidden"
       >
-        <div className="absolute inset-0 bg-clinical-dark/40 backdrop-blur-md" onClick={() => setIsMenuOpen(false)} />
-        
-        <nav 
-          className={`absolute top-0 right-0 h-full w-[85%] max-w-sm bg-white shadow-2xl transition-transform duration-500 cubic-bezier(0.16, 1, 0.3, 1) ${
-            isMenuOpen ? 'translate-x-0' : 'translate-x-full'
-          } flex flex-col`}
+        {/* Backdrop */}
+        <div
+          style={{
+            position: 'absolute', inset: 0,
+            background: 'rgba(28,25,23,0.40)',
+          }}
+          onClick={() => setIsMenuOpen(false)}
+        />
+
+        {/* Drawer */}
+        <nav
+          style={{
+            position: 'absolute', top: 0, right: 0,
+            width: '85%', maxWidth: 340, height: '100%',
+            background: 'var(--color-ivory)',
+            display: 'flex', flexDirection: 'column',
+            transform: isMenuOpen ? 'translateX(0)' : 'translateX(100%)',
+            transition: 'transform 0.3s cubic-bezier(0.16,1,0.3,1)',
+            boxShadow: 'var(--shadow-modal)',
+          }}
         >
-          <div className="flex-grow pt-32 pb-10 px-8 flex flex-col gap-1 overflow-y-auto no-scrollbar">
-            {navItems.map((item, idx) => (
-              <div key={item.label} className="flex flex-col border-b border-gray-50 last:border-0">
+          {/* Drawer header */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '0.5px solid var(--color-sand)' }}>
+            <Logo size="sm" />
+            <button onClick={() => setIsMenuOpen(false)} className="btn-icon" style={{ width: 32, height: 32, padding: 0 }} aria-label="Close menu">
+              <X size={16} />
+            </button>
+          </div>
+
+          {/* Nav items */}
+          <div style={{ flex: 1, overflowY: 'auto', padding: '8px 12px' }}>
+            {navItems.map(item => (
+              <div key={item.label}>
                 <button
                   onClick={() => {
                     if (item.subItems) {
-                      setMobileExpanded(mobileExpanded === item.label ? null : item.label);
+                      setMobileExpanded(v => v === item.label ? null : item.label);
                     } else if (item.page) {
                       handleNavigate(item.page);
                     }
                   }}
-                  style={{ transitionDelay: `${idx * 40}ms` }}
-                  className={`text-left flex items-center justify-between py-5 transition-all duration-500 ${
-                    isMenuOpen ? 'translate-x-0 opacity-100' : 'translate-x-8 opacity-0'
-                  } ${isGroupActive(item) ? 'text-primary' : 'text-text-main'}`}
+                  style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    width: '100%', padding: '12px 10px',
+                    fontSize: 15, fontWeight: 500,
+                    color: isGroupActive(item) ? 'var(--color-obsidian)' : 'var(--color-muted)',
+                    background: 'transparent', border: 'none', cursor: 'pointer',
+                    borderBottom: '0.5px solid var(--color-cream)',
+                    fontFamily: 'inherit',
+                  }}
                 >
-                  <div className="flex flex-col">
-                    <span className="text-[10px] font-black tracking-widest text-accent-gold/50 uppercase mb-1">0{idx + 1}</span>
-                    <span className="text-2xl font-black">{item.label}</span>
-                  </div>
-                  {item.subItems ? (
-                    <span className={`material-symbols-outlined text-2xl transition-transform duration-300 ${mobileExpanded === item.label ? 'rotate-180 text-primary' : 'text-gray-300'}`}>
-                      expand_more
-                    </span>
-                  ) : (
-                    <span className={`material-symbols-outlined text-primary transition-all duration-300 ${
-                      currentPage === item.page ? 'translate-x-0 opacity-100' : '-translate-x-4 opacity-0'
-                    }`}>
-                      arrow_forward
-                    </span>
+                  <span>{item.label}</span>
+                  {item.subItems && (
+                    <ChevronDown
+                      size={15}
+                      style={{
+                        transform: mobileExpanded === item.label ? 'rotate(180deg)' : 'none',
+                        transition: 'transform 0.2s',
+                        color: 'var(--color-hint)',
+                      }}
+                    />
                   )}
                 </button>
 
-                {/* Mobile Sub Items */}
-                {item.subItems && (
-                  <div className={`overflow-hidden transition-all duration-500 ease-in-out ${
-                    mobileExpanded === item.label ? 'max-h-64 opacity-100 pb-4' : 'max-h-0 opacity-0'
-                  }`}>
-                    <div className="flex flex-col gap-1 pl-4 border-l-2 border-primary/20 ml-1">
-                      {item.subItems.map((sub) => (
-                        <button
-                          key={sub.label}
-                          onClick={() => handleNavigate(sub.page)}
-                          className={`text-left py-3 text-[13px] font-bold uppercase tracking-widest transition-colors ${
-                            currentPage === sub.page ? 'text-primary' : 'text-text-muted'
-                          }`}
-                        >
-                          {sub.label}
-                        </button>
-                      ))}
-                    </div>
+                {item.subItems && mobileExpanded === item.label && (
+                  <div style={{ paddingLeft: 16, paddingBottom: 8 }}>
+                    {item.subItems.map(sub => (
+                      <button
+                        key={sub.label}
+                        onClick={() => handleNavigate(sub.page)}
+                        style={{
+                          display: 'block', width: '100%', textAlign: 'left',
+                          padding: '9px 10px',
+                          fontSize: 14,
+                          color: currentPage === sub.page ? 'var(--color-obsidian)' : 'var(--color-muted)',
+                          fontWeight: currentPage === sub.page ? 500 : 400,
+                          background: 'transparent', border: 'none', cursor: 'pointer',
+                          fontFamily: 'inherit',
+                        }}
+                      >
+                        {sub.label}
+                      </button>
+                    ))}
                   </div>
                 )}
               </div>
             ))}
+          </div>
+
+          {/* Mobile CTA */}
+          <div style={{ padding: 16, borderTop: '0.5px solid var(--color-sand)', display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <button onClick={() => handleNavigate(Page.Assessment)} className="btn btn-primary" style={{ width: '100%', justifyContent: 'center' }}>
+              Free hair assessment <ArrowRight size={14} />
+            </button>
+            <button onClick={() => handleNavigate(Page.SignIn)} className="btn btn-ghost" style={{ width: '100%', justifyContent: 'center' }}>
+              <User size={14} /> Sign in to portal
+            </button>
           </div>
         </nav>
       </div>
@@ -264,4 +353,5 @@ const Header: React.FC<HeaderProps> = React.memo(({ currentPage, onNavigate }) =
   );
 });
 
+Header.displayName = 'Header';
 export default Header;

@@ -72,11 +72,11 @@
     <link rel="preconnect" href="https://lh3.googleusercontent.com">
     <!-- Preload self-hosted icon font (subsetted, ~82KB vs ~2MB full) -->
     <link rel="preload" as="font" type="font/woff2" href="/fonts/material-symbols-subset.woff2" crossorigin>
-    <!-- Google Fonts — non-blocking -->
+    <!-- Google Fonts: Inter (UI), Playfair Display (brand), JetBrains Mono — non-blocking -->
     <link rel="preload" as="style"
-          href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&family=Playfair+Display:wght@400..900&display=swap"
+          href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Playfair+Display:ital,wght@0,500;0,700;1,500&family=JetBrains+Mono:wght@400;500&display=swap"
           onload="this.onload=null;this.rel='stylesheet'">
-    <noscript><link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&family=Playfair+Display:wght@400..900&display=swap" rel="stylesheet"></noscript>
+    <noscript><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Playfair+Display:ital,wght@0,500;0,700;1,500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"></noscript>
     <!-- Inline critical CSS — body font + self-hosted icon font with font-display: block -->
     <style>
       @font-face {
@@ -86,7 +86,7 @@
         font-display: block;
         src: url('/fonts/material-symbols-subset.woff2') format('woff2');
       }
-      body { font-family: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+      body { font-family: 'Inter', ui-sans-serif, system-ui, sans-serif; }
       .material-symbols-outlined {
         font-family: 'Material Symbols Outlined', sans-serif;
         font-weight: normal;
