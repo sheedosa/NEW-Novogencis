@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Page } from '../types';
+import { ArrowRight, ArrowLeft, CheckCircle } from 'lucide-react';
 
 interface BlogPost {
   id: string;
@@ -42,9 +43,9 @@ const BlogPage: React.FC<BlogPageProps> = ({ onNavigate }) => {
   const renderListView = () => (
     <div className="max-w-[1200px] mx-auto px-6 pt-32 md:pt-44 pb-16 md:pb-24 animate-fade-in">
       <div className="text-center mb-16 md:mb-24">
-        <span className="text-primary font-black text-[10px] md:text-xs uppercase tracking-[0.4em] block mb-4">The Science of Regeneration</span>
-        <h1 className="text-4xl md:text-7xl font-black text-text-main tracking-tight leading-[1.1] mb-6">Medical <span className="text-primary italic font-serif">Insights</span></h1>
-        <p className="text-text-muted text-lg md:text-xl max-w-2xl mx-auto font-medium">
+        <span className="text-primary font-medium text-[10px] md:text-xs uppercase tracking-[0.4em] block mb-4">The Science of Regeneration</span>
+        <h1 className="text-4xl md:text-7xl font-medium text-obsidian tracking-tight leading-[1.1] mb-6">Medical <span className="text-primary italic font-serif">Insights</span></h1>
+        <p className="text-muted text-lg md:text-xl max-w-2xl mx-auto font-medium">
           Expert articles on hair restoration, clinical breakthroughs, and regenerative medicine by our clinical team.
         </p>
       </div>
@@ -66,24 +67,24 @@ const BlogPage: React.FC<BlogPageProps> = ({ onNavigate }) => {
                 decoding="async"
               />
               <div className="absolute top-6 left-6">
-                <span className="bg-white/90 backdrop-blur-md text-text-main text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-full shadow-sm">
+                <span className="bg-white/90 backdrop-blur-md text-obsidian text-2xs font-medium text-hint px-4 py-2 rounded-full shadow-sm">
                   {blog.category}
                 </span>
               </div>
             </div>
             
             <div className="p-8 md:p-10 flex-grow flex flex-col gap-4">
-              <div className="flex items-center gap-3 text-[10px] font-bold text-text-muted uppercase tracking-widest">
+              <div className="flex items-center gap-3 text-[10px] font-bold text-muted uppercase">
                 <span>{blog.date}</span>
                 <span className="w-1 h-1 bg-primary rounded-full"></span>
                 <span>{blog.readTime}</span>
               </div>
               
-              <h3 className="text-2xl font-black text-text-main tracking-tight leading-tight group-hover:text-primary transition-colors">
+              <h3 className="text-2xl font-medium text-obsidian tracking-tight leading-tight group-hover:text-primary transition-colors">
                 {blog.title}
               </h3>
               
-              <p className="text-text-muted text-sm leading-relaxed line-clamp-3">
+              <p className="text-muted text-sm leading-relaxed line-clamp-3">
                 {blog.excerpt}
               </p>
               
@@ -92,9 +93,9 @@ const BlogPage: React.FC<BlogPageProps> = ({ onNavigate }) => {
                   <div className="w-8 h-8 rounded-full overflow-hidden bg-primary/10">
                     <img src={blog.authorImage} alt={blog.author} className="w-full h-full object-cover" referrerPolicy="no-referrer" loading="lazy" decoding="async" />
                   </div>
-                  <span className="text-[10px] font-black uppercase tracking-widest text-text-main">{blog.author}</span>
+                  <span className="text-2xs font-medium text-hint text-obsidian">{blog.author}</span>
                 </div>
-                <span className="material-symbols-outlined text-primary group-hover:translate-x-2 transition-transform">east</span>
+                <ArrowRight size={18} className="text-primary group-hover:translate-x-2 transition-transform" />
               </div>
             </div>
           </div>
@@ -105,26 +106,26 @@ const BlogPage: React.FC<BlogPageProps> = ({ onNavigate }) => {
 
   const renderDetailView = () => {
     return (
-      <div className="animate-fade-in bg-bg-soft min-h-screen pt-32 md:pt-44 pb-16 md:pb-24">
+      <div className="animate-fade-in bg-cream min-h-screen pt-32 md:pt-44 pb-16 md:pb-24">
         <article className="max-w-[900px] mx-auto px-6">
           {/* Back Button */}
           <button 
             onClick={() => setSelectedBlogId(null)}
-            className="flex items-center gap-2 text-primary font-black uppercase tracking-widest text-xs mb-12 hover:text-clinical-dark transition-colors group"
+            className="flex items-center gap-2 text-primary font-medium uppercase text-xs mb-12 hover:text-clinical-dark transition-colors group"
           >
-            <span className="material-symbols-outlined text-sm group-hover:-translate-x-1 transition-transform">west</span>
+            <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" />
             Back to Articles
           </button>
 
           {/* Blog Header */}
           <div className="mb-12 md:mb-16">
             <div className="flex flex-wrap items-center gap-3 mb-6">
-              <span className="bg-primary/10 text-primary text-[10px] font-black uppercase tracking-[0.2em] px-3 py-1 rounded-full">Medical Insights</span>
-              <span className="text-text-muted text-[10px] font-black uppercase tracking-[0.2em]">6/23/2025</span>
-              <span className="text-text-muted text-[10px] font-black uppercase tracking-[0.2em]">• 2 min read</span>
+              <span className="bg-primary/10 text-primary text-[10px] font-medium uppercase tracking-[0.2em] px-3 py-1 rounded-full">Medical Insights</span>
+              <span className="text-muted text-[10px] font-medium uppercase tracking-[0.2em]">6/23/2025</span>
+              <span className="text-muted text-[10px] font-medium uppercase tracking-[0.2em]">• 2 min read</span>
             </div>
             
-            <h1 className="text-4xl md:text-6xl font-black text-text-main leading-[1.1] mb-8 tracking-tight [word-spacing:0.05em]">
+            <h1 className="text-4xl md:text-6xl font-medium text-obsidian leading-[1.1] mb-8 tracking-tight [word-spacing:0.05em]">
               What Are Autologous <span className="text-primary italic font-serif mx-1">Exosomes</span> and How Do They Help Hair Loss?
             </h1>
             
@@ -133,24 +134,24 @@ const BlogPage: React.FC<BlogPageProps> = ({ onNavigate }) => {
                  <img src="https://lh3.googleusercontent.com/d/1YZP8Ey7efS4TDkira7M9cTkzDNo9zwW7" alt="Dr Aminah Amer" className="w-full h-full object-cover" referrerPolicy="no-referrer" loading="lazy" decoding="async" />
               </div>
               <div>
-                <p className="text-sm font-black text-text-main">Dr Aminah Amer</p>
-                <p className="text-[10px] font-bold text-text-muted uppercase tracking-widest">Founder, Novogenics Clinic</p>
+                <p className="text-sm font-medium text-obsidian">Dr Aminah Amer</p>
+                <p className="text-[10px] font-bold text-muted uppercase">Founder, Novogenics Clinic</p>
               </div>
             </div>
           </div>
 
           {/* Blog Content */}
-          <div className="prose prose-lg prose-headings:font-black prose-headings:text-text-main prose-p:text-text-muted prose-p:leading-relaxed max-w-none">
-            <p className="text-xl md:text-2xl font-medium text-text-main leading-relaxed mb-12">
+          <div className="prose prose-lg prose-headings:font-medium prose-headings:text-obsidian prose-p:text-muted prose-p:leading-relaxed max-w-none">
+            <p className="text-xl md:text-2xl font-medium text-obsidian leading-relaxed mb-12">
               Exosomes are tiny extracellular vesicles - microscopic messengers released by your body’s own cells. These vesicles carry growth signals and healing instructions between cells, especially in areas where repair or regeneration is needed.
             </p>
 
-            <h2 className="text-2xl md:text-3xl font-black mb-6">What are Autologous Exosomes?</h2>
+            <h2 className="text-2xl md:text-3xl font-medium mb-6">What are Autologous Exosomes?</h2>
             <p>
               At Novogenics, we extract these vesicles from your own blood (this is what “autologous” means) using a refined, sterile process. No donor material, no synthetic ingredients, and no foreign substances are used.
             </p>
 
-            <h2 className="text-2xl md:text-3xl font-black mt-12 mb-6">Why Platelet-Derived Exosomes Matter</h2>
+            <h2 className="text-2xl md:text-3xl font-medium mt-12 mb-6">Why Platelet-Derived Exosomes Matter</h2>
             <p>
               Recent evidence shows that PRP-derived extracellular vesicles (EVs) - including exosomes - may contain greater concentrations of functional growth factors than PRP itself. These nanosized vesicles (typically 30–150 nm) are secreted naturally by activated platelets and serve as stable, bioavailable carriers of regenerative signals, including VEGF and other platelet-derived growth factors.
             </p>
@@ -169,7 +170,7 @@ const BlogPage: React.FC<BlogPageProps> = ({ onNavigate }) => {
                   decoding="async"
                 />
               </div>
-              <figcaption className="text-center text-[10px] font-black uppercase tracking-widest mt-4 text-text-muted">
+              <figcaption className="text-center text-2xs font-medium text-hint mt-4 text-muted">
                 Novogenics Clinical Infographic: Exosome Signalling
               </figcaption>
             </figure>
@@ -184,22 +185,22 @@ const BlogPage: React.FC<BlogPageProps> = ({ onNavigate }) => {
               While the exact count can vary between clients, the T-Lab protocol ensures a consistently high-quality, reproducible product, setting a new gold standard for autologous regenerative therapy.
             </p>
 
-            <h2 className="text-2xl md:text-3xl font-black mt-12 mb-6">How Are They Different from PRP?</h2>
+            <h2 className="text-2xl md:text-3xl font-medium mt-12 mb-6">How Are They Different from PRP?</h2>
             <p>
               While PRP (Platelet-Rich Plasma) uses the whole plasma containing platelets, autologous exosome therapy goes a step further. It isolates the cell-free fraction - rich in nanosized extracellular vesicles - which can penetrate more deeply into tissue and stimulate more targeted repair.
             </p>
-            <p className="font-bold text-text-main mb-4">This means:</p>
+            <p className="font-bold text-obsidian mb-4">This means:</p>
             <ul className="list-none pl-0 space-y-4">
               <li className="flex items-start gap-3">
-                <span className="material-symbols-outlined text-primary mt-1">check_circle</span>
+                <CheckCircle size={18} className="text-primary mt-1" />
                 <span>Less inflammation</span>
               </li>
               <li className="flex items-start gap-3">
-                <span className="material-symbols-outlined text-primary mt-1">check_circle</span>
+                <CheckCircle size={18} className="text-primary mt-1" />
                 <span>Faster recovery</span>
               </li>
               <li className="flex items-start gap-3">
-                <span className="material-symbols-outlined text-primary mt-1">check_circle</span>
+                <CheckCircle size={18} className="text-primary mt-1" />
                 <span>Longer-lasting signalling than PRP alone</span>
               </li>
             </ul>
@@ -207,14 +208,14 @@ const BlogPage: React.FC<BlogPageProps> = ({ onNavigate }) => {
               For many clients with thinning hair, especially where the follicles are still alive but dormant, exosome therapy can be a breakthrough.
             </p>
 
-            <h2 className="text-2xl md:text-3xl font-black mt-12 mb-6">Why Novogenics Uses Autologous Exosomes Only</h2>
+            <h2 className="text-2xl md:text-3xl font-medium mt-12 mb-6">Why Novogenics Uses Autologous Exosomes Only</h2>
             <p>
               Not all exosomes are created equal. Many commercial clinics offer exosome products derived from sources such as amniotic fluid, placenta, plants, or even salmon - often imported and not licensed for injection use in the UK. While early studies on these products suggest potential benefits, we cannot confidently predict the long-term effects of injecting material derived from other species or tissues into the human body.
             </p>
             <p>
               At Novogenics, your safety is paramount. That’s why we use only autologous exosomes - regenerative messengers naturally derived from your own platelets. This method supports cellular repair and hair regrowth while eliminating the risks associated with foreign or synthetic biologics.
             </p>
-            <p className="bg-clinical-dark text-white p-8 rounded-[2rem] font-medium my-10 border-l-8 border-primary italic">
+            <p className="bg-obsidian text-white p-8 rounded-[2rem] font-medium my-10 border-l-8 border-primary italic">
               "In short: your biology, your results - with nothing added and nothing to reject."
             </p>
             <p>
@@ -229,34 +230,34 @@ const BlogPage: React.FC<BlogPageProps> = ({ onNavigate }) => {
               You deserve a treatment that puts your health and your biology first.
             </p>
 
-            <h2 className="text-2xl md:text-3xl font-black mt-12 mb-6">Is It Right for Me?</h2>
+            <h2 className="text-2xl md:text-3xl font-medium mt-12 mb-6">Is It Right for Me?</h2>
             <p>Autologous EV-enriched plasma therapy may be right for you if:</p>
             <ul className="list-none pl-0 space-y-4">
               <li className="flex items-start gap-3">
-                <span className="material-symbols-outlined text-primary mt-1">arrow_forward</span>
+                <ArrowRight size={18} className="text-primary mt-1" />
                 <span>You’ve noticed early thinning around your parting or temples</span>
               </li>
               <li className="flex items-start gap-3">
-                <span className="material-symbols-outlined text-primary mt-1">arrow_forward</span>
+                <ArrowRight size={18} className="text-primary mt-1" />
                 <span>You’ve tried topical treatments without success</span>
               </li>
               <li className="flex items-start gap-3">
-                <span className="material-symbols-outlined text-primary mt-1">arrow_forward</span>
+                <ArrowRight size={18} className="text-primary mt-1" />
                 <span>You want a natural, drug-free approach to hair regrowth</span>
               </li>
               <li className="flex items-start gap-3">
-                <span className="material-symbols-outlined text-primary mt-1">arrow_forward</span>
+                <ArrowRight size={18} className="text-primary mt-1" />
                 <span>You value privacy, dignity, and medically-led care</span>
               </li>
             </ul>
 
             <div className="mt-20 p-10 md:p-16 bg-white rounded-[3rem] border border-black/5 text-center shadow-xl">
-              <h2 className="text-3xl md:text-4xl font-black text-text-main mb-6">Book Your Consultation</h2>
-              <p className="mb-10 text-text-muted">
+              <h2 className="text-3xl md:text-4xl font-medium text-obsidian mb-6">Book Your Consultation</h2>
+              <p className="mb-10 text-muted">
                 We see clients from across Manchester, Cheshire, and the surrounding areas at our private clinic in Cheadle. Whether you're dealing with stress-related hair loss, genetic thinning, or just want a science-based approach, Novogenics is here to help.
               </p>
               <p className="font-serif italic text-2xl text-primary mb-10">Your body holds the answer. We help you unlock it.</p>
-              <button onClick={() => onNavigate(Page.Assessment)} className="bg-primary text-clinical-dark px-12 py-4 rounded-full font-black text-sm uppercase tracking-widest hover:bg-clinical-dark hover:text-white transition-all shadow-xl shadow-primary/20">
+              <button onClick={() => onNavigate(Page.Assessment)} className="bg-primary text-clinical-dark px-12 py-4 rounded-full font-medium text-sm uppercase hover:bg-obsidian hover:text-white transition-all shadow-xl shadow-primary/20">
                 Start Free Assessment
               </button>
             </div>
@@ -267,7 +268,7 @@ const BlogPage: React.FC<BlogPageProps> = ({ onNavigate }) => {
   };
 
   return (
-    <div className="bg-bg-soft min-h-screen">
+    <div className="bg-cream min-h-screen">
       {selectedBlogId ? renderDetailView() : renderListView()}
     </div>
   );

@@ -37,12 +37,12 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boole
   render() {
     if (this.state.hasError) {
       return (
-        <div className="min-h-screen flex flex-col items-center justify-center bg-bg-soft p-6 text-center">
-          <h1 className="text-2xl font-black text-text-main mb-4">Something went wrong</h1>
-          <p className="text-text-muted mb-6 max-w-md">The application encountered an error. Please try refreshing the page.</p>
+        <div className="min-h-screen flex flex-col items-center justify-center bg-cream p-6 text-center">
+          <h1 className="text-2xl font-medium text-obsidian mb-4">Something went wrong</h1>
+          <p className="text-muted mb-6 max-w-md">The application encountered an error. Please try refreshing the page.</p>
           <button 
             onClick={() => window.location.reload()}
-            className="bg-primary text-white px-8 py-3 rounded-full font-bold uppercase tracking-widest"
+            className="bg-primary text-white px-8 py-3 rounded-full font-bold uppercase"
           >
             Refresh Page
           </button>
@@ -882,11 +882,11 @@ const App: React.FC = () => {
 
   if (!isAuthReady) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-bg-soft">
+      <div className="min-h-screen flex items-center justify-center bg-cream">
         <div className="flex flex-col items-center gap-6">
           <Logo size="md" className="animate-pulse" />
           <div className="w-12 h-12 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
-          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-text-muted animate-pulse">Initializing Clinical Portal...</p>
+          <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted animate-pulse">Initializing Clinical Portal...</p>
         </div>
       </div>
     );

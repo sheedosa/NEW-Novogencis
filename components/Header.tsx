@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Page } from '../types';
 import Logo from './Logo';
+import { ChevronDown, ArrowRight, Menu, X } from 'lucide-react';
 
 interface NavItem {
   label: string;
@@ -119,15 +120,13 @@ const Header: React.FC<HeaderProps> = React.memo(({ currentPage, onNavigate }) =
                 >
                   <button
                     onClick={() => item.page && handleNavigate(item.page)}
-                    className={`text-[11px] lg:text-[12px] font-bold tracking-widest uppercase transition-all duration-300 hover:text-primary flex items-center gap-1.5 ${
-                      isGroupActive(item) ? 'text-primary' : 'text-text-main'
+                    className={`text-[11px] lg:text-[12px] font-bold uppercase transition-all duration-300 hover:text-primary flex items-center gap-1.5 ${
+                      isGroupActive(item) ? 'text-primary' : 'text-obsidian'
                     }`}
                   >
                     {item.label}
                     {item.subItems && (
-                      <span className={`material-symbols-outlined text-[16px] transition-transform duration-300 ${activeDropdown === item.label ? 'rotate-180' : ''}`}>
-                        expand_more
-                      </span>
+                      <ChevronDown size={16} className={`transition-transform duration-300 ${activeDropdown === item.label ? 'rotate-180' : ''}`} />
                     )}
                     <span className={`absolute bottom-2 left-0 h-[2px] bg-primary transition-all duration-300 ease-out ${
                       isGroupActive(item) ? 'w-full' : 'w-0'
@@ -143,8 +142,8 @@ const Header: React.FC<HeaderProps> = React.memo(({ currentPage, onNavigate }) =
                         <button
                           key={sub.label}
                           onClick={() => handleNavigate(sub.page)}
-                          className={`w-full text-left px-5 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all hover:bg-bg-soft ${
-                            currentPage === sub.page ? 'text-primary bg-primary/5' : 'text-text-muted hover:text-text-main'
+                          className={`w-full text-left px-5 py-3 rounded-xl text-2xs font-medium text-hint transition-all hover:bg-cream ${
+                            currentPage === sub.page ? 'text-primary bg-primary/5' : 'text-muted hover:text-obsidian'
                           }`}
                         >
                           {sub.label}
@@ -159,7 +158,7 @@ const Header: React.FC<HeaderProps> = React.memo(({ currentPage, onNavigate }) =
             {/* Added Sign In Button */}
             <button 
               onClick={() => handleNavigate(Page.SignIn)}
-              className="bg-primary/10 text-primary border border-primary/20 px-6 py-2 rounded-full text-[11px] font-black uppercase tracking-widest hover:bg-primary hover:text-white transition-all duration-300"
+              className="bg-primary/10 text-primary border border-primary/20 px-6 py-2 rounded-full text-xs font-medium hover:bg-primary hover:text-white transition-all duration-300"
             >
               Sign In
             </button>
@@ -167,7 +166,7 @@ const Header: React.FC<HeaderProps> = React.memo(({ currentPage, onNavigate }) =
 
           {/* Mobile Toggle */}
           <div className="flex xl:hidden items-center gap-2 z-50">
-            <button 
+            <button
               onClick={() => handleNavigate(Page.SignIn)}
               className="p-2 rounded-full text-primary hover:bg-primary/10 transition-colors duration-200"
               aria-label="Sign in"
@@ -176,13 +175,13 @@ const Header: React.FC<HeaderProps> = React.memo(({ currentPage, onNavigate }) =
                 account_circle
               </span>
             </button>
-            <button 
+            <button
               onClick={() => setIsMenuOpen(!isMenuOpen)}
               className="p-2 rounded-full text-primary hover:bg-primary/10 transition-colors duration-200"
               aria-label="Toggle menu"
             >
-              <span className="material-symbols-outlined text-3xl transition-transform duration-500 ease-in-out" style={{ transform: isMenuOpen ? 'rotate(180deg)' : 'rotate(0)' }}>
-                {isMenuOpen ? 'close' : 'menu'}
+              <span className="transition-transform duration-500 ease-in-out inline-flex" style={{ transform: isMenuOpen ? 'rotate(180deg)' : 'rotate(0)' }}>
+                {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
               </span>
             </button>
           </div>
@@ -195,7 +194,7 @@ const Header: React.FC<HeaderProps> = React.memo(({ currentPage, onNavigate }) =
           isMenuOpen ? 'opacity-100 visible' : 'opacity-0 invisible'
         }`}
       >
-        <div className="absolute inset-0 bg-clinical-dark/40 backdrop-blur-md" onClick={() => setIsMenuOpen(false)} />
+        <div className="absolute inset-0 bg-obsidian/40 backdrop-blur-md" onClick={() => setIsMenuOpen(false)} />
         
         <nav 
           className={`absolute top-0 right-0 h-full w-[85%] max-w-sm bg-white shadow-2xl transition-transform duration-500 cubic-bezier(0.16, 1, 0.3, 1) ${
@@ -216,22 +215,18 @@ const Header: React.FC<HeaderProps> = React.memo(({ currentPage, onNavigate }) =
                   style={{ transitionDelay: `${idx * 40}ms` }}
                   className={`text-left flex items-center justify-between py-5 transition-all duration-500 ${
                     isMenuOpen ? 'translate-x-0 opacity-100' : 'translate-x-8 opacity-0'
-                  } ${isGroupActive(item) ? 'text-primary' : 'text-text-main'}`}
+                  } ${isGroupActive(item) ? 'text-primary' : 'text-obsidian'}`}
                 >
                   <div className="flex flex-col">
-                    <span className="text-[10px] font-black tracking-widest text-accent-gold/50 uppercase mb-1">0{idx + 1}</span>
-                    <span className="text-2xl font-black">{item.label}</span>
+                    <span className="text-[10px] font-medium text-accent-gold/50 uppercase mb-1">0{idx + 1}</span>
+                    <span className="text-2xl font-medium">{item.label}</span>
                   </div>
                   {item.subItems ? (
-                    <span className={`material-symbols-outlined text-2xl transition-transform duration-300 ${mobileExpanded === item.label ? 'rotate-180 text-primary' : 'text-gray-300'}`}>
-                      expand_more
-                    </span>
+                    <ChevronDown size={24} className={`transition-transform duration-300 ${mobileExpanded === item.label ? 'rotate-180 text-primary' : 'text-gray-300'}`} />
                   ) : (
-                    <span className={`material-symbols-outlined text-primary transition-all duration-300 ${
+                    <ArrowRight size={20} className={`text-primary transition-all duration-300 ${
                       currentPage === item.page ? 'translate-x-0 opacity-100' : '-translate-x-4 opacity-0'
-                    }`}>
-                      arrow_forward
-                    </span>
+                    }`} />
                   )}
                 </button>
 
@@ -245,8 +240,8 @@ const Header: React.FC<HeaderProps> = React.memo(({ currentPage, onNavigate }) =
                         <button
                           key={sub.label}
                           onClick={() => handleNavigate(sub.page)}
-                          className={`text-left py-3 text-[13px] font-bold uppercase tracking-widest transition-colors ${
-                            currentPage === sub.page ? 'text-primary' : 'text-text-muted'
+                          className={`text-left py-3 text-[13px] font-bold uppercase transition-colors ${
+                            currentPage === sub.page ? 'text-primary' : 'text-muted'
                           }`}
                         >
                           {sub.label}

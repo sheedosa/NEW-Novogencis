@@ -2,12 +2,12 @@ import React from 'react';
 
 const PrivacyPolicyPage: React.FC = () => {
   return (
-    <div className="animate-fade-in px-6 md:px-20 pt-32 md:pt-44 pb-24 bg-bg-soft min-h-screen">
+    <div className="animate-fade-in px-6 md:px-20 pt-32 md:pt-44 pb-24 bg-cream min-h-screen">
       <div className="max-w-[800px] mx-auto bg-white rounded-[3rem] p-8 md:p-16 shadow-sm border border-gray-100">
-        <h1 className="text-3xl md:text-5xl font-black text-text-main mb-4">Privacy Policy</h1>
-        <p className="text-primary font-bold tracking-widest uppercase text-xs mb-8">Novogenics Privacy Policy</p>
+        <h1 className="text-3xl md:text-5xl font-medium text-obsidian mb-4">Privacy Policy</h1>
+        <p className="text-primary font-bold uppercase text-xs mb-8">Novogenics Privacy Policy</p>
         
-        <div className="prose prose-sm md:prose-base text-text-muted max-w-none space-y-8">
+        <div className="prose prose-sm md:prose-base text-muted max-w-none space-y-8">
           <p className="italic">Effective Date: June 2025</p>
           
           <p>
@@ -15,14 +15,14 @@ const PrivacyPolicyPage: React.FC = () => {
           </p>
 
           <section>
-            <h2 className="text-xl font-bold text-text-main mb-3">1. Who We Are</h2>
+            <h2 className="text-xl font-bold text-obsidian mb-3">1. Who We Are</h2>
             <p>
               Novogenics is a UK-based private aesthetic hair restoration clinic specialising in hair loss and regenerative medicine. We comply with UK data protection laws and operate under the General Data Protection Regulation (GDPR).
             </p>
           </section>
 
           <section>
-            <h2 className="text-xl font-bold text-text-main mb-3">2. What Personal Information We Collect</h2>
+            <h2 className="text-xl font-bold text-obsidian mb-3">2. What Personal Information We Collect</h2>
             <p>We may collect and store the following types of personal data:</p>
             <ul className="list-disc pl-5 space-y-2">
               <li>Full name, date of birth, and contact information (e.g. address, phone number, email)</li>
@@ -33,7 +33,7 @@ const PrivacyPolicyPage: React.FC = () => {
           </section>
 
           <section>
-            <h2 className="text-xl font-bold text-text-main mb-3">3. How We Store Your Information</h2>
+            <h2 className="text-xl font-bold text-obsidian mb-3">3. How We Store Your Information</h2>
             <p>
               All personal health records and appointment information are securely stored within our own GDPR-compliant, encrypted clinical practice management system.
             </p>
@@ -43,7 +43,7 @@ const PrivacyPolicyPage: React.FC = () => {
           </section>
 
           <section>
-            <h2 className="text-xl font-bold text-text-main mb-3">4. How We Use Your Information</h2>
+            <h2 className="text-xl font-bold text-obsidian mb-3">4. How We Use Your Information</h2>
             <p>Your data is used for the purpose of:</p>
             <ul className="list-disc pl-5 space-y-2">
               <li>Booking and managing appointments</li>
@@ -55,7 +55,7 @@ const PrivacyPolicyPage: React.FC = () => {
           </section>
 
           <section>
-            <h2 className="text-xl font-bold text-text-main mb-3">5. Sharing Your Information</h2>
+            <h2 className="text-xl font-bold text-obsidian mb-3">5. Sharing Your Information</h2>
             <p>Your personal data will never be sold or shared for marketing purposes.</p>
             <p>We may share your information:</p>
             <ul className="list-disc pl-5 space-y-2">
@@ -65,7 +65,7 @@ const PrivacyPolicyPage: React.FC = () => {
           </section>
 
           <section>
-            <h2 className="text-xl font-bold text-text-main mb-3">6. Your Rights</h2>
+            <h2 className="text-xl font-bold text-obsidian mb-3">6. Your Rights</h2>
             <p>Under GDPR, you have the right to:</p>
             <ul className="list-disc pl-5 space-y-2">
               <li>Access your personal data</li>
@@ -78,14 +78,14 @@ const PrivacyPolicyPage: React.FC = () => {
           </section>
 
           <section>
-            <h2 className="text-xl font-bold text-text-main mb-3">7. Data Retention</h2>
+            <h2 className="text-xl font-bold text-obsidian mb-3">7. Data Retention</h2>
             <p>
               We retain medical records for a minimum of 8 years after your last appointment, in line with UK clinical record-keeping standards.
             </p>
           </section>
 
           <section>
-            <h2 className="text-xl font-bold text-text-main mb-3">8. Security Measures</h2>
+            <h2 className="text-xl font-bold text-obsidian mb-3">8. Security Measures</h2>
             <ul className="list-disc pl-5 space-y-2">
               <li>Our practice management system encrypts all stored and transmitted data</li>
               <li>Two-factor authentication is used for all administrative account access</li>
@@ -94,7 +94,7 @@ const PrivacyPolicyPage: React.FC = () => {
           </section>
 
           <section>
-            <h2 className="text-xl font-bold text-text-main mb-3">9. Updates to This Policy</h2>
+            <h2 className="text-xl font-bold text-obsidian mb-3">9. Updates to This Policy</h2>
             <p>
               This Privacy Policy may be updated from time to time. The most recent version will always be available on our website.
             </p>

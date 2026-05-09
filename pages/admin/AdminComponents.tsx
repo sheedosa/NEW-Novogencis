@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { Card } from '../../components/Card';
 import { AdminTab } from './context';
+import { User, PlusCircle, Send, StickyNote, RefreshCw, CheckCircle, AlertCircle } from 'lucide-react';
 
 // ── StatusBadge ────────────────────────────────────────────────────────────
 export const StatusBadge = ({ status }: { status: string }) => {
@@ -15,7 +16,7 @@ export const StatusBadge = ({ status }: { status: string }) => {
     'Ongoing': 'bg-primary text-white',
   };
   return (
-    <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${colors[status] || 'bg-gray-200 text-text-muted'}`}>
+    <span className={`px-3 py-1 rounded-full text-2xs font-medium text-hint ${colors[status] || 'bg-gray-200 text-muted'}`}>
       {status}
     </span>
   );
@@ -25,8 +26,8 @@ export const StatusBadge = ({ status }: { status: string }) => {
 export const AssignedBadge = ({ isAssigned }: { isAssigned: boolean }) => {
   if (!isAssigned) return null;
   return (
-    <span className="flex items-center gap-1 px-2 py-0.5 bg-primary/10 text-primary rounded-full text-[8px] font-black uppercase tracking-widest shrink-0">
-      <span className="material-symbols-outlined text-[10px]">person</span>
+    <span className="flex items-center gap-1 px-2 py-0.5 bg-primary/10 text-primary rounded-full text-[8px] font-medium uppercase shrink-0">
+      <User size={10} />
       Assigned
     </span>
   );
@@ -48,17 +49,17 @@ export const SidebarItem = ({
     onClick={() => onClick(id)}
     className={`w-full flex items-center gap-4 px-6 py-5 rounded-2xl transition-all group relative ${
       activeTab === id && !selectedClientId
-        ? 'bg-clinical-dark text-white shadow-2xl shadow-clinical-dark/20'
-        : 'text-text-muted hover:bg-bg-soft hover:text-clinical-dark'
+        ? 'bg-obsidian text-white shadow-2xl shadow-clinical-dark/20'
+        : 'text-muted hover:bg-cream hover:text-clinical-dark'
     }`}
   >
     {activeTab === id && !selectedClientId && (
       <motion.div layoutId="activeTab" className="absolute left-0 w-1.5 h-8 bg-primary rounded-r-full" />
     )}
-    <span className={`material-symbols-outlined text-2xl transition-transform group-hover:scale-110 ${activeTab === id && !selectedClientId ? 'text-primary' : 'text-text-muted'}`}>
+    <span className={`material-symbols-outlined text-2xl transition-transform group-hover:scale-110 ${activeTab === id && !selectedClientId ? 'text-primary' : 'text-muted'}`}>
       {icon}
     </span>
-    {!isCollapsed && <span className="text-[11px] font-black uppercase tracking-widest">{label}</span>}
+    {!isCollapsed && <span className="text-xs font-medium">{label}</span>}
   </button>
 );
 
@@ -86,9 +87,9 @@ export const MessageInputForm = ({
         <button
           type="button"
           onClick={onToggleQuickActions}
-          className={`w-10 h-10 md:w-12 md:h-12 rounded-xl flex items-center justify-center transition-all shrink-0 ${showQuickActions ? 'bg-primary text-clinical-dark' : 'bg-bg-soft text-text-muted hover:text-primary'}`}
+          className={`w-10 h-10 md:w-12 md:h-12 rounded-xl flex items-center justify-center transition-all shrink-0 ${showQuickActions ? 'bg-primary text-clinical-dark' : 'bg-cream text-muted hover:text-primary'}`}
         >
-          <span className="material-symbols-outlined">add_circle</span>
+          <PlusCircle size={18} />
         </button>
       )}
       <input
@@ -96,14 +97,14 @@ export const MessageInputForm = ({
         value={input}
         onChange={(e) => setInput(e.target.value)}
         placeholder={placeholder}
-        className="flex-grow bg-bg-soft border-transparent rounded-xl px-4 md:px-6 py-2.5 md:py-4 text-[10px] md:text-xs font-bold focus:ring-2 focus:ring-primary/20 transition-all min-w-0"
+        className="flex-grow bg-cream border-transparent rounded-xl px-4 md:px-6 py-2.5 md:py-4 text-[10px] md:text-xs font-bold focus:ring-2 focus:ring-primary/20 transition-all min-w-0"
       />
       <button
         type="submit"
         disabled={!input.trim()}
         className="w-10 h-10 md:w-12 md:h-12 bg-primary text-white md:text-clinical-dark rounded-xl hover:scale-105 active:scale-95 transition-all shrink-0 flex items-center justify-center disabled:opacity-50 disabled:scale-100 md:shadow-lg md:shadow-primary/20"
       >
-        <span className="material-symbols-outlined text-lg md:text-xl">send</span>
+        <Send size={18} />
       </button>
     </form>
   );
@@ -139,16 +140,16 @@ export const InternalNotesEditor = ({
   }, [notes, initialNotes, onSave]);
 
   return (
-    <Card className="p-4 sm:p-6 md:p-8 mt-4 md:mt-8 bg-bg-soft/30 border-dashed border-black/10">
+    <Card className="p-4 sm:p-6 md:p-8 mt-4 md:mt-8 bg-cream/30 border-dashed border-black/10">
       <div className="flex items-center justify-between mb-4 md:mb-6">
         <div className="flex items-center gap-3">
-          <span className="material-symbols-outlined text-primary text-xl">sticky_note_2</span>
-          <h3 className="text-[10px] md:text-xs font-black uppercase tracking-widest text-text-muted">Internal Clinical Notes</h3>
+          <StickyNote size={20} className="text-primary" />
+          <h3 className="text-[10px] md:text-xs font-medium uppercase text-muted">Internal Clinical Notes</h3>
         </div>
         <div className="flex items-center justify-end min-w-[80px]">
-          {saveStatus === 'saving' && <span className="text-[10px] font-bold text-primary animate-pulse flex items-center gap-1"><span className="material-symbols-outlined text-[14px]">sync</span> Saving...</span>}
-          {saveStatus === 'saved'  && <span className="text-[10px] font-bold text-green-500 flex items-center gap-1"><span className="material-symbols-outlined text-[14px]">check_circle</span> Saved</span>}
-          {saveStatus === 'error'  && <span className="text-[10px] font-bold text-red-500 flex items-center gap-1"><span className="material-symbols-outlined text-[14px]">error</span> Error</span>}
+          {saveStatus === 'saving' && <span className="text-[10px] font-bold text-primary animate-pulse flex items-center gap-1"><RefreshCw size={14} className="animate-spin" /> Saving...</span>}
+          {saveStatus === 'saved'  && <span className="text-[10px] font-bold text-green-500 flex items-center gap-1"><CheckCircle size={14} /> Saved</span>}
+          {saveStatus === 'error'  && <span className="text-[10px] font-bold text-red-500 flex items-center gap-1"><AlertCircle size={14} /> Error</span>}
         </div>
       </div>
       <textarea
@@ -169,7 +170,7 @@ export const InternalNotesEditor = ({
               setSaveStatus('error');
             }
           }}
-          className="bg-clinical-dark text-white px-6 py-2 rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-primary transition-colors shadow-lg shadow-clinical-dark/10"
+          className="bg-obsidian text-white px-6 py-2 rounded-full text-2xs font-medium text-hint hover:bg-primary transition-colors shadow-lg shadow-clinical-dark/10"
         >
           Force Save
         </button>
@@ -214,12 +215,12 @@ export const FeedbackEditor = ({
       <button
         onClick={handleSubmit}
         disabled={status === 'saving' || isUnchanged || !feedback.trim()}
-        className="w-full bg-primary text-clinical-dark px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest hover:scale-[1.02] transition-transform flex items-center justify-center gap-2 disabled:opacity-50 disabled:hover:scale-100"
+        className="w-full bg-primary text-clinical-dark px-6 py-3 rounded-xl text-2xs font-medium text-hint hover:scale-[1.02] transition-transform flex items-center justify-center gap-2 disabled:opacity-50 disabled:hover:scale-100"
       >
-        {status === 'saving' && (<><span className="material-symbols-outlined text-sm animate-spin">sync</span> Saving…</>)}
-        {status === 'saved'  && (<><span className="material-symbols-outlined text-sm">check_circle</span> Saved &amp; Client Notified</>)}
-        {status === 'error'  && (<><span className="material-symbols-outlined text-sm">error</span> Failed — Retry</>)}
-        {status === 'idle'   && (<><span className="material-symbols-outlined text-sm">send</span> {initialFeedback ? 'Update Feedback' : 'Submit Feedback'}</>)}
+        {status === 'saving' && (<><RefreshCw size={16} className="animate-spin" /> Saving…</>)}
+        {status === 'saved'  && (<><CheckCircle size={16} /> Saved &amp; Client Notified</>)}
+        {status === 'error'  && (<><AlertCircle size={16} /> Failed — Retry</>)}
+        {status === 'idle'   && (<><Send size={16} /> {initialFeedback ? 'Update Feedback' : 'Submit Feedback'}</>)}
       </button>
     </div>
   );

@@ -3,6 +3,7 @@ import { Message, Client } from '../types';
 import { FORMS } from '../constants';
 import { Card } from './Card';
 import Logo from './Logo';
+import { Printer, X, FileEdit, PenLine, PenTool } from 'lucide-react';
 
 interface InteractiveFormProps {
   message: Message;
@@ -110,93 +111,93 @@ export const InteractiveForm: React.FC<InteractiveFormProps> = ({ message, clien
         <div className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="text-[10px] font-black uppercase tracking-widest text-text-muted mb-1 block">Full Name</label>
+              <label className="text-2xs font-medium text-hint text-muted mb-1 block">Full Name</label>
               <input 
                 type="text" 
                 value={formData.name || ''} 
                 onChange={(e) => handleInputChange('name', e.target.value)}
                 disabled={isReadOnly}
                 placeholder="Patient's Full Name"
-                className="w-full bg-bg-soft border-transparent rounded-xl px-4 py-3 text-xs font-bold focus:ring-2 focus:ring-primary/20"
+                className="w-full bg-cream border-transparent rounded-xl px-4 py-3 text-xs font-bold focus:ring-2 focus:ring-primary/20"
               />
             </div>
             <div>
-              <label className="text-[10px] font-black uppercase tracking-widest text-text-muted mb-1 block">Date of Birth</label>
+              <label className="text-2xs font-medium text-hint text-muted mb-1 block">Date of Birth</label>
               <input 
                 type="date" 
                 value={formData.dob || ''} 
                 onChange={(e) => handleInputChange('dob', e.target.value)}
                 disabled={isReadOnly}
-                className="w-full bg-bg-soft border-transparent rounded-xl px-4 py-3 text-xs font-bold focus:ring-2 focus:ring-primary/20"
+                className="w-full bg-cream border-transparent rounded-xl px-4 py-3 text-xs font-bold focus:ring-2 focus:ring-primary/20"
               />
             </div>
             <div className="md:col-span-2">
-              <label className="text-[10px] font-black uppercase tracking-widest text-text-muted mb-1 block">Address</label>
+              <label className="text-2xs font-medium text-hint text-muted mb-1 block">Address</label>
               <input 
                 type="text" 
                 value={formData.address || ''} 
                 onChange={(e) => handleInputChange('address', e.target.value)}
                 disabled={isReadOnly}
                 placeholder="Full Residential Address"
-                className="w-full bg-bg-soft border-transparent rounded-xl px-4 py-3 text-xs font-bold focus:ring-2 focus:ring-primary/20"
+                className="w-full bg-cream border-transparent rounded-xl px-4 py-3 text-xs font-bold focus:ring-2 focus:ring-primary/20"
               />
             </div>
             <div>
-              <label className="text-[10px] font-black uppercase tracking-widest text-text-muted mb-1 block">Phone Number</label>
+              <label className="text-2xs font-medium text-hint text-muted mb-1 block">Phone Number</label>
               <input 
                 type="tel" 
                 value={formData.phone || ''} 
                 onChange={(e) => handleInputChange('phone', e.target.value)}
                 disabled={isReadOnly}
                 placeholder="Contact Number"
-                className="w-full bg-bg-soft border-transparent rounded-xl px-4 py-3 text-xs font-bold focus:ring-2 focus:ring-primary/20"
+                className="w-full bg-cream border-transparent rounded-xl px-4 py-3 text-xs font-bold focus:ring-2 focus:ring-primary/20"
               />
             </div>
             <div>
-              <label className="text-[10px] font-black uppercase tracking-widest text-text-muted mb-1 block">Email</label>
+              <label className="text-2xs font-medium text-hint text-muted mb-1 block">Email</label>
               <input 
                 type="email" 
                 value={formData.email || ''} 
                 onChange={(e) => handleInputChange('email', e.target.value)}
                 disabled={isReadOnly}
                 placeholder="Email Address"
-                className="w-full bg-bg-soft border-transparent rounded-xl px-4 py-3 text-xs font-bold focus:ring-2 focus:ring-primary/20"
+                className="w-full bg-cream border-transparent rounded-xl px-4 py-3 text-xs font-bold focus:ring-2 focus:ring-primary/20"
               />
             </div>
             <div>
-              <label className="text-[10px] font-black uppercase tracking-widest text-text-muted mb-1 block">Date of Appointment</label>
+              <label className="text-2xs font-medium text-hint text-muted mb-1 block">Date of Appointment</label>
               <input 
                 type="date" 
                 value={formData.appointmentDate || ''} 
                 onChange={(e) => handleInputChange('appointmentDate', e.target.value)}
                 disabled={isReadOnly}
-                className="w-full bg-bg-soft border-transparent rounded-xl px-4 py-3 text-xs font-bold focus:ring-2 focus:ring-primary/20"
+                className="w-full bg-cream border-transparent rounded-xl px-4 py-3 text-xs font-bold focus:ring-2 focus:ring-primary/20"
               />
             </div>
             <div>
-              <label className="text-[10px] font-black uppercase tracking-widest text-text-muted mb-1 block">Time</label>
+              <label className="text-2xs font-medium text-hint text-muted mb-1 block">Time</label>
               <input 
                 type="time" 
                 value={formData.appointmentTime || ''} 
                 onChange={(e) => handleInputChange('appointmentTime', e.target.value)}
                 disabled={isReadOnly}
-                className="w-full bg-bg-soft border-transparent rounded-xl px-4 py-3 text-xs font-bold focus:ring-2 focus:ring-primary/20"
+                className="w-full bg-cream border-transparent rounded-xl px-4 py-3 text-xs font-bold focus:ring-2 focus:ring-primary/20"
               />
             </div>
             <div>
-              <label className="text-[10px] font-black uppercase tracking-widest text-text-muted mb-1 block">Date of Signing</label>
+              <label className="text-2xs font-medium text-hint text-muted mb-1 block">Date of Signing</label>
               <input 
                 type="date" 
                 value={formData.signingDate || new Date().toISOString().split('T')[0]} 
                 onChange={(e) => handleInputChange('signingDate', e.target.value)}
                 disabled={isReadOnly}
-                className="w-full bg-bg-soft border-transparent rounded-xl px-4 py-3 text-xs font-bold focus:ring-2 focus:ring-primary/20"
+                className="w-full bg-cream border-transparent rounded-xl px-4 py-3 text-xs font-bold focus:ring-2 focus:ring-primary/20"
               />
             </div>
           </div>
           
           <div className="space-y-4">
-            <p className="text-xs font-bold text-text-main">Declarations:</p>
+            <p className="text-xs font-bold text-obsidian">Declarations:</p>
             {[
               { id: 'informed', label: 'I have been informed about the procedure, its purpose, and potential risks.' },
               { id: 'multiple_sessions', label: 'I understand that multiple sessions may be required for optimal results.' },
@@ -211,7 +212,7 @@ export const InteractiveForm: React.FC<InteractiveFormProps> = ({ message, clien
                   disabled={isReadOnly}
                   className="mt-1 rounded border-black/10 text-primary focus:ring-primary/20"
                 />
-                <span className="text-[11px] leading-relaxed text-text-muted group-hover:text-text-main transition-colors">{item.label}</span>
+                <span className="text-[11px] leading-relaxed text-muted group-hover:text-obsidian transition-colors">{item.label}</span>
               </label>
             ))}
           </div>
@@ -222,31 +223,31 @@ export const InteractiveForm: React.FC<InteractiveFormProps> = ({ message, clien
     if (form.id === 'aftercare-form') {
       return (
         <div className="space-y-6">
-          <div className="bg-bg-soft p-6 rounded-2xl border border-black/5">
-            <p className="text-[11px] leading-relaxed text-text-main italic">
+          <div className="bg-cream p-6 rounded-2xl border border-black/5">
+            <p className="text-[11px] leading-relaxed text-obsidian italic">
               "I have received and understood the aftercare instructions provided to me, including washing restrictions, exercise limitations, and sun protection."
             </p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="text-[10px] font-black uppercase tracking-widest text-text-muted mb-1 block">Full Name</label>
+              <label className="text-2xs font-medium text-hint text-muted mb-1 block">Full Name</label>
               <input 
                 type="text" 
                 value={formData.name || ''} 
                 onChange={(e) => handleInputChange('name', e.target.value)}
                 disabled={isReadOnly}
                 placeholder="Patient's Full Name"
-                className="w-full bg-bg-soft border-transparent rounded-xl px-4 py-3 text-xs font-bold focus:ring-2 focus:ring-primary/20"
+                className="w-full bg-cream border-transparent rounded-xl px-4 py-3 text-xs font-bold focus:ring-2 focus:ring-primary/20"
               />
             </div>
             <div>
-              <label className="text-[10px] font-black uppercase tracking-widest text-text-muted mb-1 block">Date of Signing</label>
+              <label className="text-2xs font-medium text-hint text-muted mb-1 block">Date of Signing</label>
               <input 
                 type="date" 
                 value={formData.signingDate || new Date().toISOString().split('T')[0]} 
                 onChange={(e) => handleInputChange('signingDate', e.target.value)}
                 disabled={isReadOnly}
-                className="w-full bg-bg-soft border-transparent rounded-xl px-4 py-3 text-xs font-bold focus:ring-2 focus:ring-primary/20"
+                className="w-full bg-cream border-transparent rounded-xl px-4 py-3 text-xs font-bold focus:ring-2 focus:ring-primary/20"
               />
             </div>
           </div>
@@ -258,22 +259,22 @@ export const InteractiveForm: React.FC<InteractiveFormProps> = ({ message, clien
               disabled={isReadOnly}
               className="mt-1 rounded border-black/10 text-primary focus:ring-primary/20"
             />
-            <span className="text-[11px] font-bold text-text-main">I acknowledge and agree to follow these instructions.</span>
+            <span className="text-[11px] font-bold text-obsidian">I acknowledge and agree to follow these instructions.</span>
           </label>
         </div>
       );
     }
 
-    return <p className="text-xs text-text-muted italic">Interactive fields not configured for this form type.</p>;
+    return <p className="text-xs text-muted italic">Interactive fields not configured for this form type.</p>;
   };
 
   return (
-    <div className="fixed inset-0 bg-clinical-dark/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+    <div className="fixed inset-0 bg-obsidian/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
       <Card className="w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden animate-fade-up">
         <div className="p-6 border-b border-black/5 flex justify-between items-center bg-white shrink-0">
           <div>
-            <h2 className="text-lg font-black text-text-main">{form.title}</h2>
-            <p className="text-[9px] font-black uppercase tracking-widest text-text-muted">
+            <h2 className="text-lg font-medium text-obsidian">{form.title}</h2>
+            <p className="text-2xs font-medium text-hint text-muted">
               {isReadOnly ? 'Completed Record' : 'Requires your signature'}
             </p>
           </div>
@@ -281,14 +282,14 @@ export const InteractiveForm: React.FC<InteractiveFormProps> = ({ message, clien
             {isReadOnly && (
               <button 
                 onClick={() => window.print()} 
-                className="w-10 h-10 rounded-full hover:bg-bg-soft flex items-center justify-center transition-colors text-text-muted hover:text-primary"
+                className="w-10 h-10 rounded-full hover:bg-cream flex items-center justify-center transition-colors text-muted hover:text-primary"
                 title="Print Form"
               >
-                <span className="material-symbols-outlined">print</span>
+                <Printer size={18} />
               </button>
             )}
-            <button onClick={onClose} className="w-10 h-10 rounded-full hover:bg-bg-soft flex items-center justify-center transition-colors">
-              <span className="material-symbols-outlined">close</span>
+            <button onClick={onClose} className="w-10 h-10 rounded-full hover:bg-cream flex items-center justify-center transition-colors">
+              <X size={18} />
             </button>
           </div>
         </div>
@@ -296,17 +297,17 @@ export const InteractiveForm: React.FC<InteractiveFormProps> = ({ message, clien
         <div className="flex-grow overflow-y-auto p-8 space-y-10 no-scrollbar">
           <div className="flex flex-col items-center text-center mb-10">
             <Logo size="sm" className="mb-4 opacity-20" />
-            <h1 className="text-2xl font-serif text-text-main italic mb-2">{form.title}</h1>
+            <h1 className="text-2xl font-serif text-obsidian italic mb-2">{form.title}</h1>
             <div className="w-12 h-0.5 bg-primary/20 rounded-full mb-4" />
-            <p className="max-w-md text-[11px] text-text-muted leading-relaxed uppercase tracking-widest font-bold">
+            <p className="max-w-md text-[11px] text-muted leading-relaxed uppercase font-bold">
               Clinical Documentation & Patient Consent Portal
             </p>
           </div>
 
           <div className="prose prose-sm max-w-none">
-            <div className="bg-bg-soft/30 p-10 rounded-[2rem] border border-black/5 mb-10 relative overflow-hidden">
+            <div className="bg-cream/30 p-10 rounded-[2rem] border border-black/5 mb-10 relative overflow-hidden">
               <div className="absolute top-0 left-0 w-1 h-full bg-primary/10" />
-              <p className="text-sm text-text-main leading-relaxed whitespace-pre-wrap font-serif italic">
+              <p className="text-sm text-obsidian leading-relaxed whitespace-pre-wrap font-serif italic">
                 {form.content}
               </p>
             </div>
@@ -315,9 +316,9 @@ export const InteractiveForm: React.FC<InteractiveFormProps> = ({ message, clien
           <div className="pt-10 border-t border-black/5">
             <div className="flex items-center gap-3 mb-8">
               <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                <span className="material-symbols-outlined text-primary text-sm">edit_note</span>
+                <FileEdit size={16} className="text-primary" />
               </div>
-              <h3 className="text-[10px] font-black uppercase tracking-widest text-primary">Patient Information & Declarations</h3>
+              <h3 className="text-2xs font-medium text-hint text-primary">Patient Information & Declarations</h3>
             </div>
             {renderFields()}
           </div>
@@ -326,18 +327,18 @@ export const InteractiveForm: React.FC<InteractiveFormProps> = ({ message, clien
             <div className="flex justify-between items-end mb-6">
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                  <span className="material-symbols-outlined text-primary text-sm">signature</span>
+                  <PenLine size={16} className="text-primary" />
                 </div>
-                <h3 className="text-[10px] font-black uppercase tracking-widest text-primary">Patient Signature</h3>
+                <h3 className="text-2xs font-medium text-hint text-primary">Patient Signature</h3>
               </div>
               {!isReadOnly && signature && (
-                <button onClick={clearSignature} className="text-[9px] font-black uppercase tracking-widest text-red-500 hover:underline">Clear Signature</button>
+                <button onClick={clearSignature} className="text-2xs font-medium text-hint text-red-500 hover:underline">Clear Signature</button>
               )}
             </div>
             
-            <div className="bg-bg-soft rounded-[2rem] border-2 border-dashed border-black/5 relative overflow-hidden h-48 shadow-inner">
+            <div className="bg-cream rounded-[2rem] border-2 border-dashed border-black/5 relative overflow-hidden h-48 shadow-inner">
               {isReadOnly && !signature ? (
-                <div className="absolute inset-0 flex items-center justify-center text-text-muted/40 italic text-xs">No signature provided</div>
+                <div className="absolute inset-0 flex items-center justify-center text-muted/40 italic text-xs">No signature provided</div>
               ) : (
                 <canvas 
                   ref={canvasRef}
@@ -355,11 +356,11 @@ export const InteractiveForm: React.FC<InteractiveFormProps> = ({ message, clien
               )}
             </div>
             <div className="mt-4 flex justify-between items-center">
-              <p className="text-[9px] font-bold text-text-muted uppercase tracking-widest">
+              <p className="text-[9px] font-bold text-muted uppercase">
                 {isReadOnly ? `Signed on ${new Date(message.signedAt!).toLocaleString('en-GB')}` : 'Sign above using your mouse or touch screen'}
               </p>
               {formData.name && (
-                <p className="text-[10px] font-black text-text-main font-serif italic">{formData.name as string}</p>
+                <p className="text-[10px] font-medium text-obsidian font-serif italic">{formData.name as string}</p>
               )}
             </div>
           </div>
@@ -370,7 +371,7 @@ export const InteractiveForm: React.FC<InteractiveFormProps> = ({ message, clien
             <button 
               onClick={() => onSave?.(formData, signature)}
               disabled={!signature || isSaving}
-              className="w-full bg-primary text-clinical-dark py-4 rounded-xl text-xs font-black uppercase tracking-widest shadow-xl shadow-primary/10 hover:scale-[1.01] transition-all disabled:opacity-50 disabled:hover:scale-100 flex items-center justify-center gap-3"
+              className="w-full bg-primary text-clinical-dark py-4 rounded-xl text-xs font-medium uppercase shadow-xl shadow-primary/10 hover:scale-[1.01] transition-all disabled:opacity-50 disabled:hover:scale-100 flex items-center justify-center gap-3"
             >
               {isSaving ? (
                 <>
@@ -379,7 +380,7 @@ export const InteractiveForm: React.FC<InteractiveFormProps> = ({ message, clien
                 </>
               ) : (
                 <>
-                  <span className="material-symbols-outlined text-sm">draw</span>
+                  <PenTool size={16} />
                   <span>Sign & Submit Form</span>
                 </>
               )}

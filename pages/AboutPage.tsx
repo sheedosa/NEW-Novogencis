@@ -1,5 +1,6 @@
 import React from 'react';
 import { Page } from '../types';
+import { BadgeCheck, MapPin, Phone } from 'lucide-react';
 
 interface AboutPageProps {
   onNavigate: (page: Page) => void;
@@ -16,7 +17,7 @@ const AboutPage: React.FC<AboutPageProps> = ({ onNavigate }) => {
   const clinicSpaceImgUrl = "https://lh3.googleusercontent.com/d/1_OpdNoH5ZzlXJuAbP5Yf0QeDW5KpXmlh";
 
   return (
-    <div className="animate-fade-in bg-bg-soft">
+    <div className="animate-fade-in bg-cream">
       {/* Refined Hero Section aligned with FAQ/Blog style */}
       <section className="relative px-6 md:px-20 pt-32 md:pt-44 pb-16 md:pb-24 overflow-hidden">
         {/* Background Decorative Elements */}
@@ -25,19 +26,19 @@ const AboutPage: React.FC<AboutPageProps> = ({ onNavigate }) => {
         
         <div className="max-w-[1200px] mx-auto relative z-10">
           <div className="text-center mb-16 md:mb-24">
-            <span className="text-primary font-black text-[10px] md:text-xs uppercase tracking-[0.4em] block mb-4 animate-fade-in">
+            <span className="text-primary font-medium text-[10px] md:text-xs uppercase tracking-[0.4em] block mb-4 animate-fade-in">
               The Heart of Our Practice
             </span>
-            <h1 className="text-5xl md:text-9xl font-black text-text-main tracking-tighter leading-[0.9] mb-10 animate-fade-up">
+            <h1 className="text-5xl md:text-9xl font-medium text-obsidian tracking-tighter leading-[0.9] mb-10 animate-fade-up">
               <span className="block opacity-90">Empowering</span>
               <span className="block text-primary italic font-serif -mt-2 md:-mt-4">Confidence</span>
               <div className="flex items-center justify-center gap-4 mt-8">
                 <div className="h-[1px] flex-grow bg-black/5 max-w-[100px] hidden md:block" />
-                <span className="text-[10px] md:text-xs font-black uppercase tracking-[0.6em] text-text-muted whitespace-nowrap">Through Regenerative Medicine</span>
+                <span className="text-[10px] md:text-xs font-medium uppercase tracking-[0.6em] text-muted whitespace-nowrap">Through Regenerative Medicine</span>
                 <div className="h-[1px] flex-grow bg-black/5 max-w-[100px] hidden md:block" />
               </div>
             </h1>
-            <p className="text-text-muted text-lg md:text-xl max-w-3xl mx-auto font-medium animate-fade-up delay-100">
+            <p className="text-muted text-lg md:text-xl max-w-3xl mx-auto font-medium animate-fade-up delay-100">
               At Novogenics, our mission is to help clients facing hair loss by offering safe, ethical and evidence-based regenerative treatments in a private, compassionate setting.
             </p>
             <div className="mt-12 w-24 h-1 bg-primary/20 mx-auto rounded-full" />
@@ -65,13 +66,13 @@ const AboutPage: React.FC<AboutPageProps> = ({ onNavigate }) => {
           </div>
           <div className="w-full md:w-2/3 flex flex-col gap-6">
             <p className="text-primary font-bold uppercase tracking-[0.3em] text-[10px] md:text-xs">Our Founder</p>
-            <h2 className="text-4xl md:text-5xl font-black tracking-tight leading-tight">Meet Dr. <span className="text-primary italic font-serif">Aminah Amer.</span></h2>
-            <div className="p-8 bg-bg-soft rounded-[2rem] border-l-8 border-primary shadow-xl shadow-primary/5">
-              <p className="text-text-muted text-lg md:text-xl leading-relaxed italic font-serif">
+            <h2 className="text-4xl md:text-5xl font-medium tracking-tight leading-tight">Meet Dr. <span className="text-primary italic font-serif">Aminah Amer.</span></h2>
+            <div className="p-8 bg-cream rounded-[2rem] border-l-8 border-primary shadow-xl shadow-primary/5">
+              <p className="text-muted text-lg md:text-xl leading-relaxed italic font-serif">
                 "My passion for evidence-based, client-centred care drives everything we do at Novogenics. We want every client to feel heard, seen, and supported."
               </p>
             </div>
-            <p className="text-text-main text-lg font-medium leading-relaxed">
+            <p className="text-obsidian text-lg font-medium leading-relaxed">
               Dr. Aminah Amer is a qualified GP and Sports & Exercise Medicine doctor with specialised training in regenerative medicine and hair loss restoration.
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
@@ -82,8 +83,8 @@ const AboutPage: React.FC<AboutPageProps> = ({ onNavigate }) => {
                 "Expert in Hair Loss Treatment"
               ].map(qual => (
                 <div key={qual} className="flex items-center gap-3 bg-white p-5 rounded-2xl border border-black/5 shadow-sm hover:border-primary/30 transition-colors group">
-                  <span className="material-symbols-outlined text-primary group-hover:scale-110 transition-transform">verified</span>
-                  <span className="text-sm font-black uppercase tracking-widest text-text-main">{qual}</span>
+                  <BadgeCheck size={18} className="text-primary group-hover:scale-110 transition-transform" />
+                  <span className="text-sm font-medium uppercase text-obsidian">{qual}</span>
                 </div>
               ))}
             </div>
@@ -111,16 +112,16 @@ const AboutPage: React.FC<AboutPageProps> = ({ onNavigate }) => {
           </div>
           <div className="w-full md:w-2/3 flex flex-col gap-6">
             <p className="text-primary font-bold uppercase tracking-[0.3em] text-[10px] md:text-xs">Clinical Team</p>
-            <h2 className="text-4xl md:text-5xl font-black tracking-tight leading-tight">Meet Dr. <span className="text-primary italic font-serif">Waqass Farid.</span></h2>
-            <div className="p-8 bg-bg-soft rounded-[2rem] border-l-8 border-primary shadow-xl shadow-primary/5">
-              <p className="text-text-muted text-lg md:text-xl leading-relaxed italic font-serif">
+            <h2 className="text-4xl md:text-5xl font-medium tracking-tight leading-tight">Meet Dr. <span className="text-primary italic font-serif">Waqass Farid.</span></h2>
+            <div className="p-8 bg-cream rounded-[2rem] border-l-8 border-primary shadow-xl shadow-primary/5">
+              <p className="text-muted text-lg md:text-xl leading-relaxed italic font-serif">
                 "As an NHS GP, I believe clients deserve safe, evidence-based care delivered with integrity and precision. My goal is to help restore confidence and wellbeing using advanced aesthetic regenerative techniques."
               </p>
             </div>
-            <p className="text-text-main text-lg font-medium leading-relaxed">
+            <p className="text-obsidian text-lg font-medium leading-relaxed">
               Dr. Waqass Farid is an experienced NHS General Practitioner with additional training in regenerative medicine. His clinical foundation in the NHS underpins a careful, client-centred approach focused on safety, transparency and long-term outcomes.
             </p>
-            <p className="text-text-muted text-lg font-medium leading-relaxed">
+            <p className="text-muted text-lg font-medium leading-relaxed">
               Alongside his primary care work, Dr Farid has developed expertise in advanced aesthetic hair regenerative therapies, helping clients address hair thinning and loss with modern, minimally invasive treatments designed to stimulate natural restoration and improve confidence.
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
@@ -131,8 +132,8 @@ const AboutPage: React.FC<AboutPageProps> = ({ onNavigate }) => {
                 "Client-Centred Clinical Care"
               ].map(qual => (
                 <div key={qual} className="flex items-center gap-3 bg-white p-5 rounded-2xl border border-black/5 shadow-sm hover:border-primary/30 transition-colors group">
-                  <span className="material-symbols-outlined text-primary group-hover:scale-110 transition-transform">verified</span>
-                  <span className="text-sm font-black uppercase tracking-widest text-text-main">{qual}</span>
+                  <BadgeCheck size={18} className="text-primary group-hover:scale-110 transition-transform" />
+                  <span className="text-sm font-medium uppercase text-obsidian">{qual}</span>
                 </div>
               ))}
             </div>
@@ -141,10 +142,10 @@ const AboutPage: React.FC<AboutPageProps> = ({ onNavigate }) => {
       </section>
 
       {/* Values */}
-      <section className="px-6 md:px-20 py-24 bg-clinical-dark text-white relative overflow-hidden">
+      <section className="px-6 md:px-20 py-24 bg-obsidian text-white relative overflow-hidden">
         <div className="absolute top-0 left-0 w-96 h-96 bg-primary/10 rounded-full blur-[120px] pointer-events-none" />
         <div className="max-w-[1440px] mx-auto relative z-10">
-          <h2 className="text-3xl md:text-5xl font-black text-center mb-20 tracking-tight leading-tight">What Sets Us <span className="text-primary italic font-serif">Apart</span></h2>
+          <h2 className="text-3xl md:text-5xl font-medium text-center mb-20 tracking-tight leading-tight">What Sets Us <span className="text-primary italic font-serif">Apart</span></h2>
           <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-12">
             {[
               { title: "Evidence-Based", desc: "Every treatment we offer is grounded in peer-reviewed research and clinical evidence." },
@@ -154,8 +155,8 @@ const AboutPage: React.FC<AboutPageProps> = ({ onNavigate }) => {
               { title: "Personalised", desc: "No two clients are the same. We create bespoke treatment plans." }
             ].map((val, i) => (
               <div key={i} className="flex flex-col gap-6 group">
-                <div className="w-14 h-14 bg-white/5 rounded-2xl flex items-center justify-center text-primary font-black text-xl border border-white/10 group-hover:bg-primary group-hover:text-clinical-dark transition-all duration-500">{i+1}</div>
-                <h4 className="font-black text-lg tracking-tight uppercase tracking-widest text-sm">{val.title}</h4>
+                <div className="w-14 h-14 bg-white/5 rounded-2xl flex items-center justify-center text-primary font-medium text-xl border border-white/10 group-hover:bg-primary group-hover:text-clinical-dark transition-all duration-500">{i+1}</div>
+                <h4 className="font-medium text-lg tracking-tight uppercase text-sm">{val.title}</h4>
                 <p className="text-gray-400 text-sm leading-relaxed">{val.desc}</p>
                 <div className="w-0 h-[1px] bg-primary group-hover:w-full transition-all duration-1000" />
               </div>
@@ -168,21 +169,21 @@ const AboutPage: React.FC<AboutPageProps> = ({ onNavigate }) => {
       <section className="px-6 md:px-20 py-24 bg-white">
         <div className="max-w-[1440px] mx-auto grid grid-cols-1 md:grid-cols-2 gap-16 items-center">
           <div className="flex flex-col gap-8">
-            <div className="inline-flex items-center gap-3 px-4 py-2 rounded-full bg-bg-soft text-text-muted border border-black/5 w-fit">
-              <span className="material-symbols-outlined text-sm">home_pin</span>
-              <span className="text-[10px] md:text-[11px] font-black uppercase tracking-[0.25em]">Our Environment</span>
+            <div className="inline-flex items-center gap-3 px-4 py-2 rounded-full bg-cream text-muted border border-black/5 w-fit">
+              <MapPin size={16} />
+              <span className="text-[10px] md:text-[11px] font-medium uppercase tracking-[0.25em]">Our Environment</span>
             </div>
-            <h2 className="text-4xl md:text-5xl font-black tracking-tight leading-tight">Your Comfortable, <br/><span className="text-primary italic font-serif">Private</span> Space</h2>
-            <p className="text-text-muted text-lg leading-relaxed font-medium">
+            <h2 className="text-4xl md:text-5xl font-medium tracking-tight leading-tight">Your Comfortable, <br/><span className="text-primary italic font-serif">Private</span> Space</h2>
+            <p className="text-muted text-lg leading-relaxed font-medium">
               Located in Cheadle, our clinic has been designed with your comfort in mind. We offer a calm, respectful environment where you can discuss your concerns openly and receive treatment with complete privacy. Our clinical team ensures a supportive experience for all clients, with full cultural sensitivity and privacy maintained at all times.
             </p>
             <div className="flex flex-col gap-4">
-              <div className="flex items-center gap-4 text-text-main font-black uppercase tracking-widest text-xs">
-                <span className="material-symbols-outlined text-primary">call</span>
+              <div className="flex items-center gap-4 text-obsidian font-medium uppercase text-xs">
+                <Phone size={18} className="text-primary" />
                 +44 7356 255598
               </div>
             </div>
-            <button onClick={() => onNavigate(Page.Contact)} className="group bg-primary text-clinical-dark px-10 py-4 rounded-full font-black uppercase tracking-widest text-sm w-fit shadow-xl shadow-primary/20 hover:scale-105 active:scale-95 transition-all">
+            <button onClick={() => onNavigate(Page.Contact)} className="group bg-primary text-clinical-dark px-10 py-4 rounded-full font-medium uppercase text-sm w-fit shadow-xl shadow-primary/20 hover:scale-105 active:scale-95 transition-all">
               Book Your Visit
             </button>
           </div>
