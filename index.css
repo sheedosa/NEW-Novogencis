@@ -1,7 +1,6 @@
 /* ============================================================
-   Novogenics — Global Styles v3.0
-   Clinical SaaS design — deep navy text, slate, cool chrome,
-   medical blue accent, gold reserved for brand moments.
+   Novogenics — Global Styles v3.1
+   Modern clinical SaaS layout + density, warm gold/cream palette.
    Inter UI / Playfair brand.
    ============================================================ */
 
@@ -11,32 +10,32 @@
 
 /* ── CSS Design Tokens ──────────────────────────────────────── */
 :root {
-  /* Core palette — clinical SaaS */
-  --color-obsidian:   #0A1426;   /* primary text — deep navy */
-  --color-ivory:      #FFFFFF;   /* page background */
-  --color-cream:      #F1F4F8;   /* chrome / sidebar / subtle bg */
-  --color-sand:       #E7EBF0;   /* dividers / borders */
-  --color-muted:      #475569;   /* slate-600 — secondary text */
-  --color-hint:       #94A3B8;   /* slate-400 — tertiary / placeholder */
-  --color-subtle:     #FAFBFC;   /* almost-white surface */
+  /* Core palette — warm gold/cream */
+  --color-obsidian:   #1C1917;   /* primary text — warm dark */
+  --color-ivory:      #FDFCFB;   /* page background */
+  --color-cream:      #F5F0EB;   /* chrome / sidebar / subtle bg */
+  --color-sand:       #E5DDD4;   /* dividers / borders */
+  --color-muted:      #6B5E52;   /* warm secondary text */
+  --color-hint:       #9C8878;   /* warm tertiary / placeholder */
+  --color-subtle:     #FCFAF8;   /* almost-white warm surface */
 
   /* Brand & accent */
-  --color-gold:       #C9A86A;   /* gold — brand moments only */
+  --color-gold:       #C9A86A;   /* gold — primary brand accent */
   --color-gold-dim:   #A8894F;
-  --color-clinical:   #1E6091;   /* medical blue — primary clinical accent */
-  --color-clinical-bg:#EAF2F9;
-  --color-feature:    #0A2540;   /* deep navy feature surfaces */
+  --color-clinical:   #C9A86A;   /* "clinical accent" → gold (active states) */
+  --color-clinical-bg:#FAF3E6;   /* soft warm gold tint background */
+  --color-feature:    #1C1917;   /* warm obsidian — feature surfaces */
   --color-mint:       #7EC8A8;   /* sparkline / accent */
 
   /* Semantic */
   --color-success:    #059669;
-  --color-success-bg: #E7F5EF;
-  --color-warning:    #B85D0A;
-  --color-warning-bg: #FDF1E1;
-  --color-danger:     #B3324A;
-  --color-danger-bg:  #FBE6EA;
-  --color-info:       #1E6091;
-  --color-info-bg:    #EAF2F9;
+  --color-success-bg: #ECFDF5;
+  --color-warning:    #D97706;
+  --color-warning-bg: #FFFBEB;
+  --color-danger:     #DC2626;
+  --color-danger-bg:  #FEF2F2;
+  --color-info:       #B8860B;   /* informational warm gold */
+  --color-info-bg:    #FAF3E6;
 
   /* Layout */
   --sidebar-width:    232px;
@@ -51,11 +50,11 @@
   --radius-xl:  12px;
   --radius-pill:9999px;
 
-  /* Shadows (minimal, cool-toned) */
-  --shadow-card:  0 1px 2px 0 rgba(10,20,38,0.04), 0 1px 1px -1px rgba(10,20,38,0.03);
-  --shadow-panel: 0 4px 16px -4px rgba(10,20,38,0.08);
-  --shadow-modal: 0 20px 48px -12px rgba(10,20,38,0.18);
-  --shadow-focus: 0 0 0 3px rgba(30,96,145,0.22);
+  /* Shadows (minimal, warm-toned) */
+  --shadow-card:  0 1px 2px 0 rgba(28,25,23,0.04), 0 1px 1px -1px rgba(28,25,23,0.03);
+  --shadow-panel: 0 4px 16px -4px rgba(28,25,23,0.08);
+  --shadow-modal: 0 20px 48px -12px rgba(28,25,23,0.18);
+  --shadow-focus: 0 0 0 3px rgba(201,168,106,0.25);
 }
 
 /* ── Base reset ─────────────────────────────────────────────── */
@@ -334,7 +333,7 @@ input:focus, textarea:focus  {
   background: var(--color-obsidian);
   color: #fff;
 }
-.btn-primary:hover:not(:disabled) { background: #16243F; }
+.btn-primary:hover:not(:disabled) { background: #2d2925; }
 
 /* Secondary — obsidian outline */
 .btn-secondary {
@@ -544,7 +543,7 @@ input:focus, textarea:focus  {
 .sidebar-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(10, 20, 38, 0.45);
+  background: rgba(28, 25, 23, 0.45);
   backdrop-filter: blur(4px);
   z-index: 49;
 }

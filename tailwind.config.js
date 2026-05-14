@@ -5,40 +5,40 @@ export default {
     extend: {
       colors: {
         // ── Brand core ──────────────────────────────────────────────
-        primary:       '#C9A86A',   // Gold — brand moments only
+        primary:       '#C9A86A',   // Gold — primary brand accent
         'primary-dim': '#A8894F',
 
-        // ── Clinical palette ────────────────────────────────────────
-        clinical:      '#1E6091',   // medical blue — primary accent
-        'clinical-bg': '#EAF2F9',
-        feature:       '#0A2540',   // deep navy hero surfaces
+        // ── Clinical accent (warm gold, used by active-state utilities) ─
+        clinical:      '#C9A86A',   // "clinical" accent → gold
+        'clinical-bg': '#FAF3E6',   // soft warm gold tint
+        feature:       '#1C1917',   // warm obsidian hero surfaces
         mint:          '#7EC8A8',   // sparkline / accent
 
         // ── Neutrals ────────────────────────────────────────────────
-        obsidian:      '#0A1426',   // primary text — deep navy
-        ivory:         '#FFFFFF',   // page bg
-        cream:         '#F1F4F8',   // chrome / sidebar bg
-        sand:          '#E7EBF0',   // border default
-        muted:         '#475569',   // slate-600 — secondary text
-        hint:          '#94A3B8',   // slate-400 — tertiary / placeholder
-        subtle:        '#FAFBFC',   // almost-white surface
+        obsidian:      '#1C1917',   // warm dark — primary text
+        ivory:         '#FDFCFB',   // warm page bg
+        cream:         '#F5F0EB',   // chrome / sidebar bg
+        sand:          '#E5DDD4',   // border default
+        muted:         '#6B5E52',   // warm secondary text
+        hint:          '#9C8878',   // warm tertiary / placeholder
+        subtle:        '#FCFAF8',   // almost-white warm surface
 
-        // ── Legacy aliases (back-compat — point to new clinical palette) ─
-        'bg-soft':      '#F1F4F8',
-        'clinical-dark':'#0A2540',
-        'text-main':    '#0A1426',
-        'text-muted':   '#475569',
+        // ── Legacy aliases (back-compat) ────────────────────────────
+        'bg-soft':      '#F5F0EB',
+        'clinical-dark':'#1C1917',
+        'text-main':    '#1C1917',
+        'text-muted':   '#6B5E52',
         'accent-gold':  '#C9A86A',
         'brand-green':  '#7EC8A8',
 
         // ── Semantic status ─────────────────────────────────────────
-        success: { DEFAULT: '#059669', light: '#E7F5EF', text: '#065F46' },
-        warning: { DEFAULT: '#B85D0A', light: '#FDF1E1', text: '#92400E' },
-        danger:  { DEFAULT: '#B3324A', light: '#FBE6EA', text: '#991B1B' },
-        info:    { DEFAULT: '#1E6091', light: '#EAF2F9', text: '#1D4ED8' },
+        success: { DEFAULT: '#059669', light: '#ECFDF5', text: '#065F46' },
+        warning: { DEFAULT: '#D97706', light: '#FFFBEB', text: '#92400E' },
+        danger:  { DEFAULT: '#DC2626', light: '#FEF2F2', text: '#991B1B' },
+        info:    { DEFAULT: '#B8860B', light: '#FAF3E6', text: '#8B6914' },
 
         // ── AI feature colour ────────────────────────────────────────
-        ai: { DEFAULT: '#0A2540', accent: '#C9A86A' },
+        ai: { DEFAULT: '#1C1917', accent: '#C9A86A' },
       },
 
       fontFamily: {
@@ -82,11 +82,11 @@ export default {
       },
 
       boxShadow: {
-        // Minimal, cool-toned — only functional elevation
-        'card':   '0 1px 2px 0 rgba(10,20,38,0.04), 0 1px 1px -1px rgba(10,20,38,0.03)',
-        'panel':  '0 4px 16px -4px rgba(10,20,38,0.08)',
-        'modal':  '0 20px 48px -12px rgba(10,20,38,0.18)',
-        'focus':  '0 0 0 3px rgba(30,96,145,0.22)',
+        // Minimal, warm-toned — only functional elevation
+        'card':   '0 1px 2px 0 rgba(28,25,23,0.04), 0 1px 1px -1px rgba(28,25,23,0.03)',
+        'panel':  '0 4px 16px -4px rgba(28,25,23,0.08)',
+        'modal':  '0 20px 48px -12px rgba(28,25,23,0.18)',
+        'focus':  '0 0 0 3px rgba(201,168,106,0.25)',
         'none':   'none',
       },
 
