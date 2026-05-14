@@ -33,25 +33,19 @@ function AssessmentsPanel() {
   return (
     <div className="animate-fade-up flex flex-col gap-6 h-[calc(100vh-10rem)]">
       {/* Header */}
-      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 shrink-0">
-        <div>
-          <div className="flex items-center gap-3">
-            <h2 className="text-2xl md:text-4xl font-medium text-obsidian tracking-tight">Triage Queue</h2>
-            {pendingTriage.length > 0 && (
-              <span className="px-3 py-1 bg-red-50 text-red-600 rounded-full text-xs font-medium animate-pulse">
-                {pendingTriage.length} Pending
-              </span>
-            )}
+      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-3 shrink-0">
+        <div className="flex items-baseline gap-3">
+          <div>
+            <p className="page-eyebrow">Triage</p>
+            <h2 className="page-title">Assessments</h2>
           </div>
-          <p className="text-[11px] font-medium text-muted uppercase tracking-[0.2em] mt-2">
-            Review new intake forms and submit clinical feedback in one place
-          </p>
+          {pendingTriage.length > 0 && (
+            <span className="status-pill urgent ml-2"><span className="status-dot" />{pendingTriage.length} pending</span>
+          )}
         </div>
-        <div className="flex items-center gap-3">
-          <div className="flex bg-cream p-1 rounded-full border border-black/5 text-2xs font-medium text-hint">
-            <span className="px-4 py-2 text-red-500">● {pendingTriage.length} Pending</span>
-            <span className="px-4 py-2 text-green-600">✓ {reviewedTriage.length} Reviewed</span>
-          </div>
+        <div className="flex items-center gap-2">
+          <span className="status-pill urgent"><span className="status-dot" />{pendingTriage.length} pending</span>
+          <span className="status-pill live"><span className="status-dot" />{reviewedTriage.length} reviewed</span>
         </div>
       </div>
 

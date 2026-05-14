@@ -18,24 +18,23 @@ const AppointmentsPanel: React.FC = () => {
   } = useAdminContext();
 
   return (
-    <div className="animate-fade-up space-y-4 md:space-y-8">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <h2 className="text-xl md:text-3xl font-medium text-obsidian">Appointment Manager</h2>
+    <div className="animate-fade-up space-y-4">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+        <div>
+          <p className="page-eyebrow">Schedule</p>
+          <h2 className="page-title">Appointments</h2>
+        </div>
         <div className="flex gap-2 w-full sm:w-auto">
           {user?.adminType !== 'technical' && (
             <button
               onClick={() => setShowOnlyAssigned(!showOnlyAssigned)}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-full text-2xs font-medium text-hint transition-all shadow-sm border ${showOnlyAssigned ? 'bg-primary text-white border-primary' : 'bg-white text-muted border-black/5 hover:border-primary/30'}`}
+              className={`btn btn-sm ${showOnlyAssigned ? 'btn-primary' : 'btn-ghost'}`}
             >
-              <span className="material-symbols-outlined text-sm">{showOnlyAssigned ? 'person' : 'group'}</span>
-              {showOnlyAssigned ? 'My Assignments' : 'All Appointments'}
+              {showOnlyAssigned ? 'My assignments' : 'All appointments'}
             </button>
           )}
-          <button
-            onClick={() => openBookingModal()}
-            className="w-full sm:w-auto bg-primary text-clinical-dark px-8 py-3 rounded-full text-[10px] md:text-xs font-medium shadow-lg shadow-primary/10 transition-transform active:scale-95"
-          >
-            Book New Appointment
+          <button onClick={() => openBookingModal()} className="btn btn-primary btn-sm">
+            Book appointment
           </button>
         </div>
       </div>

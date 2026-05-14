@@ -43,24 +43,20 @@ const MessagesPanel: React.FC = () => {
   };
 
   return (
-    <div className="animate-fade-up h-[calc(100vh-10rem)] flex flex-col gap-8">
+    <div className="animate-fade-up h-[calc(100vh-9rem)] flex flex-col gap-4">
       <div className="flex justify-between items-center">
-         <div>
-           <h2 className="text-2xl md:text-4xl lg:text-5xl font-medium text-obsidian tracking-tight">Message Center</h2>
-           <p className="hidden lg:block text-[11px] font-medium text-muted uppercase tracking-[0.2em] mt-3 flex items-center gap-2">
-             <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-             Real-time communication with your clinical patients
-           </p>
-         </div>
-         {user?.role === 'admin' && (
-            <button
-              onClick={() => setShowOnlyAssigned(!showOnlyAssigned)}
-              className={`btn-clinical ${showOnlyAssigned ? 'btn-clinical-primary' : 'btn-clinical-secondary'}`}
-            >
-              <span className="material-symbols-outlined text-lg mr-2">{showOnlyAssigned ? 'person' : 'group'}</span>
-              {showOnlyAssigned ? 'My Assignments' : 'All Messages'}
-            </button>
-          )}
+        <div>
+          <p className="page-eyebrow">Inbox</p>
+          <h2 className="page-title">Conversations</h2>
+        </div>
+        {user?.role === 'admin' && (
+          <button
+            onClick={() => setShowOnlyAssigned(!showOnlyAssigned)}
+            className={`btn btn-sm ${showOnlyAssigned ? 'btn-primary' : 'btn-ghost'}`}
+          >
+            {showOnlyAssigned ? 'My assignments' : 'All conversations'}
+          </button>
+        )}
       </div>
 
       <div className="flex-grow grid grid-cols-1 md:grid-cols-12 gap-8 min-h-0">

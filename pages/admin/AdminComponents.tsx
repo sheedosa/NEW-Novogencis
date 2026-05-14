@@ -1,8 +1,21 @@
 import React, { useState, useEffect } from 'react';
-import { motion } from 'motion/react';
 import { Card } from '../../components/Card';
 import { AdminTab } from './context';
-import { User, PlusCircle, Send, StickyNote, RefreshCw, CheckCircle, AlertCircle } from 'lucide-react';
+import {
+  User, PlusCircle, Send, StickyNote, RefreshCw, CheckCircle, AlertCircle,
+  LayoutDashboard, ClipboardList, Database, CalendarDays, MessageCircle,
+  Activity, FileText,
+} from 'lucide-react';
+
+const NAV_ICONS: Record<string, React.ComponentType<{ size?: number; className?: string }>> = {
+  space_dashboard:    LayoutDashboard,
+  assignment:         ClipboardList,
+  database:           Database,
+  calendar_month:     CalendarDays,
+  health_and_safety:  Activity,
+  forum:              MessageCircle,
+  description:        FileText,
+};
 
 // ── StatusBadge ────────────────────────────────────────────────────────────
 export const StatusBadge = ({ status }: { status: string }) => {
@@ -35,7 +48,7 @@ export const AssignedBadge = ({ isAssigned }: { isAssigned: boolean }) => {
 
 // ── SidebarItem ────────────────────────────────────────────────────────────
 export const SidebarItem = ({
-  id, label, icon, activeTab, selectedClientId, onClick, isCollapsed,
+  id, label, icon, activeTab, selectedClientId, onClick, isCollapsed, count,
 }: {
   id: AdminTab;
   label: string;
@@ -44,24 +57,24 @@ export const SidebarItem = ({
   selectedClientId: string | null;
   onClick: (id: AdminTab) => void;
   isCollapsed?: boolean;
-}) => (
-  <button
-    onClick={() => onClick(id)}
-    className={`w-full flex items-center gap-4 px-6 py-5 rounded-2xl transition-all group relative ${
-      activeTab === id && !selectedClientId
-        ? 'bg-obsidian text-white shadow-2xl shadow-clinical-dark/20'
-        : 'text-muted hover:bg-cream hover:text-clinical-dark'
-    }`}
-  >
-    {activeTab === id && !selectedClientId && (
-      <motion.div layoutId="activeTab" className="absolute left-0 w-1.5 h-8 bg-primary rounded-r-full" />
-    )}
-    <span className={`material-symbols-outlined text-2xl transition-transform group-hover:scale-110 ${activeTab === id && !selectedClientId ? 'text-primary' : 'text-muted'}`}>
-      {icon}
-    </span>
-    {!isCollapsed && <span className="text-xs font-medium">{label}</span>}
-  </button>
-);
+  count?: number;
+}) => {
+  const isActive = activeTab === id && !selectedClientId;
+  const Icon = NAV_ICONS[icon] || LayoutDashboard;
+  return (
+    <button
+      onClick={() => onClick(id)}
+      className={`nav-item ${isActive ? 'active' : ''} ${isCollapsed ? 'justify-center' : ''}`}
+      aria-current={isActive ? 'page' : undefined}
+    >
+      <Icon size={16} className={`nav-icon ${isActive ? 'text-clinical' : 'text-muted'}`} />
+      {!isCollapsed && <span>{label}</span>}
+      {!isCollapsed && typeof count === 'number' && count > 0 && (
+        <span className="nav-badge">{count}</span>
+      )}
+    </button>
+  );
+};
 
 // ── MessageInputForm ───────────────────────────────────────────────────────
 export const MessageInputForm = ({

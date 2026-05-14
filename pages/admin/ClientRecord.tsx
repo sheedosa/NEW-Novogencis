@@ -159,66 +159,63 @@ const ClientRecord: React.FC = () => {
   };
 
   return (
-    <div className="animate-fade-up space-y-4 md:space-y-8">
-      <div className="flex flex-col md:flex-row items-start md:items-center gap-4 mb-4 md:mb-8">
+    <div className="animate-fade-up space-y-4">
+      <div className="flex flex-col md:flex-row items-start md:items-center gap-3">
         <div className="flex items-center gap-3 w-full md:w-auto">
           <button
             onClick={() => setSelectedClientId(null)}
-            className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-cream flex items-center justify-center text-muted hover:text-primary transition-colors shrink-0"
+            className="btn-icon shrink-0"
+            aria-label="Back to clients"
           >
-            <ArrowLeft size={20} />
+            <ArrowLeft size={15} />
           </button>
+          <div className="avatar avatar-md bg-clinical-bg text-clinical">{getInitials(selectedClient.name)}</div>
           <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <h2 className="text-xl md:text-3xl font-medium text-obsidian truncate">{selectedClient.name}</h2>
+            <div className="flex items-center gap-1.5">
+              <h2 className="text-lg font-medium text-obsidian truncate" style={{ letterSpacing: '-0.005em' }}>{selectedClient.name}</h2>
               {selectedClient.policiesAccepted && (
-                <span title="Policies Accepted"><CheckCircle size={20} className="text-green-500" /></span>
+                <span title="Policies accepted"><CheckCircle size={14} className="text-success" /></span>
               )}
             </div>
-            <p className="text-[9px] md:text-[10px] font-medium text-muted uppercase truncate">Registry ID: {selectedClient.id}</p>
+            <p className="text-xs text-hint truncate">ID {selectedClient.id} · {selectedClient.email}</p>
           </div>
         </div>
 
-        <div className="grid grid-cols-2 sm:flex gap-2 w-full md:w-auto md:ml-auto">
-          <button
-            onClick={() => openBookingModal(selectedClient.id)}
-            className="bg-primary text-clinical-dark px-4 md:px-6 py-3 rounded-full text-2xs font-medium text-hint shadow-lg shadow-primary/10 transition-transform active:scale-95"
-          >
-            Book Appt
+        <div className="flex gap-2 w-full md:w-auto md:ml-auto">
+          <button onClick={openQuickEdit} className="btn btn-ghost btn-sm flex-1 md:flex-none">
+            Quick edit
           </button>
-          <button
-            onClick={openQuickEdit}
-            className="bg-obsidian text-white px-4 md:px-6 py-3 rounded-full text-2xs font-medium text-hint transition-transform hover:scale-105 active:scale-95"
-          >
-            Quick Edit
+          <button onClick={() => openBookingModal(selectedClient.id)} className="btn btn-primary btn-sm flex-1 md:flex-none">
+            Book appointment
           </button>
         </div>
       </div>
 
       {/* Sub-tabs */}
-      <div className="flex gap-2 border-b border-black/5 pb-4 overflow-x-auto no-scrollbar -mx-4 sm:-mx-6 px-4 sm:px-6 md:mx-0 md:px-0 sticky top-20 bg-white/90 backdrop-blur-md z-30 pt-4 md:pt-0 md:static md:bg-transparent">
+      <div className="flex gap-0.5 border-b border-sand overflow-x-auto no-scrollbar -mx-4 sm:-mx-6 px-4 sm:px-6 md:mx-0 md:px-0">
         {[
-          { id: 'overview', label: 'Overview', icon: 'person' },
-          { id: 'communications', label: 'Communication', icon: 'forum' },
-          { id: 'forms', label: 'Forms', icon: 'description' },
-          { id: 'gallery', label: 'Gallery', icon: 'photo_library' },
-          { id: 'assessment', label: 'Assessments', icon: 'assignment' },
-          { id: 'treatment', label: 'Treatment Plan', icon: 'medical_services' },
-          { id: 'financials', label: 'Financials', icon: 'payments' }
-        ].map(tab => (
-          <button
-            key={tab.id}
-            onClick={() => setClientRecordTab(tab.id as ClientRecordTab)}
-            className={`flex items-center gap-2 px-3 md:px-6 py-2 md:py-3 rounded-xl text-[9px] md:text-2xs font-medium text-hint transition-all whitespace-nowrap border ${
-              clientRecordTab === tab.id
-                ? 'bg-obsidian text-white border-clinical-dark shadow-lg shadow-clinical-dark/10'
-                : 'text-muted bg-white border-black/5 hover:bg-cream hover:border-black/10'
-            }`}
-          >
-            <span className="material-symbols-outlined text-sm md:text-lg">{tab.icon}</span>
-            <span>{tab.label}</span>
-          </button>
-        ))}
+          { id: 'overview', label: 'Overview' },
+          { id: 'communications', label: 'Communication' },
+          { id: 'forms', label: 'Forms' },
+          { id: 'gallery', label: 'Gallery' },
+          { id: 'assessment', label: 'Assessments' },
+          { id: 'treatment', label: 'Treatment plan' },
+          { id: 'financials', label: 'Financials' }
+        ].map(tab => {
+          const isActive = clientRecordTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setClientRecordTab(tab.id as ClientRecordTab)}
+              className={`relative px-3 py-2 text-xs whitespace-nowrap transition-colors ${
+                isActive ? 'text-obsidian font-medium' : 'text-muted hover:text-obsidian'
+              }`}
+            >
+              {tab.label}
+              {isActive && <span className="absolute left-2 right-2 -bottom-px h-[2px] bg-clinical rounded-full" />}
+            </button>
+          );
+        })}
       </div>
 
       <div className="mt-4 md:mt-8">

@@ -1,5 +1,14 @@
 import React, { useState, useMemo, memo, useCallback } from 'react';
-import { Stethoscope, FileText, CheckCircle, CreditCard, MessageCircle, Send, CalendarDays, FlaskConical, Navigation, History, ClipboardList, Info, UserIcon, X, LogOut, Menu, Bell, BellOff, ArrowRight, Pill, Camera, Upload, RefreshCw, BarChart2 } from 'lucide-react';
+import { Stethoscope, FileText, CheckCircle, CreditCard, MessageCircle, Send, CalendarDays, FlaskConical, Navigation, History, ClipboardList, Info, UserIcon, X, LogOut, Menu, Bell, BellOff, ArrowRight, Pill, Camera, Upload, RefreshCw, BarChart2, LayoutGrid, ChevronRight } from 'lucide-react';
+
+const CLIENT_NAV_ICONS: Record<string, React.ComponentType<{ size?: number; className?: string }>> = {
+  grid_view:        LayoutGrid,
+  analytics:        BarChart2,
+  calendar_month:   CalendarDays,
+  assignment:       ClipboardList,
+  forum:            MessageCircle,
+  person:           UserIcon,
+};
 import { Page, User, Appointment, Client, Message, GalleryItem } from '../types';
 import { FORMS } from '../constants';
 import { Card } from '../components/Card';
@@ -35,22 +44,21 @@ interface SidebarItemProps {
   badge?: number;
 }
 
-const SidebarItem: React.FC<SidebarItemProps> = ({ id, label, icon, activeTab, onClick, badge }) => (
-  <button 
-    onClick={() => onClick(id)}
-    className={`w-full flex items-center justify-between px-5 py-3.5 rounded-xl transition-all group sidebar-item-clinical ${activeTab === id ? 'bg-obsidian text-white shadow-lg shadow-clinical-dark/10' : 'text-muted hover:bg-cream'}`}
-  >
-    <div className="flex items-center gap-3">
-      <span className={`material-symbols-outlined text-[20px] transition-transform group-hover:scale-110 ${activeTab === id ? 'text-primary' : 'text-muted'}`}>{icon}</span>
-      <span className="text-2xs font-medium text-hint">{label}</span>
-    </div>
-    {badge !== undefined && badge > 0 && (
-      <span className="bg-primary text-clinical-dark text-[9px] font-medium px-1.5 py-0.5 rounded-full shadow-md shadow-primary/20">
-        {badge}
-      </span>
-    )}
-  </button>
-);
+const SidebarItem: React.FC<SidebarItemProps> = ({ id, label, icon, activeTab, onClick, badge }) => {
+  const isActive = activeTab === id;
+  const Icon = CLIENT_NAV_ICONS[icon] || LayoutGrid;
+  return (
+    <button
+      onClick={() => onClick(id)}
+      className={`nav-item ${isActive ? 'active' : ''}`}
+      aria-current={isActive ? 'page' : undefined}
+    >
+      <Icon size={16} className={`nav-icon ${isActive ? 'text-clinical' : 'text-muted'}`} />
+      <span>{label}</span>
+      {badge !== undefined && badge > 0 && <span className="nav-badge nav-badge-blue">{badge}</span>}
+    </button>
+  );
+};
 
 import { AppNotification } from '../types';
 
@@ -445,156 +453,127 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
     switch (activeTab) {
       case 'overview':
         return (
-          <div className="animate-fade-up space-y-10">
-            <header className="mb-8 md:mb-10">
-              <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-                 <div>
-                    <h2 className="text-3xl md:text-5xl font-medium text-obsidian tracking-tight leading-tight">Welcome back, <br className="md:hidden" /><span className="text-primary italic font-serif">{firstName}.</span></h2>
-                    <p className="text-muted font-medium uppercase tracking-[0.2em] mt-2 text-[10px]">Registry Status: {currentClient?.status || 'Active'}</p>
-                 </div>
-                 <div className="flex items-center gap-2">
-                    <div className="bg-primary/5 px-4 py-2 rounded-xl border border-primary/10">
-                       <p className="text-[8px] font-medium text-primary uppercase mb-0.5">Clinical Protocol</p>
-                       <p className="text-[11px] font-medium text-clinical-dark uppercase">{currentClient?.packageStatus || 'Not Enrolled'}</p>
-                    </div>
-                 </div>
-              </div>
-            </header>
+          <div className="animate-fade-up space-y-5">
+            {/* Status row — small status pill, plan chip on the right */}
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <span className="status-pill clinical">
+                <span className="status-dot" />
+                Status · {currentClient?.status || 'Active'}
+              </span>
+              <span className="status-pill">
+                <span className="cohort-dot clinical" />
+                Plan · {currentClient?.packageStatus || 'Not enrolled'}
+              </span>
+            </div>
 
-            {/* Bento Stats Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
-              <div className="bg-white p-6 md:p-8 rounded-[2rem] border border-black/5 shadow-sm hover:translate-y-[-2px] transition-all">
-                <div className="flex items-center gap-3 mb-4">
-                   <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center text-primary">
-                      <CalendarDays size={18} />
-                   </div>
-                   <span className="text-muted font-medium uppercase text-[9px]">Schedule</span>
-                </div>
+            {/* KPI tiles — next appointment, program, clinician */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div className="kpi-tile">
+                <span className="kpi-label flex items-center gap-1.5"><CalendarDays size={11} /> Next session</span>
                 {nextAppointment ? (
-                  <div className="space-y-1">
-                    <p className="text-lg md:text-xl font-medium text-obsidian">
+                  <>
+                    <span className="kpi-value">
                       {new Date(nextAppointment.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
-                    </p>
-                    <p className="text-xs font-medium text-primary uppercase">{nextAppointment.time}</p>
-                  </div>
+                    </span>
+                    <span className="kpi-delta clinical" style={{ background: 'var(--color-clinical-bg)', color: 'var(--color-clinical)' }}>{nextAppointment.time}</span>
+                    <span className="kpi-sub">{nextAppointment.type}</span>
+                  </>
                 ) : (
-                  <p className="text-xs font-bold text-muted italic">No upcoming sessions</p>
+                  <>
+                    <span className="kpi-value text-hint" style={{ fontSize: 17 }}>None scheduled</span>
+                    <span className="kpi-sub">Reach out via Messages to book your next visit</span>
+                  </>
                 )}
               </div>
 
-              <div className="bg-white p-6 md:p-8 rounded-[2rem] border border-black/5 shadow-sm hover:translate-y-[-2px] transition-all">
-                <div className="flex items-center gap-3 mb-4">
-                   <div className="w-8 h-8 bg-obsidian/10 rounded-lg flex items-center justify-center text-clinical-dark">
-                      <FlaskConical size={18} />
-                   </div>
-                   <span className="text-muted font-medium uppercase text-[9px]">Enrolled Program</span>
+              <div className="kpi-tile">
+                <span className="kpi-label flex items-center gap-1.5"><FlaskConical size={11} /> Program</span>
+                <span className="kpi-value" style={{ fontSize: 17, letterSpacing: 0 }}>{currentClient?.package || 'Assessment only'}</span>
+                <div className="flex items-center gap-2 mt-1">
+                  <div className="progress-track flex-grow">
+                    <div className="progress-fill success" style={{ width: `${progress}%` }} />
+                  </div>
+                  <span className="text-2xs text-hint">{progress}%</span>
                 </div>
-                <p className="text-lg md:text-xl font-medium text-obsidian truncate">{currentClient?.package || 'Assessment Only'}</p>
-                <div className="mt-3 flex items-center gap-2">
-                   <div className="flex-grow h-1 bg-cream rounded-full overflow-hidden">
-                      <div className="bg-primary h-full rounded-full" style={{ width: `${progress}%` }} />
-                   </div>
-                   <span className="text-[9px] font-medium text-primary">{progress}%</span>
-                </div>
+                <span className="kpi-sub">Journey progress</span>
               </div>
 
-              <div className="bg-obsidian text-white p-6 md:p-8 rounded-[2rem] shadow-xl shadow-clinical-dark/20 hover:translate-y-[-2px] transition-all relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-24 h-24 bg-primary/10 rounded-full -mr-12 -mt-12 blur-2xl" />
-                <div className="flex items-center gap-3 mb-4 relative z-10">
-                   <div className="w-8 h-8 bg-white/10 rounded-lg flex items-center justify-center text-primary">
-                      <Stethoscope size={18} />
-                   </div>
-                   <span className="text-gray-400 font-medium uppercase text-[9px]">Your Clinician</span>
-                </div>
-                {(() => {
-                  const assigned = userAppointments
-                    .filter(a => a.doctorName)
-                    .sort((a, b) => new Date(b.createdAt || b.date).getTime() - new Date(a.createdAt || a.date).getTime())[0];
-                  if (assigned?.doctorName) {
-                    return (
-                      <>
-                        <p className="text-lg md:text-xl font-medium relative z-10">{assigned.doctorName}</p>
-                        <p className="text-[9px] font-medium text-primary uppercase relative z-10">Assigned via {assigned.type}</p>
-                      </>
-                    );
-                  }
-                  return (
-                    <>
-                      <p className="text-lg md:text-xl font-medium relative z-10">Pending Assignment</p>
-                      <p className="text-[9px] font-medium text-primary uppercase relative z-10">A clinician will be assigned at booking</p>
-                    </>
-                  );
-                })()}
-              </div>
+              {(() => {
+                const assigned = userAppointments
+                  .filter(a => a.doctorName)
+                  .sort((a, b) => new Date(b.createdAt || b.date).getTime() - new Date(a.createdAt || a.date).getTime())[0];
+                return (
+                  <div className="feature-card" style={{ minHeight: 122 }}>
+                    <span className="feature-label flex items-center gap-1.5"><Stethoscope size={11} /> Your clinician</span>
+                    <span className="feature-value" style={{ fontSize: 17 }}>{assigned?.doctorName || 'Pending assignment'}</span>
+                    <span className="feature-meta">{assigned?.doctorName ? `Assigned via ${assigned.type}` : 'A clinician will be assigned at booking'}</span>
+                  </div>
+                );
+              })()}
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
-              <div className="bg-white p-8 md:p-12 rounded-[3rem] border border-black/5">
-                <h3 className="text-xl font-medium text-obsidian uppercase mb-8 flex items-center gap-3">
-                  <span className="material-symbols-outlined text-primary">bolt</span> Quick Actions
-                </h3>
-                <div className="grid grid-cols-2 gap-4">
-                  <button
-                    onClick={() => setActiveTab('messages')}
-                    className="p-6 bg-cream rounded-3xl text-center group hover:bg-primary transition-all"
-                  >
-                    <CalendarDays size={30} className="text-primary group-hover:text-white mb-2" />
-                    <p className="text-2xs font-medium text-hint group-hover:text-white">Request Visit</p>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <div className="surface surface-pad">
+                <div className="section-header">
+                  <p className="section-title">Quick actions</p>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <button onClick={() => setActiveTab('appointments')} className="p-4 rounded-md bg-cream text-left transition-colors hover:bg-clinical-bg group">
+                    <CalendarDays size={16} className="text-clinical mb-2" />
+                    <p className="text-xs font-medium text-obsidian">Request visit</p>
                   </button>
-                  <button onClick={() => setActiveTab('treatments')} className="p-6 bg-cream rounded-3xl text-center group hover:bg-primary transition-all">
-                    <BarChart2 size={30} className="text-primary group-hover:text-white mb-2" />
-                    <p className="text-2xs font-medium text-hint group-hover:text-white">View Progress</p>
+                  <button onClick={() => setActiveTab('treatments')} className="p-4 rounded-md bg-cream text-left transition-colors hover:bg-clinical-bg group">
+                    <BarChart2 size={16} className="text-clinical mb-2" />
+                    <p className="text-xs font-medium text-obsidian">View progress</p>
                   </button>
-                  <button onClick={() => setActiveTab('messages')} className="p-6 bg-cream rounded-3xl text-center group hover:bg-primary transition-all">
-                    <MessageCircle size={30} className="text-primary group-hover:text-white mb-2" />
-                    <p className="text-2xs font-medium text-hint group-hover:text-white">Message Clinic</p>
+                  <button onClick={() => setActiveTab('messages')} className="p-4 rounded-md bg-cream text-left transition-colors hover:bg-clinical-bg group">
+                    <MessageCircle size={16} className="text-clinical mb-2" />
+                    <p className="text-xs font-medium text-obsidian">Message clinic</p>
                   </button>
-                  <button onClick={() => setActiveTab('assessments')} className="p-6 bg-cream rounded-3xl text-center group hover:bg-primary transition-all">
-                    <ClipboardList size={30} className="text-primary group-hover:text-white mb-2" />
-                    <p className="text-2xs font-medium text-hint group-hover:text-white">My Assessment</p>
+                  <button onClick={() => setActiveTab('assessments')} className="p-4 rounded-md bg-cream text-left transition-colors hover:bg-clinical-bg group">
+                    <ClipboardList size={16} className="text-clinical mb-2" />
+                    <p className="text-xs font-medium text-obsidian">My assessment</p>
                   </button>
                 </div>
               </div>
 
-              <div className="bg-obsidian text-white p-8 md:p-12 rounded-[3rem] relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-64 h-64 bg-primary/10 rounded-full blur-[80px] pointer-events-none" />
-                <h3 className="text-xl font-medium uppercase mb-8 relative z-10">Clinical Update</h3>
-                <div className="space-y-6 relative z-10">
-                  {currentClient?.assessmentData?.clinicalFeedback ? (
-                    <button
-                      onClick={() => setActiveTab('assessments')}
-                      className="w-full text-left p-6 bg-white/5 rounded-2xl border border-white/10 hover:bg-white/10 transition-colors group"
-                    >
-                      <div className="flex items-center gap-2 mb-3">
-                        <ClipboardList size={16} className="text-primary" />
-                        <p className="text-[9px] font-medium text-primary uppercase">Feedback Available</p>
-                        {currentClient.assessmentData.reviewDate && (
-                          <span className="text-[9px] text-gray-400 font-bold ml-auto">
-                            {new Date(currentClient.assessmentData.reviewDate).toLocaleDateString()}
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-sm leading-relaxed text-gray-200 line-clamp-3 italic font-serif">
-                        "{currentClient.assessmentData.clinicalFeedback}"
-                      </p>
-                      <p className="text-[9px] font-medium text-primary uppercase mt-3 group-hover:underline flex items-center gap-1">
-                        Read full review
-                        <ArrowRight size={14} />
-                      </p>
-                    </button>
-                  ) : currentClient?.status === 'Assessment Submitted' ? (
-                    <div className="p-6 bg-white/5 rounded-2xl border border-white/10">
-                      <p className="text-[9px] font-medium text-primary uppercase mb-2">Under Review</p>
-                      <p className="text-sm leading-relaxed text-gray-300 font-serif">
-                        Your clinical team is reviewing your assessment. You'll be notified when feedback is ready.
-                      </p>
+              <div className="feature-card">
+                <span className="feature-label">Clinical update</span>
+                {currentClient?.assessmentData?.clinicalFeedback ? (
+                  <button
+                    onClick={() => setActiveTab('assessments')}
+                    className="w-full text-left mt-1 group"
+                  >
+                    <div className="flex items-center gap-2 mb-2">
+                      <ClipboardList size={13} style={{ color: 'rgba(255,255,255,0.85)' }} />
+                      <span className="text-2xs uppercase tracking-wider" style={{ color: 'rgba(255,255,255,0.7)' }}>Feedback available</span>
+                      {currentClient.assessmentData.reviewDate && (
+                        <span className="text-2xs ml-auto" style={{ color: 'rgba(255,255,255,0.5)' }}>
+                          {new Date(currentClient.assessmentData.reviewDate).toLocaleDateString()}
+                        </span>
+                      )}
                     </div>
-                  ) : (
-                    <div className="p-6 bg-white/5 rounded-2xl border border-white/10 text-center">
-                      <p className="text-sm italic leading-relaxed text-gray-300 font-serif">No clinical updates yet.</p>
-                    </div>
-                  )}
-                </div>
+                    <p className="text-sm leading-relaxed line-clamp-3" style={{ color: 'rgba(255,255,255,0.92)' }}>
+                      &ldquo;{currentClient.assessmentData.clinicalFeedback}&rdquo;
+                    </p>
+                    <p className="text-xs mt-3 group-hover:underline flex items-center gap-1" style={{ color: 'rgba(255,255,255,0.85)' }}>
+                      Read full review <ArrowRight size={12} />
+                    </p>
+                  </button>
+                ) : currentClient?.status === 'Assessment Submitted' ? (
+                  <div className="mt-1">
+                    <span className="text-2xs uppercase tracking-wider" style={{ color: 'rgba(255,255,255,0.7)' }}>Under review</span>
+                    <p className="text-sm leading-relaxed mt-2" style={{ color: 'rgba(255,255,255,0.9)' }}>
+                      Your clinical team is reviewing your assessment. You'll be notified when feedback is ready.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="mt-1">
+                    <p className="text-sm leading-relaxed" style={{ color: 'rgba(255,255,255,0.75)' }}>
+                      No clinical updates yet.
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -1223,162 +1202,155 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
   };
 
   return (
-    <div className="min-h-screen bg-cream flex font-sans selection:bg-primary/20">
-      <PolicyConfirmationModal 
-        isOpen={showPolicyModal} 
+    <div className="portal-shell font-sans selection:bg-clinical/20">
+      <PolicyConfirmationModal
+        isOpen={showPolicyModal}
         onConfirm={handleAcceptPolicies}
         onNavigate={onNavigate}
       />
+      {isSidebarOpen && <div className="sidebar-overlay lg:hidden" onClick={() => setIsSidebarOpen(false)} />}
       {/* Sidebar */}
-      <aside className={`w-[260px] h-screen fixed left-0 top-0 bg-white border-r border-black/[0.03] flex flex-col p-6 z-50 transition-transform duration-500 lg:translate-x-0 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-        <div className="flex items-center justify-between mb-8">
+      <aside className={`portal-sidebar ${isSidebarOpen ? 'open' : ''}`}>
+        <div className="flex items-center justify-between mb-4 px-2">
           <div className="cursor-pointer" onClick={() => onNavigate(Page.Home)}>
-            <Logo size="sm" className="!justify-start scale-90 origin-left" />
+            <Logo size="sm" className="!justify-start scale-75 origin-left -ml-1" />
           </div>
-          <button onClick={() => setIsSidebarOpen(false)} className="lg:hidden text-muted hover:text-primary">
-            <X size={20} />
+          <button onClick={() => setIsSidebarOpen(false)} className="lg:hidden w-7 h-7 rounded-md flex items-center justify-center text-muted hover:bg-sand hover:text-obsidian">
+            <X size={15} />
           </button>
         </div>
 
-        <nav className="flex-grow space-y-1">
+        <p className="nav-section-label">Portal</p>
+        <nav className="space-y-0.5">
           <SidebarItem id="overview" label="Overview" icon="grid_view" activeTab={activeTab} onClick={handleSidebarClick} />
-          <SidebarItem id="treatments" label="My Treatments" icon="analytics" activeTab={activeTab} onClick={handleSidebarClick} />
-          <SidebarItem id="appointments" label="My Appointments" icon="calendar_month" activeTab={activeTab} onClick={handleSidebarClick} />
-          <SidebarItem id="assessments" label="My Assessments" icon="assignment" activeTab={activeTab} onClick={handleSidebarClick} />
+          <SidebarItem id="treatments" label="Treatments" icon="analytics" activeTab={activeTab} onClick={handleSidebarClick} />
+          <SidebarItem id="appointments" label="Appointments" icon="calendar_month" activeTab={activeTab} onClick={handleSidebarClick} />
+          <SidebarItem id="assessments" label="Assessments" icon="assignment" activeTab={activeTab} onClick={handleSidebarClick} />
           <SidebarItem id="messages" label="Messages" icon="forum" activeTab={activeTab} onClick={handleSidebarClick} badge={unreadMessagesCount} />
-          <SidebarItem id="profile" label="My Profile" icon="person" activeTab={activeTab} onClick={handleSidebarClick} />
+          <SidebarItem id="profile" label="Profile" icon="person" activeTab={activeTab} onClick={handleSidebarClick} />
         </nav>
 
-        <div className="mt-auto pt-6 border-t border-gray-100 space-y-3">
-           <div className="flex items-center gap-3 px-4 py-3 bg-cream rounded-xl">
-              <div className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center text-primary font-medium text-[10px]">{firstName[0]}</div>
-              <div className="flex flex-col min-w-0">
-                 <span className="text-[9px] font-medium text-obsidian truncate uppercase">{user?.fullName}</span>
-                 <span className="text-[8px] font-bold text-muted uppercase">Client Portal</span>
-              </div>
-           </div>
-           <button 
+        <div className="mt-3 px-2">
+          <p className="nav-section-label" style={{ marginTop: 0 }}>Journey</p>
+          <div className="px-2 py-2">
+            <div className="flex justify-between items-center mb-1.5">
+              <span className="text-2xs text-hint">{progress}% complete</span>
+            </div>
+            <div className="progress-track">
+              <div className="progress-fill success" style={{ width: `${progress}%` }} />
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-auto pt-3 border-t border-sand">
+          <div className="flex items-center gap-2.5 px-2 py-2 rounded-md hover:bg-sand transition-colors">
+            <div className="avatar avatar-sm bg-clinical-bg text-clinical">{firstName[0]}</div>
+            <div className="flex flex-col min-w-0 flex-grow">
+              <span className="text-xs font-medium text-obsidian truncate">{user?.fullName}</span>
+              <span className="text-2xs text-hint truncate">Patient · {user?.id}</span>
+            </div>
+          </div>
+          <button
             onClick={onLogout}
-            className="w-full flex items-center gap-4 px-5 py-3 rounded-xl text-muted hover:text-red-500 hover:bg-red-50 transition-all group"
-           >
-              <LogOut size={20} className="group-hover:rotate-180 transition-transform" />
-              <span className="text-2xs font-medium text-hint">Sign Out</span>
-           </button>
+            className="w-full mt-1 flex items-center gap-2.5 px-2 py-1.5 rounded-md text-muted hover:bg-danger-light hover:text-danger transition-colors"
+          >
+            <LogOut size={13} />
+            <span className="text-xs">Sign out</span>
+          </button>
         </div>
       </aside>
 
       {/* Main Content Area */}
-      <main className="flex-grow lg:pl-[260px] min-h-screen">
-        <header className="h-16 bg-white/90 backdrop-blur-lg border-b border-black/[0.03] px-6 md:px-10 flex items-center justify-between sticky top-0 z-40">
-          <div className="flex items-center gap-4">
-            <button onClick={() => setIsSidebarOpen(true)} className="lg:hidden text-muted hover:text-primary">
-              <Menu size={20} />
-            </button>
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted hidden sm:inline">CLIENT PORTAL</span>
-              <span className="text-muted/30 hidden sm:inline">/</span>
-              <span className="text-[10px] font-medium uppercase tracking-[0.2em] text-primary">{activeTab}</span>
-            </div>
+      <main className="portal-main">
+        <header className="portal-topbar">
+          <button onClick={() => setIsSidebarOpen(true)} className="lg:hidden w-8 h-8 rounded-md flex items-center justify-center text-muted hover:bg-sand hover:text-obsidian">
+            <Menu size={16} />
+          </button>
+          <div className="flex flex-col leading-none flex-grow min-w-0">
+            <span className="page-eyebrow truncate">
+              {new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}
+            </span>
+            <span className="page-title truncate mt-0.5" style={{ fontSize: 15, lineHeight: '20px' }}>
+              {activeTab === 'overview' ? `Welcome back, ${firstName}` :
+                activeTab === 'treatments' ? 'My treatments' :
+                activeTab === 'appointments' ? 'My appointments' :
+                activeTab === 'assessments' ? 'My assessments' :
+                activeTab === 'messages' ? 'Messages' :
+                activeTab === 'profile' ? 'My profile' : ''}
+            </span>
           </div>
-          <div className="hidden md:flex flex-col items-center flex-grow mx-8 max-w-xs xl:max-w-md">
-             <div className="flex w-full justify-between text-[8px] font-medium uppercase text-muted mb-1.5">
-               <span>Journey Tracking</span><span>{progress}% Completed</span>
-             </div>
-             <div className="w-full h-1.5 bg-cream rounded-full overflow-hidden">
-               <div className="h-full bg-primary transition-all duration-1000" style={{width: `${progress}%`}} />
-             </div>
-          </div>
-          <div className="flex items-center gap-4 shrink-0">
+          <div className="flex items-center gap-2 shrink-0">
             <div className="relative">
-              <button 
+              <button
                 onClick={() => setShowNotifications(!showNotifications)}
-                className={`relative p-2 transition-colors rounded-full hover:bg-cream ${showNotifications ? 'text-primary bg-cream' : 'text-muted'}`}
+                className={`btn-icon relative ${showNotifications ? 'bg-cream text-obsidian' : ''}`}
+                aria-label="Notifications"
               >
-                <Bell size={20} />
+                <Bell size={15} />
                 {unreadNotifCount > 0 && (
-                  <span className="absolute top-1.5 right-1.5 w-4 h-4 bg-red-500 rounded-full border-2 border-white text-[8px] font-medium text-white flex items-center justify-center">
+                  <span className="absolute -top-1 -right-1 min-w-[15px] h-[15px] px-1 bg-danger rounded-full border border-white text-[9px] font-medium text-white flex items-center justify-center">
                     {unreadNotifCount > 9 ? '9+' : unreadNotifCount}
                   </span>
                 )}
               </button>
 
-              {/* Notifications Dropdown */}
               {showNotifications && (
                 <>
-                  <div 
-                    className="fixed inset-0 z-40" 
-                    onClick={() => setShowNotifications(false)}
-                  />
-                  <div className="absolute right-0 mt-4 w-[320px] md:w-[380px] bg-white rounded-3xl shadow-2xl border border-black/5 z-50 overflow-hidden animate-fade-up origin-top-right">
-                    <div className="p-5 border-b border-gray-50">
-                      <div className="flex justify-between items-center mb-4">
-                        <h3 className="text-xs font-medium uppercase text-obsidian">Notifications</h3>
-                        <button 
+                  <div className="fixed inset-0 z-40" onClick={() => setShowNotifications(false)} />
+                  <div className="absolute right-0 mt-2 w-[320px] md:w-[380px] bg-white rounded-lg shadow-modal border border-sand z-50 overflow-hidden animate-fade-up origin-top-right">
+                    <div className="p-3 border-b border-sand">
+                      <div className="flex justify-between items-center mb-2">
+                        <h3 className="text-xs font-medium text-obsidian">Notifications</h3>
+                        <button
                           onClick={() => notifications.forEach(n => !n.read && onMarkNotificationRead(n.id))}
-                          className="text-2xs font-medium text-hint text-muted hover:text-primary transition-colors"
+                          className="text-xs text-clinical hover:underline"
                         >
-                          Mark All Read
+                          Mark all read
                         </button>
                       </div>
-                      <div className="flex gap-1 bg-cream p-1 rounded-full">
+                      <div className="flex gap-1 bg-cream p-0.5 rounded-md">
                         {(['all', 'message', 'appointment', 'feedback'] as const).map(f => (
                           <button
                             key={f}
                             onClick={() => setNotifFilter(f)}
-                            className={`flex-1 py-1.5 rounded-full text-2xs font-medium text-hint transition-all ${notifFilter === f ? 'bg-white text-primary shadow-sm' : 'text-muted'}`}
+                            className={`flex-1 py-1 rounded text-2xs font-medium transition-colors ${notifFilter === f ? 'bg-white text-obsidian shadow-card' : 'text-muted hover:text-obsidian'}`}
                           >
                             {f === 'all' ? 'All' : f === 'message' ? 'Msgs' : f === 'appointment' ? 'Appts' : 'Feedbk'}
                           </button>
                         ))}
                       </div>
                     </div>
-                    <div className="max-h-[380px] overflow-y-auto no-scrollbar">
+                    <div className="max-h-[380px] overflow-y-auto">
                       {filteredNotifications.length > 0 ? (
                         filteredNotifications.map((n) => {
-                          const iconMap: Record<string, string> = {
-                            new_message: 'forum', appointment_confirmed: 'event',
-                            appointment_reminder: 'notifications_active', feedback_received: 'rate_review',
-                            form_sent: 'description', payment_received: 'payments',
-                            welcome: 'waving_hand'
-                          };
-                          const colorMap: Record<string, string> = {
-                            new_message: 'bg-purple-100 text-purple-600',
-                            appointment_confirmed: 'bg-emerald-100 text-emerald-600',
-                            feedback_received: 'bg-amber-100 text-amber-600',
-                          };
                           const timeAgo = n.createdAt ? (() => {
                             const diff = Date.now() - new Date(n.createdAt).getTime();
-                            if (diff < 60000) return 'Just now';
-                            if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
-                            if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
-                            return `${Math.floor(diff / 86400000)}d ago`;
-                          })() : 'Recently';
+                            if (diff < 60000) return 'just now';
+                            if (diff < 3600000) return `${Math.floor(diff / 60000)}m`;
+                            if (diff < 86400000) return `${Math.floor(diff / 3600000)}h`;
+                            return `${Math.floor(diff / 86400000)}d`;
+                          })() : 'recently';
 
                           return (
-                            <div 
-                              key={n.id} 
+                            <div
+                              key={n.id}
                               onClick={() => handleNotificationClick(n)}
-                              className={`p-5 border-b border-gray-50 flex gap-4 hover:bg-cream transition-colors cursor-pointer relative ${!n.read ? 'bg-primary/5' : ''}`}
+                              className={`px-3 py-3 border-b border-sand flex gap-3 hover:bg-subtle transition-colors cursor-pointer relative ${!n.read ? 'bg-clinical-bg/30' : ''}`}
                             >
-                              {!n.read && <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary rounded-r" />}
-                              <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${colorMap[n.type] || 'bg-gray-100 text-gray-600'}`}>
-                                <span className="material-symbols-outlined text-xl">{iconMap[n.type] || 'notifications'}</span>
-                              </div>
+                              {!n.read && <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-clinical" />}
                               <div className="min-w-0 flex-grow">
-                                <p className="text-[11px] font-medium text-obsidian mb-0.5">{n.title}</p>
-                                <p className="text-[10px] text-muted leading-relaxed mb-2 line-clamp-2">{n.body}</p>
-                                <p className="text-[8px] font-bold text-muted uppercase">{timeAgo}</p>
+                                <p className="text-xs font-medium text-obsidian mb-0.5 truncate">{n.title}</p>
+                                <p className="text-xs text-muted leading-snug line-clamp-2">{n.body}</p>
+                                <p className="text-2xs text-hint uppercase tracking-wider mt-1">{timeAgo}</p>
                               </div>
-                              {!n.read && (
-                                <div className="w-2 h-2 bg-primary rounded-full shrink-0 mt-1" />
-                              )}
+                              {!n.read && <div className="w-1.5 h-1.5 bg-clinical rounded-full shrink-0 mt-1.5" />}
                             </div>
                           );
                         })
                       ) : (
-                        <div className="p-12 text-center">
-                          <BellOff size={40} className="text-primary/20 mb-4 mx-auto block" />
-                          <p className="text-2xs font-medium text-hint text-muted">No notifications</p>
+                        <div className="p-10 text-center">
+                          <BellOff size={28} className="text-hint mb-2 mx-auto block" />
+                          <p className="text-xs text-muted">No notifications</p>
                         </div>
                       )}
                     </div>
@@ -1386,22 +1358,10 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
                 </>
               )}
             </div>
-
-            <div className="h-8 w-[1px] bg-gray-100 hidden sm:block" />
-
-            <button 
-              onClick={onLogout}
-              className="flex items-center gap-2 text-muted hover:text-red-500 transition-colors group"
-            >
-              <LogOut size={20} className="group-hover:rotate-180 transition-transform" />
-              <span className="text-2xs font-medium text-hint hidden sm:inline">Sign Out</span>
-            </button>
-            <div className="h-8 w-[1px] bg-gray-100 hidden sm:block" />
-            <Logo size="sm" className="scale-75 hidden sm:flex" />
           </div>
 
         </header>
-        <div className="max-w-[1200px] mx-auto p-6 md:p-12 lg:p-20">
+        <div className="portal-content px-4 sm:px-6 lg:px-8 py-5">
            {renderSection()}
         </div>
       </main>

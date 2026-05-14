@@ -6,7 +6,7 @@ import { InteractiveForm } from '../components/InteractiveForm';
 import Logo from '../components/Logo';
 import { storage } from '../firebase';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
-import { Camera, Upload, X, PanelLeftClose, Menu, Search, Bell, BellOff, LogOut, Sun, CalendarDays, Settings, ChevronsUpDown, Eye } from 'lucide-react';
+import { Camera, Upload, X, PanelLeftClose, Menu, Search, Bell, BellOff, LogOut, Sun, CalendarDays, Settings, ChevronsUpDown, Eye, Plus } from 'lucide-react';
 import { processImageForUpload, validateImageFile, ACCEPTED_IMAGE_TYPES } from '../imageUtils';
 import { logClinicalAction } from '../utils/auditLogger';
 import { notifyPaymentSent } from '../utils/notificationService';
@@ -438,55 +438,83 @@ const AdminPage: React.FC<AdminPageProps> = ({
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <AdminContext.Provider value={ctx}>
-      <div className="min-h-screen bg-[#FDFCFB] flex font-sans selection:bg-primary/20">
+      <div className="portal-shell font-sans selection:bg-clinical/20">
+        {isSidebarOpen && <div className="sidebar-overlay lg:hidden" onClick={() => setIsSidebarOpen(false)} />}
         {/* Sidebar */}
-        <aside className={`h-screen fixed left-0 top-0 bg-white border-r border-black/5 flex flex-col p-8 z-50 transition-all duration-500 ease-in-out lg:translate-x-0 lg:bg-gradient-to-b lg:from-white lg:to-bg-soft/30 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} ${isSidebarCollapsed ? 'w-24' : 'w-[300px]'}`}>
-          <div className="flex items-center justify-between mb-12">
-            {!isSidebarCollapsed && <Logo size="sm" className="!justify-start scale-90 -ml-4 lg:scale-100 lg:-ml-2" />}
-            <div className="flex items-center gap-2">
-              <button onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)} className="hidden lg:flex w-8 h-8 rounded-full bg-cream items-center justify-center text-muted hover:text-primary transition-colors">
-                {isSidebarCollapsed ? <PanelLeftClose size={18} /> : <Menu size={18} />}
+        <aside className={`portal-sidebar ${isSidebarOpen ? 'open' : ''} ${isSidebarCollapsed ? 'collapsed' : ''}`} style={isSidebarCollapsed ? { width: 64 } : undefined}>
+          <div className="flex items-center justify-between mb-4 px-2">
+            {!isSidebarCollapsed && <Logo size="sm" className="!justify-start scale-75 -ml-1" />}
+            <div className="flex items-center gap-1">
+              <button onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)} className="hidden lg:flex w-7 h-7 rounded-md items-center justify-center text-muted hover:bg-sand hover:text-obsidian transition-colors">
+                {isSidebarCollapsed ? <PanelLeftClose size={15} /> : <Menu size={15} />}
               </button>
-              <button onClick={() => setIsSidebarOpen(false)} className="lg:hidden text-muted hover:text-primary">
-                <X size={18} />
+              <button onClick={() => setIsSidebarOpen(false)} className="lg:hidden w-7 h-7 rounded-md flex items-center justify-center text-muted hover:bg-sand hover:text-obsidian">
+                <X size={15} />
               </button>
             </div>
           </div>
 
-          <nav className="flex-grow space-y-2">
-            <SidebarItem id="overview"         label="Overview"        icon="space_dashboard"    activeTab={activeTab} selectedClientId={selectedClientId} onClick={handleSidebarClick} isCollapsed={isSidebarCollapsed} />
-            <SidebarItem id="assessments"      label="Assessments"     icon="assignment"         activeTab={activeTab} selectedClientId={selectedClientId} onClick={handleSidebarClick} isCollapsed={isSidebarCollapsed} />
-            <SidebarItem id="clients"          label="Clients"         icon="database"           activeTab={activeTab} selectedClientId={selectedClientId} onClick={handleSidebarClick} isCollapsed={isSidebarCollapsed} />
-            <SidebarItem id="appointments"     label="Appointments"    icon="calendar_month"     activeTab={activeTab} selectedClientId={selectedClientId} onClick={handleSidebarClick} isCollapsed={isSidebarCollapsed} />
+          {!isSidebarCollapsed && (
+            <div className="search-wrap mb-3 px-1">
+              <Search size={13} className="search-icon" />
+              <input type="text" placeholder="Search…" className="search-input" />
+            </div>
+          )}
+
+          <nav className="flex-grow space-y-0.5">
+            <SidebarItem id="overview"         label="Today"          icon="space_dashboard"    activeTab={activeTab} selectedClientId={selectedClientId} onClick={handleSidebarClick} isCollapsed={isSidebarCollapsed} count={filteredAppointments.filter(a => a.date === new Date().toISOString().split('T')[0]).length} />
+            <SidebarItem id="clients"          label="Clients"        icon="database"           activeTab={activeTab} selectedClientId={selectedClientId} onClick={handleSidebarClick} isCollapsed={isSidebarCollapsed} count={filteredClients.length} />
+            <SidebarItem id="appointments"     label="Schedule"       icon="calendar_month"     activeTab={activeTab} selectedClientId={selectedClientId} onClick={handleSidebarClick} isCollapsed={isSidebarCollapsed} />
+            <SidebarItem id="assessments"      label="Assessments"    icon="assignment"         activeTab={activeTab} selectedClientId={selectedClientId} onClick={handleSidebarClick} isCollapsed={isSidebarCollapsed} count={filteredClients.filter(c => c.status === 'Assessment Submitted').length} />
+            <SidebarItem id="messages"         label="Inbox"          icon="forum"              activeTab={activeTab} selectedClientId={selectedClientId} onClick={handleSidebarClick} isCollapsed={isSidebarCollapsed} count={messages.filter(m => !m.read && clients.some(c => c.id === m.senderId)).length} />
             {user?.adminType === 'technical' && (
               <SidebarItem id="platform-health" label="Platform Health" icon="health_and_safety" activeTab={activeTab} selectedClientId={selectedClientId} onClick={handleSidebarClick} isCollapsed={isSidebarCollapsed} />
             )}
-            <SidebarItem id="messages"         label="Messages"        icon="forum"              activeTab={activeTab} selectedClientId={selectedClientId} onClick={handleSidebarClick} isCollapsed={isSidebarCollapsed} />
+
+            {!isSidebarCollapsed && (
+              <>
+                <p className="nav-section-label">Cohorts</p>
+                <button onClick={() => { setActiveTab('clients'); setSelectedClientId(null); }} className="nav-item">
+                  <span className="cohort-dot clinical" />
+                  <span>Active</span>
+                  <span className="nav-badge">{filteredClients.filter(c => c.status === 'Active' || c.status === 'Ongoing').length}</span>
+                </button>
+                <button onClick={() => { setActiveTab('clients'); setSelectedClientId(null); }} className="nav-item">
+                  <span className="cohort-dot success" />
+                  <span>Converted</span>
+                  <span className="nav-badge">{filteredClients.filter(c => c.status === 'Converted').length}</span>
+                </button>
+                <button onClick={() => { setActiveTab('assessments'); setSelectedClientId(null); }} className="nav-item">
+                  <span className="cohort-dot warning" />
+                  <span>New leads</span>
+                  <span className="nav-badge">{filteredClients.filter(c => c.status === 'Assessment Submitted' || c.status === 'New').length}</span>
+                </button>
+              </>
+            )}
           </nav>
 
-          <div className="mt-auto pt-8 border-t border-gray-100 relative">
+          <div className="mt-auto pt-3 border-t border-sand relative">
             {user?.adminType === 'technical' && showAccountSwitcher && (
               <motion.div
-                initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                initial={{ opacity: 0, y: 6, scale: 0.98 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
-                className="absolute bottom-full left-0 w-full mb-4 p-4 bg-white rounded-2xl border border-black/5 shadow-2xl z-[60]"
+                className="absolute bottom-full left-0 w-full mb-2 p-2 bg-white rounded-lg border border-sand shadow-panel z-[60]"
               >
-                <p className="text-[8px] font-medium text-muted uppercase mb-3 flex items-center gap-2">
-                  <Eye size={16} />
-                  Switch View Mode
+                <p className="text-2xs font-medium text-hint uppercase tracking-wider px-2 py-1.5 flex items-center gap-2">
+                  <Eye size={12} />
+                  View as
                 </p>
-                <div className="grid grid-cols-1 gap-1">
+                <div className="grid grid-cols-1 gap-0.5">
                   {[
-                    { id: 'all', label: 'Ultimate Access', icon: 'hub' },
-                    { id: 'doctor-female', label: 'Dr. Aminah (F)', icon: 'female' },
-                    { id: 'doctor-male', label: 'Dr. Waqas (M)', icon: 'male' },
+                    { id: 'all', label: 'Ultimate access' },
+                    { id: 'doctor-female', label: 'Dr. Aminah' },
+                    { id: 'doctor-male', label: 'Dr. Waqas' },
                   ].map((mode) => (
                     <button
                       key={mode.id}
                       onClick={() => { setEffectiveAdminType(mode.id as AdminType | 'all'); setShowAccountSwitcher(false); }}
-                      className={`flex items-center gap-3 px-3 py-2 rounded-xl text-2xs font-medium text-hint transition-all ${effectiveAdminType === mode.id ? 'bg-primary text-clinical-dark shadow-sm' : 'text-muted hover:bg-cream hover:text-clinical-dark'}`}
+                      className={`text-left px-2 py-1.5 rounded-md text-xs transition-colors ${effectiveAdminType === mode.id ? 'bg-clinical-bg text-clinical font-medium' : 'text-muted hover:bg-cream hover:text-obsidian'}`}
                     >
-                      <span className="material-symbols-outlined text-base">{mode.icon}</span>
                       {mode.label}
                     </button>
                   ))}
@@ -495,33 +523,34 @@ const AdminPage: React.FC<AdminPageProps> = ({
             )}
             <button
               onClick={() => user?.adminType === 'technical' && setShowAccountSwitcher(!showAccountSwitcher)}
-              className={`w-full flex items-center gap-4 px-4 py-3 rounded-2xl transition-all mb-4 text-left group ${showAccountSwitcher ? 'bg-primary/10 ring-2 ring-primary/20' : 'bg-obsidian text-white hover:bg-primary transition-colors'}`}
+              className={`w-full flex items-center gap-2.5 px-2 py-2 rounded-md transition-colors text-left ${showAccountSwitcher ? 'bg-clinical-bg' : 'hover:bg-sand'}`}
             >
-              <div className={`w-10 h-10 rounded-full flex items-center justify-center font-medium text-xs transition-colors ${showAccountSwitcher ? 'bg-primary text-white' : 'bg-primary/20 text-primary group-hover:bg-white group-hover:text-primary'}`}>
-                {getInitials(user?.fullName)}
-              </div>
-              <div className="flex flex-col min-w-0 flex-grow">
-                <span className={`text-[10px] font-medium truncate uppercase transition-colors ${showAccountSwitcher ? 'text-clinical-dark' : 'text-white group-hover:text-clinical-dark'}`}>{user?.fullName}</span>
-                <span className={`text-[8px] font-bold truncate lowercase transition-colors ${showAccountSwitcher ? 'text-primary' : 'text-primary/60 group-hover:text-clinical-dark/60'}`}>@{user?.username}</span>
-                <span className={`text-[8px] font-bold uppercase transition-colors ${showAccountSwitcher ? 'text-muted' : 'text-gray-500 group-hover:text-clinical-dark/40'}`}>
-                  {user?.adminType === 'technical' ? (
-                    <span className="flex items-center gap-1">
-                      {effectiveAdminType === 'all' ? 'Technical Admin' : effectiveAdminType === 'doctor-female' ? 'Viewing as Aminah' : 'Viewing as Waqas'}
-                      <ChevronsUpDown size={12} />
-                    </span>
-                  ) : user?.adminType === 'doctor-female' ? 'Clinical Director (F)' : user?.adminType === 'doctor-male' ? 'Clinical Director (M)' : 'System Admin'}
-                </span>
-              </div>
+              <div className="avatar avatar-sm">{getInitials(user?.fullName)}</div>
+              {!isSidebarCollapsed && (
+                <div className="flex flex-col min-w-0 flex-grow">
+                  <span className="text-xs font-medium text-obsidian truncate">{user?.fullName}</span>
+                  <span className="text-2xs text-hint truncate flex items-center gap-1">
+                    {user?.adminType === 'technical' ? (
+                      <>
+                        {effectiveAdminType === 'all' ? 'Technical admin' : effectiveAdminType === 'doctor-female' ? 'as Aminah' : 'as Waqas'}
+                        <ChevronsUpDown size={10} />
+                      </>
+                    ) : user?.adminType === 'doctor-female' ? 'Clinical director' : user?.adminType === 'doctor-male' ? 'Clinical director' : 'System admin'}
+                  </span>
+                </div>
+              )}
             </button>
-            <button onClick={onLogout} className="w-full flex items-center gap-4 px-6 py-4 rounded-2xl text-muted hover:text-red-500 hover:bg-red-50 transition-all group">
-              <LogOut size={18} className="group-hover:rotate-180 transition-transform" />
-              <span className="text-xs font-medium">End Session</span>
-            </button>
+            {!isSidebarCollapsed && (
+              <button onClick={onLogout} className="w-full mt-1 flex items-center gap-2.5 px-2 py-1.5 rounded-md text-muted hover:bg-danger-light hover:text-danger transition-colors">
+                <LogOut size={13} />
+                <span className="text-xs">Sign out</span>
+              </button>
+            )}
           </div>
         </aside>
 
         {/* Main content */}
-        <main className={`flex-grow min-h-screen transition-all duration-500 ease-in-out ${isSidebarCollapsed ? 'lg:pl-24' : 'lg:pl-[300px]'}`}>
+        <main className={`portal-main ${isSidebarCollapsed ? 'sidebar-collapsed' : ''}`} style={isSidebarCollapsed ? { marginLeft: 64 } : undefined}>
           {/* Morning briefing toast */}
           {showMorningBriefing && (() => {
             const todayAppts = filteredAppointments.filter(a => a.date === new Date().toISOString().split('T')[0] && a.status !== 'Cancelled');
@@ -564,30 +593,43 @@ const AdminPage: React.FC<AdminPageProps> = ({
           })()}
 
           {/* Header */}
-          <header className="h-20 bg-white/60 backdrop-blur-xl border-b border-black/5 px-6 lg:px-12 flex items-center justify-between sticky top-0 z-40">
-            <div className="flex items-center gap-4 lg:gap-8">
-              <button onClick={() => setIsSidebarOpen(true)} className="lg:hidden text-muted hover:text-primary">
-                <Menu size={18} />
-              </button>
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted hidden sm:inline">ADMIN PORTAL</span>
-                <span className="text-muted/30 hidden sm:inline">/</span>
-                <span className="text-[10px] font-medium uppercase tracking-[0.2em] text-primary">{activeTab}</span>
-              </div>
-              <div className="hidden lg:flex items-center relative w-96">
-                <Search size={20} className="absolute left-4 text-primary" />
-                <input type="text" placeholder="Search clients, appointments, or messages..." className="w-full bg-cream/50 border-transparent rounded-full pl-12 pr-6 py-2.5 text-xs font-bold focus:ring-2 focus:ring-primary/20 focus:bg-white transition-all border border-black/5" />
-              </div>
+          <header className="portal-topbar">
+            <button onClick={() => setIsSidebarOpen(true)} className="lg:hidden w-8 h-8 rounded-md flex items-center justify-center text-muted hover:bg-sand hover:text-obsidian">
+              <Menu size={16} />
+            </button>
+            <div className="flex flex-col leading-none flex-grow min-w-0">
+              <span className="page-eyebrow truncate">
+                {new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+              </span>
+              <span className="page-title truncate mt-0.5" style={{ fontSize: 15, lineHeight: '20px' }}>
+                {selectedClient
+                  ? selectedClient.name
+                  : activeTab === 'overview' ? `Good ${new Date().getHours() < 12 ? 'morning' : new Date().getHours() < 18 ? 'afternoon' : 'evening'}, ${getFirstName(user?.fullName) || 'Doctor'}`
+                  : activeTab === 'clients' ? 'Clients'
+                  : activeTab === 'appointments' ? 'Schedule'
+                  : activeTab === 'assessments' ? 'Assessments'
+                  : activeTab === 'messages' ? 'Inbox'
+                  : activeTab === 'platform-health' ? 'Platform health'
+                  : 'Overview'}
+              </span>
             </div>
-            <div className="flex items-center gap-3 sm:gap-6">
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => openBookingModal()}
+                className="btn btn-primary btn-sm hidden sm:inline-flex"
+              >
+                <Plus size={13} />
+                <span>New appointment</span>
+              </button>
               <div className="relative">
                 <button
                   onClick={() => setShowNotifications(!showNotifications)}
-                  className={`relative p-2 transition-colors rounded-full hover:bg-cream ${showNotifications ? 'text-primary bg-cream' : 'text-muted'}`}
+                  className={`btn-icon relative ${showNotifications ? 'bg-cream text-obsidian' : ''}`}
+                  aria-label="Notifications"
                 >
-                  <Bell size={18} />
+                  <Bell size={15} />
                   {unreadCount > 0 && (
-                    <span className="absolute top-1.5 right-1.5 w-4 h-4 bg-red-500 rounded-full border-2 border-white text-[8px] font-medium text-white flex items-center justify-center">
+                    <span className="absolute -top-1 -right-1 min-w-[15px] h-[15px] px-1 bg-danger rounded-full border border-white text-[9px] font-medium text-white flex items-center justify-center">
                       {unreadCount > 9 ? '9+' : unreadCount}
                     </span>
                   )}
@@ -596,44 +638,39 @@ const AdminPage: React.FC<AdminPageProps> = ({
                 {showNotifications && (
                   <>
                     <div className="fixed inset-0 z-40" onClick={() => setShowNotifications(false)} />
-                    <div className="absolute right-0 mt-4 w-[340px] md:w-[420px] bg-white rounded-3xl shadow-2xl border border-black/5 z-50 overflow-hidden animate-fade-up origin-top-right">
-                      <div className="p-5 border-b border-gray-50">
-                        <div className="flex justify-between items-center mb-4">
-                          <h3 className="text-xs font-medium uppercase text-obsidian">Notifications</h3>
-                          <button onClick={clearAll} className="text-2xs font-medium text-hint text-muted hover:text-primary transition-colors">Mark All Read</button>
+                    <div className="absolute right-0 mt-2 w-[340px] md:w-[400px] bg-white rounded-lg shadow-modal border border-sand z-50 overflow-hidden animate-fade-up origin-top-right">
+                      <div className="p-3 border-b border-sand">
+                        <div className="flex justify-between items-center mb-2">
+                          <h3 className="text-xs font-medium text-obsidian">Notifications</h3>
+                          <button onClick={clearAll} className="text-xs text-clinical hover:underline">Mark all read</button>
                         </div>
-                        <div className="flex gap-1 bg-cream p-1 rounded-full">
+                        <div className="flex gap-1 bg-cream p-0.5 rounded-md">
                           {(['all', 'assessment', 'message', 'appointment'] as const).map(f => (
-                            <button key={f} onClick={() => setNotifFilter(f)} className={`flex-1 py-1.5 rounded-full text-2xs font-medium text-hint transition-all ${notifFilter === f ? 'bg-white text-primary shadow-sm' : 'text-muted'}`}>
+                            <button key={f} onClick={() => setNotifFilter(f)} className={`flex-1 py-1 rounded text-2xs font-medium transition-colors ${notifFilter === f ? 'bg-white text-obsidian shadow-card' : 'text-muted hover:text-obsidian'}`}>
                               {f === 'all' ? 'All' : f === 'assessment' ? 'Assess.' : f === 'message' ? 'Msgs' : 'Appts'}
                             </button>
                           ))}
                         </div>
                       </div>
-                      <div className="max-h-[420px] overflow-y-auto no-scrollbar">
+                      <div className="max-h-[420px] overflow-y-auto">
                         {filteredNotifications.length > 0 ? filteredNotifications.map((n) => {
-                          const iconMap: Record<string, string> = { new_assessment: 'assignment', new_message: 'forum', form_signed: 'draw', appointment_confirmed: 'event', feedback_received: 'rate_review', form_sent: 'description', payment_received: 'payments', welcome: 'waving_hand', daily_briefing: 'wb_sunny' };
-                          const colorMap: Record<string, string> = { new_assessment: 'bg-blue-100 text-blue-600', new_message: 'bg-purple-100 text-purple-600', form_signed: 'bg-green-100 text-green-600', appointment_confirmed: 'bg-emerald-100 text-emerald-600', feedback_received: 'bg-amber-100 text-amber-600' };
                           const diff = n.createdAt ? Date.now() - new Date(n.createdAt).getTime() : -1;
-                          const timeAgo = diff < 0 ? 'Recently' : diff < 60000 ? 'Just now' : diff < 3600000 ? `${Math.floor(diff / 60000)}m ago` : diff < 86400000 ? `${Math.floor(diff / 3600000)}h ago` : `${Math.floor(diff / 86400000)}d ago`;
+                          const timeAgo = diff < 0 ? 'Recently' : diff < 60000 ? 'Just now' : diff < 3600000 ? `${Math.floor(diff / 60000)}m` : diff < 86400000 ? `${Math.floor(diff / 3600000)}h` : `${Math.floor(diff / 86400000)}d`;
                           return (
-                            <div key={n.id} onClick={() => handleNotificationClick(n)} className={`p-5 border-b border-gray-50 flex gap-4 hover:bg-cream transition-colors cursor-pointer relative ${!n.read ? 'bg-primary/5' : ''}`}>
-                              {!n.read && <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary rounded-r" />}
-                              <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${colorMap[n.type] || 'bg-gray-100 text-gray-600'}`}>
-                                <span className="material-symbols-outlined text-xl">{iconMap[n.type] || 'notifications'}</span>
-                              </div>
+                            <div key={n.id} onClick={() => handleNotificationClick(n)} className={`px-3 py-3 border-b border-sand flex gap-3 hover:bg-subtle transition-colors cursor-pointer relative ${!n.read ? 'bg-clinical-bg/30' : ''}`}>
+                              {!n.read && <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-clinical" />}
                               <div className="min-w-0 flex-grow">
-                                <p className="text-[11px] font-medium text-obsidian mb-0.5">{n.title}</p>
-                                <p className="text-[10px] text-muted leading-relaxed mb-2 line-clamp-2">{n.body}</p>
-                                <p className="text-[8px] font-bold text-muted uppercase">{timeAgo}</p>
+                                <p className="text-xs font-medium text-obsidian mb-0.5 truncate">{n.title}</p>
+                                <p className="text-xs text-muted leading-snug line-clamp-2">{n.body}</p>
+                                <p className="text-2xs text-hint uppercase tracking-wider mt-1">{timeAgo}</p>
                               </div>
-                              {!n.read && <div className="w-2 h-2 bg-primary rounded-full shrink-0 mt-1" />}
+                              {!n.read && <div className="w-1.5 h-1.5 bg-clinical rounded-full shrink-0 mt-1.5" />}
                             </div>
                           );
                         }) : (
-                          <div className="p-12 text-center">
-                            <BellOff size={40} className="text-primary/20 mb-3 mx-auto block" />
-                            <p className="text-[10px] font-medium text-muted uppercase">All caught up</p>
+                          <div className="p-10 text-center">
+                            <BellOff size={28} className="text-hint mb-2 mx-auto block" />
+                            <p className="text-xs text-muted">All caught up</p>
                           </div>
                         )}
                       </div>
@@ -641,20 +678,10 @@ const AdminPage: React.FC<AdminPageProps> = ({
                   </>
                 )}
               </div>
-              <div className="h-8 w-[1px] bg-gray-100 hidden sm:block" />
-              <div className="items-center gap-3 hidden sm:flex">
-                <p className="text-[10px] font-medium text-obsidian uppercase">Live Mode</p>
-                <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-              </div>
-              <div className="h-8 w-[1px] bg-gray-100 hidden sm:block" />
-              <button onClick={onLogout} className="flex items-center gap-2 text-muted hover:text-red-500 transition-colors group">
-                <LogOut size={20} className="group-hover:rotate-180 transition-transform" />
-                <span className="text-2xs font-medium text-hint hidden md:inline">Sign Out</span>
-              </button>
             </div>
           </header>
 
-          <div className="p-4 sm:p-6 lg:p-12 xl:p-16 2xl:p-20 max-w-[1600px] mx-auto">
+          <div className="portal-content px-4 sm:px-6 lg:px-8 py-5">
             {renderPanel()}
           </div>
 

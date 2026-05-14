@@ -96,25 +96,27 @@ const ClientsPanel: React.FC = () => {
   });
 
   return (
-    <div className="animate-fade-up space-y-4 md:space-y-8">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <h2 className="text-xl md:text-3xl font-medium text-obsidian">Client Registry</h2>
+    <div className="animate-fade-up space-y-4">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+        <div>
+          <p className="page-eyebrow">Registry</p>
+          <h2 className="page-title">{filteredClients.length} clients</h2>
+        </div>
         <div className="flex gap-2 w-full sm:w-auto">
           {user?.adminType !== 'technical' && (
             <button
               onClick={() => setShowOnlyAssigned(!showOnlyAssigned)}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-full text-2xs font-medium text-hint transition-all shadow-sm border ${showOnlyAssigned ? 'bg-primary text-white border-primary' : 'bg-white text-muted border-black/5 hover:border-primary/30'}`}
+              className={`btn btn-sm ${showOnlyAssigned ? 'btn-primary' : 'btn-ghost'}`}
             >
-              <span className="material-symbols-outlined text-sm">{showOnlyAssigned ? 'person' : 'group'}</span>
-              {showOnlyAssigned ? 'My Assignments' : 'All Clients'}
+              {showOnlyAssigned ? 'My assignments' : 'All clients'}
             </button>
           )}
           <button
             onClick={() => exportClientsToCSV(visibleClients)}
             disabled={visibleClients.length === 0}
-            className="bg-primary text-clinical-dark px-8 py-3 rounded-full text-[10px] md:text-xs font-medium shadow-lg shadow-primary/10 transition-transform active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2"
+            className="btn btn-secondary btn-sm"
           >
-            <Download size={16} />
+            <Download size={13} />
             Export CSV
           </button>
         </div>
@@ -123,37 +125,36 @@ const ClientsPanel: React.FC = () => {
       {!selectedClientId ? (
         <>
           {/* Desktop Stats — computed from real data */}
-          <div className="hidden lg:grid grid-cols-4 gap-6 mb-8">
-            <div className="bg-white p-8 rounded-[2.5rem] border border-black/5 shadow-sm">
-              <p className="text-[10px] font-medium text-muted uppercase mb-2">Total Registry</p>
-              <div className="flex items-end gap-2">
-                <p className="text-3xl font-medium text-obsidian leading-none">{stats.total}</p>
-                {stats.last30 > 0 && (
-                  <span className={`text-[10px] font-bold mb-1 ${stats.growth >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                    {stats.growth >= 0 ? '+' : ''}{stats.growth}% / 30d
-                  </span>
-                )}
-              </div>
+          <div className="hidden lg:grid grid-cols-4 gap-3">
+            <div className="kpi-tile">
+              <span className="kpi-label">Total registry</span>
+              <span className="kpi-value">{stats.total}</span>
+              {stats.last30 > 0 && (
+                <span className={`kpi-delta ${stats.growth >= 0 ? 'up' : 'down'}`}>
+                  {stats.growth >= 0 ? '+' : ''}{stats.growth}% / 30d
+                </span>
+              )}
+              <span className="kpi-sub">{stats.last30} new in last 30 days</span>
             </div>
-            <div className="bg-white p-8 rounded-[2.5rem] border border-black/5 shadow-sm">
-              <p className="text-[10px] font-medium text-muted uppercase mb-2">Active Protocols</p>
-              <div className="flex items-end gap-2">
-                <p className="text-3xl font-medium text-obsidian leading-none">{filteredClients.filter(c => c.status === 'Active' || c.status === 'Ongoing').length}</p>
-              </div>
+            <div className="kpi-tile">
+              <span className="kpi-label">Active protocols</span>
+              <span className="kpi-value">{filteredClients.filter(c => c.status === 'Active' || c.status === 'Ongoing').length}</span>
+              <span className="kpi-delta flat">in treatment</span>
+              <span className="kpi-sub">Across all clinicians</span>
             </div>
-            <div className="bg-white p-8 rounded-[2.5rem] border border-black/5 shadow-sm">
-              <p className="text-[10px] font-medium text-muted uppercase mb-2">Pending Review</p>
-              <div className="flex items-end gap-2">
-                <p className="text-3xl font-medium text-obsidian leading-none">{stats.pendingReview}</p>
-                {stats.pendingReview > 0 && <span className="text-[10px] font-bold text-red-500 mb-1">Action Required</span>}
-              </div>
+            <div className="kpi-tile">
+              <span className="kpi-label">Pending review</span>
+              <span className="kpi-value">{stats.pendingReview}</span>
+              {stats.pendingReview > 0
+                ? <span className="kpi-delta down">action required</span>
+                : <span className="kpi-delta up">cleared</span>}
+              <span className="kpi-sub">Assessments awaiting triage</span>
             </div>
-            <div className="bg-white p-8 rounded-[2.5rem] border border-black/5 shadow-sm">
-              <p className="text-[10px] font-medium text-muted uppercase mb-2">Conversion Rate</p>
-              <div className="flex items-end gap-2">
-                <p className="text-3xl font-medium text-obsidian leading-none">{stats.conversionRate}%</p>
-                <span className="text-[10px] font-bold text-muted mb-1">{stats.converted}/{stats.total}</span>
-              </div>
+            <div className="kpi-tile">
+              <span className="kpi-label">Conversion</span>
+              <span className="kpi-value">{stats.conversionRate}<span className="kpi-unit">%</span></span>
+              <span className="kpi-delta flat">{stats.converted}/{stats.total}</span>
+              <span className="kpi-sub">Converted of total registry</span>
             </div>
           </div>
 
