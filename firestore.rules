@@ -102,10 +102,12 @@ service cloud.firestore {
                         && !('adminType' in request.resource.data))
                       || isAdmin()
                     );
-      // Self-update: cannot change role, cannot add/change adminType
+      // Self-update: cannot change role, cannot add/change adminType,
+      // cannot self-update once the account is erased.
       allow update: if isAuthenticated() && isValidUser(request.resource.data) &&
                     (
                       (isOwner(userId)
+                        && resource.data.get('erasedAt', null) == null
                         && request.resource.data.role == resource.data.role
                         && request.resource.data.get('adminType', null) == resource.data.get('adminType', null))
                       || isAdmin()

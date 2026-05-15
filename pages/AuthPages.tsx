@@ -45,7 +45,13 @@ const AuthPages: React.FC<AuthPagesProps> = ({ onLogin, onNavigate }) => {
 
       if (userDoc.exists()) {
         const userData = userDoc.data() as User;
-        // Ensure ID is present even if not in document data
+        if (userData.erasedAt) {
+          // Account has been anonymised under GDPR Art. 17.
+          await signOut(auth);
+          setError('This account has been closed. Please contact the clinic if you believe this is in error.');
+          setLoading(false);
+          return;
+        }
         const userWithId = { ...userData, id: userData.id || userCredential.user.uid };
         onLogin(userWithId);
       } else {

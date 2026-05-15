@@ -32,6 +32,8 @@ export interface User {
   acceptedPolicyVersion?: string;
   /** ISO timestamp of the most recent policy acceptance. */
   policiesAcceptedAt?: string;
+  /** When set, this user has been anonymised; sign-in is blocked. */
+  erasedAt?: string;
   createdAt: string;
 }
 
@@ -74,6 +76,11 @@ export interface Client {
   allergies?: string;
   medicalHistory?: string;
   status: string;
+  /** When set, the patient record has been anonymised under GDPR right to
+   *  erasure. PII fields are replaced with redacted markers and the user
+   *  is blocked from signing back in. Clinical data may be retained in
+   *  anonymised form to satisfy medical-records retention obligations. */
+  erasedAt?: string;
   policiesAccepted?: boolean;
   acceptedPolicyVersion?: string;
   policiesAcceptedAt?: string;

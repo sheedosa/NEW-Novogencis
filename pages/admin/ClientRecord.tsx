@@ -4,9 +4,10 @@ import { ClientRecordTab } from './context';
 import { Card } from '../../components/Card';
 import { InternalNotesEditor, FeedbackEditor, MessageInputForm } from './AdminComponents';
 import { FORMS } from '../../constants';
-import { Camera, X, Plus, Image as ImageIcon, ArrowLeft, CheckCircle, History, CalendarClock, FileText, CreditCard, ChevronDown, Send, GitCompare, ClipboardList, Stethoscope, Pencil } from 'lucide-react';
+import { Camera, X, Plus, Image as ImageIcon, ArrowLeft, CheckCircle, History, CalendarClock, FileText, CreditCard, ChevronDown, Send, GitCompare, ClipboardList, Stethoscope, Pencil, Download, ShieldOff } from 'lucide-react';
 import { logClinicalAction } from '../../utils/auditLogger';
 import { notifyFeedbackReceived } from '../../utils/notificationService';
+import { exportClientData, downloadAsJson, erasePatientRecord } from '../../utils/gdpr';
 import { Appointment, TreatmentPlan, TreatmentPhase, Prescription, Payment } from '../../types';
 
 const ClientRecord: React.FC = () => {
@@ -169,11 +170,48 @@ const ClientRecord: React.FC = () => {
         </div>
 
         <div className="flex gap-2 w-full md:w-auto md:ml-auto">
+          <button
+            onClick={async () => {
+              if (!selectedClient || !user?.id) return;
+              try {
+                const bundle = await exportClientData(selectedClient.id, user.id);
+                downloadAsJson(`novogenics-${selectedClient.id}-export.json`, bundle);
+              } catch (err) {
+                console.error('Export failed:', err);
+                alert('Export failed. Please try again.');
+              }
+            }}
+            className="btn btn-ghost btn-sm flex-1 md:flex-none"
+            title="Download all data we hold on this patient (GDPR Art. 20)"
+          >
+            <Download size={14} /> Export
+          </button>
           <button onClick={openQuickEdit} className="btn btn-ghost btn-sm flex-1 md:flex-none">
             Quick edit
           </button>
           <button onClick={() => openBookingModal(selectedClient.id)} className="btn btn-primary btn-sm flex-1 md:flex-none">
             Book appointment
+          </button>
+          <button
+            onClick={async () => {
+              if (!selectedClient || !user?.id) return;
+              const confirm1 = window.prompt(
+                `Type the patient's full name to confirm GDPR erasure of "${selectedClient.name}".\n\nThis anonymises their personal details and blocks future sign-in. Clinical records are retained in anonymised form to meet medical-records retention duties. This action cannot be undone from the portal.`,
+              );
+              if (confirm1?.trim() !== selectedClient.name.trim()) return;
+              try {
+                await erasePatientRecord(selectedClient.id, user.id);
+                alert('Patient record erased. They will be unable to sign in.');
+                setSelectedClientId(null);
+              } catch (err) {
+                console.error('Erase failed:', err);
+                alert('Erase failed. Please try again.');
+              }
+            }}
+            className="btn btn-ghost btn-sm text-danger hover:bg-danger-light"
+            title="Permanently anonymise this patient record (GDPR Art. 17)"
+          >
+            <ShieldOff size={14} /> Erase
           </button>
         </div>
       </div>
