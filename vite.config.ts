@@ -22,6 +22,7 @@ export default defineConfig({
             'firebase/auth',
             'firebase/firestore',
             'firebase/storage',
+            'firebase/functions',
           ],
           'motion-vendor': ['motion/react'],
         },

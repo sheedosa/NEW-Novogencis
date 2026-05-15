@@ -1,8 +1,15 @@
 import React, { memo } from 'react';
+import { httpsCallable } from 'firebase/functions';
 import { useAdminContext } from '../context';
 import { MessageInputForm } from '../AdminComponents';
 import { FORMS } from '../../../constants';
+import { functions } from '../../../firebase';
 import { Search, MessageCircle, Phone, FileText, CreditCard } from 'lucide-react';
+
+interface CheckoutSessionResponse {
+  url: string;
+  sessionId: string;
+}
 
 const MessagesPanel: React.FC = () => {
   const {
@@ -262,22 +269,38 @@ const MessagesPanel: React.FC = () => {
                       ))}
                       <button
                         onClick={async () => {
-                          const paymentUrl = import.meta.env.VITE_STRIPE_PAYMENT_LINK;
-                          if (!paymentUrl) {
-                            alert('Payment link is not configured. Please set VITE_STRIPE_PAYMENT_LINK in the environment before sending payment requests.');
+                          const amountStr = window.prompt('Amount in £ (e.g. 150):', '150');
+                          if (!amountStr) return;
+                          const amountPounds = Number(amountStr);
+                          if (!Number.isFinite(amountPounds) || amountPounds <= 0) {
+                            alert('Please enter a valid positive amount.');
                             return;
                           }
-                          const amount = '150';
-                          await onSendMessage({
-                            senderId: 'admin',
-                            recipientId: selectedThreadId,
-                            subject: 'Payment Request',
-                            body: `Payment Request: £${amount} for treatment session`,
-                            type: 'payment',
-                            paymentUrl,
-                            read: false,
-                            createdAt: new Date().toISOString()
-                          });
+                          const description = window.prompt('What is this payment for?', 'Treatment session') || 'Treatment session';
+                          try {
+                            const create = httpsCallable<unknown, CheckoutSessionResponse>(functions, 'createStripeCheckoutSession');
+                            const result = await create({
+                              clientId: selectedThreadId,
+                              amountPennies: Math.round(amountPounds * 100),
+                              description,
+                              successUrl: `${window.location.origin}/#payment-success`,
+                              cancelUrl: `${window.location.origin}/#payment-cancelled`,
+                            });
+                            await onSendMessage({
+                              senderId: 'admin',
+                              recipientId: selectedThreadId,
+                              subject: 'Payment Request',
+                              body: `Payment Request: £${amountPounds.toFixed(2)} — ${description}`,
+                              type: 'payment',
+                              paymentUrl: result.data.url,
+                              read: false,
+                              createdAt: new Date().toISOString(),
+                            });
+                          } catch (err) {
+                            console.error('Stripe checkout creation failed:', err);
+                            alert('Could not create a payment link. Please check Stripe configuration and try again.');
+                            return;
+                          }
                           setShowQuickActions(false);
                         }}
                         className="w-full flex items-center gap-3 p-3 hover:bg-cream rounded-xl transition-all text-left group border-t border-black/5 mt-1"

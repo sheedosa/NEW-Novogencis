@@ -8,9 +8,13 @@ import {
   persistentMultipleTabManager,
 } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
+import { getFunctions } from 'firebase/functions';
 import firebaseConfig from './firebase-applet-config.json';
 
 const app = initializeApp(firebaseConfig);
+
+// Functions are deployed to europe-west2 (London) — see functions/src/index.ts.
+export const functions = getFunctions(app, 'europe-west2');
 
 // Modern persistent cache (replaces deprecated enableIndexedDbPersistence).
 // Multi-tab manager lets every open tab share the same IndexedDB cache safely.

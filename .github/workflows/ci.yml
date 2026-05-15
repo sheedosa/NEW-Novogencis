@@ -39,3 +39,11 @@ jobs:
           VITE_ADMIN_NOTIFICATION_EMAIL: ci@example.com
           VITE_STRIPE_PAYMENT_LINK: https://example.com/ci-placeholder
         run: npm run build
+
+      - name: Install Cloud Functions deps
+        working-directory: functions
+        run: npm ci
+
+      - name: Build Cloud Functions
+        working-directory: functions
+        run: npm run build
