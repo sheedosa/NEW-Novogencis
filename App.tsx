@@ -1,7 +1,7 @@
 import React, { useState, useEffect, Suspense, lazy, Component, ErrorInfo, ReactNode } from 'react';
 import { onAuthStateChanged, createUserWithEmailAndPassword, signOut } from 'firebase/auth';
 import { collection, onSnapshot, doc, getDoc, setDoc, query, orderBy, limit, deleteDoc, updateDoc, where, or } from 'firebase/firestore';
-import { Page, User, Client, Appointment, Message, UserRole, AdminType, GalleryItem, AppNotification } from './types';
+import { Page, User, Client, Appointment, Message, GalleryItem, AppNotification } from './types';
 import { auth, db, handleFirestoreError, OperationType, cleanData } from './firebase';
 import {
   notifyNewAssessment,
@@ -639,43 +639,20 @@ const App: React.FC = () => {
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, authEmail, password);
       const uid = userCredential.user.uid;
-      
-      // Admin Bootstrapping Logic based on Email
-      let role: UserRole = 'client';
-      let adminType: AdminType | undefined = undefined;
 
-      const adminEmails = [
-        'rasheedamer99@gmail.com', 
-        'aminah_amer@hotmail.com', 
-        'wfarid812@gmail.com',
-        'aminah_doctor@novogenics.internal',
-        'waqass_doctor@novogenics.internal'
-      ];
-      
-      if (adminEmails.includes(authEmail)) {
-        role = 'admin';
-        if (authEmail === 'rasheedamer99@gmail.com') {
-          adminType = 'technical';
-        } else if (authEmail === 'aminah_amer@hotmail.com' || authEmail === 'aminah_doctor@novogenics.internal') {
-          adminType = 'doctor-female';
-        } else if (authEmail === 'wfarid812@gmail.com' || authEmail === 'waqass_doctor@novogenics.internal') {
-          adminType = 'doctor-male';
-        }
-      }
-
+      // All self-registered accounts are clients. Admin role must be granted
+      // server-side (Firebase Console or a privileged Cloud Function) — never
+      // bestowed by the client based on an email allowlist. Firestore rules
+      // also reject any client-side attempt to create a doc with role='admin'.
       const newUser: User = {
         id: uid,
         fullName: normalizedFullName,
         email: authEmail,
         username: displayUsername,
-        role: role,
+        role: 'client',
         policiesAccepted: true,
         createdAt: new Date().toISOString()
       };
-
-      if (adminType) {
-        newUser.adminType = adminType;
-      }
       
       // Save to Firestore
       try {
@@ -686,8 +663,8 @@ const App: React.FC = () => {
         handleFirestoreError(error, OperationType.CREATE, `users/${uid}`);
       }
 
-      // If it's a client and we have assessment data, create the client record now
-      if (role === 'client' && intakeData && answers) {
+      // If we have assessment data, create the client record now
+      if (intakeData && answers) {
         let doctorPreference: 'female-only' | 'ok-with-male' | undefined = undefined;
         if (intakeData.gender === 'male') {
           doctorPreference = 'ok-with-male';
@@ -735,43 +712,12 @@ const App: React.FC = () => {
       
       // Manually set current user to avoid race condition with Auth listener
       setCurrentUser(newUser);
-      
-      // Explicitly navigate to dashboard immediately after setting user
-      if (role === 'admin') {
-        navigateTo(Page.Admin);
-      } else {
-        navigateTo(Page.ClientDashboard);
-      }
+      navigateTo(Page.ClientDashboard);
     } catch (error: unknown) {
       console.error('Account creation error:', error);
       throw error;
     }
   }, [navigateTo]);
-
-  const bootstrapAdmins = async () => {
-    const admins = [
-      {
-        username: 'aminah_amer',
-        email: 'aminah_amer@hotmail.com',
-        fullName: 'Dr Aminah Amer',
-        password: 'Novo.2025'
-      },
-      {
-        username: 'waqas_farid',
-        email: 'wfarid812@gmail.com',
-        fullName: 'Dr Waqas Farid',
-        password: 'Novo.2025'
-      }
-    ];
-
-    for (const admin of admins) {
-      try {
-        await handleCreateAccount(admin.password, admin.email, admin.fullName, admin.username);
-      } catch (error) {
-        console.error(`Failed to bootstrap ${admin.username}:`, error);
-      }
-    }
-  };
 
   const handleAcceptPolicies = async () => {
     if (!currentUser) return;
@@ -835,7 +781,6 @@ const App: React.FC = () => {
             onMarkMessageRead={handleMarkMessageRead}
             onUpdateMessage={handleUpdateMessage}
             onUpdateClient={handleUpdateClient}
-            onBootstrapAdmins={bootstrapAdmins}
           />
         );
       case Page.SignIn:

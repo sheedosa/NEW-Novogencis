@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { signInWithEmailAndPassword, signOut, createUserWithEmailAndPassword } from 'firebase/auth';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { Page, User, AdminType } from '../types';
-import { auth, db, cleanData } from '../firebase';
+import { signInWithEmailAndPassword, signOut } from 'firebase/auth';
+import { doc, getDoc } from 'firebase/firestore';
+import { Page, User } from '../types';
+import { auth, db } from '../firebase';
 import Logo from '../components/Logo';
 import { Mail, Eye, EyeOff, ArrowLeft } from 'lucide-react';
 
@@ -24,28 +24,12 @@ const AuthPages: React.FC<AuthPagesProps> = ({ onLogin, onNavigate }) => {
     setLoading(true);
     setError('');
 
-    const input = username.trim().toLowerCase();
-    let loginEmail = input;
-    
-    const adminMapping: Record<string, string> = {
-      'rasheed_admin': 'rasheedamer99@gmail.com',
-      'rasheed': 'rasheedamer99@gmail.com',
-      'aminah_amer': 'aminah_amer@hotmail.com',
-      'waqas_farid': 'wfarid812@gmail.com',
-      'aminah_doctor': 'aminah_doctor@novogenics.internal',
-      'waqass_doctor': 'waqass_doctor@novogenics.internal'
-    };
+    const loginEmail = username.trim().toLowerCase();
 
-    // Smart mapping: if it's not an email, try to map it
-    if (!input.includes('@')) {
-      if (adminMapping[input]) {
-        loginEmail = adminMapping[input];
-      } else {
-        // For non-admin usernames, we don't have a deterministic mapping anymore
-        // because clients use their real emails. We'll try the legacy internal 
-        // fallback just in case, but we should probably warn them.
-        loginEmail = `${input}@novogenics.internal`;
-      }
+    if (!loginEmail.includes('@')) {
+      setError('Please sign in using your full email address.');
+      setLoading(false);
+      return;
     }
 
     try {
@@ -55,7 +39,6 @@ const AuthPages: React.FC<AuthPagesProps> = ({ onLogin, onNavigate }) => {
       
       // Retry logic for profile fetch (Firestore propagation can be slow)
       if (!userDoc.exists()) {
-        console.log('SignIn: User document not found, retrying in 2 seconds...');
         await new Promise(resolve => setTimeout(resolve, 2000));
         userDoc = await getDoc(doc(db, 'users', userCredential.user.uid));
       }
@@ -64,72 +47,14 @@ const AuthPages: React.FC<AuthPagesProps> = ({ onLogin, onNavigate }) => {
         const userData = userDoc.data() as User;
         // Ensure ID is present even if not in document data
         const userWithId = { ...userData, id: userData.id || userCredential.user.uid };
-        console.log('SignIn: User document found:', userWithId.email);
-        
         onLogin(userWithId);
       } else {
-        // If Auth succeeded but profile is missing, it's a "zombie" account
-        // or a mismatch in login method.
-        if (!input.includes('@')) {
-          setError('User profile not found. Please try signing in with your email address instead of your username.');
-        } else {
-          setError('User profile not found. Please contact the clinic to verify your account status.');
-        }
+        // Auth succeeded but profile is missing — zombie account.
+        setError('User profile not found. Please contact the clinic to verify your account status.');
         await signOut(auth);
       }
     } catch (err: unknown) {
       const error = err as { code?: string; message?: string };
-      
-      // Auto-bootstrap admin accounts if they don't exist
-      const adminEmails = [
-        'rasheedamer99@gmail.com', 
-        'aminah_amer@hotmail.com', 
-        'wfarid812@gmail.com',
-        'aminah_doctor@novogenics.internal',
-        'waqass_doctor@novogenics.internal'
-      ];
-
-      if ((error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') && adminEmails.includes(loginEmail)) {
-        try {
-          const userCredential = await createUserWithEmailAndPassword(auth, loginEmail, password);
-          const uid = userCredential.user.uid;
-          
-          let adminType: AdminType | undefined = undefined;
-          if (loginEmail === 'rasheedamer99@gmail.com') {
-            adminType = 'technical';
-          } else if (loginEmail === 'aminah_amer@hotmail.com' || loginEmail === 'aminah_doctor@novogenics.internal') {
-            adminType = 'doctor-female';
-          } else if (loginEmail === 'wfarid812@gmail.com' || loginEmail === 'waqass_doctor@novogenics.internal') {
-            adminType = 'doctor-male';
-          }
-
-          const newUser: User = {
-            id: uid,
-            fullName: loginEmail.split('@')[0],
-            email: loginEmail,
-            username: loginEmail.split('@')[0],
-            role: 'admin',
-            adminType,
-            policiesAccepted: true,
-            createdAt: new Date().toISOString()
-          };
-
-          await setDoc(doc(db, 'users', uid), cleanData(newUser));
-          onLogin(newUser);
-          setLoading(false);
-          return;
-        } catch (createErr: unknown) {
-          const createError = createErr as { code?: string };
-          if (createError.code === 'auth/email-already-in-use') {
-             setError('Invalid clinical credentials.');
-          } else {
-             console.error('Admin bootstrap error:', createErr);
-             setError('Failed to initialize admin account.');
-          }
-          setLoading(false);
-          return;
-        }
-      }
 
       if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
         setError('Invalid clinical credentials.');
@@ -190,8 +115,9 @@ const AuthPages: React.FC<AuthPagesProps> = ({ onLogin, onNavigate }) => {
           <form onSubmit={handleSubmit} className="space-y-5">
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-muted ml-1">Email Address</label>
-              <input 
-                type="text" 
+              <input
+                type="email"
+                autoComplete="email"
                 required
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}

@@ -1,15 +1,10 @@
 import React, { memo } from 'react';
 import { Card } from '../../../components/Card';
 import { useAdminContext } from '../context';
-import { ShieldCheck, CheckCircle, Shield, Network } from 'lucide-react';
+import { CheckCircle, Shield, Network } from 'lucide-react';
 
 const PlatformHealthPanel: React.FC = () => {
-  const {
-    user, onLogout,
-    isBootstrapping, bootstrapStatus,
-    setIsBootstrapping, setBootstrapStatus,
-    onBootstrapAdmins,
-  } = useAdminContext();
+  const { user } = useAdminContext();
 
   return (
     <div className="animate-fade-up space-y-8">
@@ -17,44 +12,6 @@ const PlatformHealthPanel: React.FC = () => {
         <h2 className="text-3xl font-medium text-obsidian">Platform Health</h2>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {user?.email === 'rasheedamer99@gmail.com' && (
-          <Card className="p-8 border-primary/30 bg-primary/5">
-            <div className="flex items-center gap-4 mb-4">
-              <div className="w-12 h-12 rounded-2xl bg-primary/20 flex items-center justify-center text-primary">
-                <ShieldCheck size={24} />
-              </div>
-              <div>
-                <h3 className="text-xs font-medium uppercase text-muted">Admin Management</h3>
-                <p className="text-sm font-medium text-obsidian">Bootstrap Accounts</p>
-              </div>
-            </div>
-            <p className="text-[10px] text-muted leading-relaxed mb-6">
-              Create the predefined admin accounts for Dr. Aminah and Dr. Waqas. Note: This will temporarily sign you out.
-            </p>
-            <button
-              onClick={async () => {
-                if (onBootstrapAdmins) {
-                  setIsBootstrapping(true);
-                  setBootstrapStatus('Creating accounts...');
-                  try {
-                    await onBootstrapAdmins();
-                    setBootstrapStatus('Success! You will be signed out.');
-                    setTimeout(() => onLogout(), 2000);
-                  } catch (err) {
-                    console.error('Bootstrap error:', err);
-                    setBootstrapStatus('Failed to bootstrap. Check console.');
-                    setIsBootstrapping(false);
-                  }
-                }
-              }}
-              disabled={isBootstrapping}
-              className="w-full bg-primary text-clinical-dark py-3 rounded-xl text-2xs font-medium text-hint hover:scale-[1.02] transition-all disabled:opacity-50"
-            >
-              {isBootstrapping ? bootstrapStatus : 'Bootstrap Admins'}
-            </button>
-          </Card>
-        )}
-
         <Card className="p-8">
           <div className="flex items-center gap-4 mb-4">
             <div className="w-12 h-12 rounded-2xl bg-green-100 flex items-center justify-center text-green-600">

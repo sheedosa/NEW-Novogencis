@@ -26,7 +26,6 @@ export interface AdminPageProps {
   onMarkMessageRead: (id: string) => Promise<void>;
   onUpdateMessage: (id: string, updates: Partial<Message>) => Promise<void>;
   onUpdateClient: (id: string, updates: Partial<Client>) => Promise<void>;
-  onBootstrapAdmins?: () => Promise<void>;
   notifications: AppNotification[];
   onMarkNotificationRead: (id: string) => Promise<void>;
 }
@@ -38,10 +37,6 @@ export interface AdminContextValue extends AdminPageProps {
   setActiveTab: (tab: AdminTab) => void;
   effectiveAdminType: AdminType | 'all';
   setEffectiveAdminType: (t: AdminType | 'all') => void;
-  isBootstrapping: boolean;
-  setIsBootstrapping: (v: boolean) => void;
-  bootstrapStatus: string | null;
-  setBootstrapStatus: (s: string | null) => void;
   selectedClientId: string | null;
   setSelectedClientId: (id: string | null) => void;
   clientRecordTab: ClientRecordTab;

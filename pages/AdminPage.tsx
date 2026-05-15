@@ -31,13 +31,11 @@ const AdminPage: React.FC<AdminPageProps> = ({
   clients, appointments, messages, notifications,
   onAddAppointment, onUpdateAppointment, onDeleteAppointment,
   onSendMessage, onMarkMessageRead, onUpdateMessage, onUpdateClient,
-  onBootstrapAdmins, onMarkNotificationRead,
+  onMarkNotificationRead,
 }) => {
   // ── UI state ───────────────────────────────────────────────────────────────
   const [activeTab, setActiveTab]                   = useState<AdminTab>('overview');
   const [effectiveAdminType, setEffectiveAdminType] = useState<AdminType | 'all'>(user?.adminType || 'all');
-  const [isBootstrapping, setIsBootstrapping]       = useState(false);
-  const [bootstrapStatus, setBootstrapStatus]       = useState<string | null>(null);
   const [selectedClientId, setSelectedClientId]     = useState<string | null>(null);
   const [clientRecordTab, setClientRecordTab]       = useState<ClientRecordTab>('overview');
   const [isSidebarOpen, setIsSidebarOpen]           = useState(false);
@@ -372,14 +370,12 @@ const AdminPage: React.FC<AdminPageProps> = ({
     user, onLogout, onNavigate, clients, appointments, messages, notifications,
     onAddAppointment, onUpdateAppointment, onDeleteAppointment,
     onSendMessage, onMarkMessageRead, onUpdateMessage, onUpdateClient,
-    onBootstrapAdmins, onMarkNotificationRead,
+    onMarkNotificationRead,
     onSaveTreatmentPlan, onAddPrescription, onUpdatePrescription,
     onAddPayment, onUpdatePayment,
     // State
     activeTab, setActiveTab,
     effectiveAdminType, setEffectiveAdminType,
-    isBootstrapping, setIsBootstrapping,
-    bootstrapStatus, setBootstrapStatus,
     selectedClientId, setSelectedClientId,
     clientRecordTab, setClientRecordTab,
     isSidebarOpen, setIsSidebarOpen,
