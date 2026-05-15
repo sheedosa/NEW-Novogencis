@@ -267,6 +267,12 @@ const AdminPage: React.FC<AdminPageProps> = ({
         createdAt: new Date().toISOString(),
       };
       onAddAppointment(newAppointment);
+      logClinicalAction(
+        user?.id || 'admin',
+        'add_appointment',
+        bookingForm.clientId,
+        `Booked ${newAppointment.type} on ${newAppointment.date} ${newAppointment.time}`,
+      );
       setShowBookingModal(false);
       setBookingForm({ type: 'Initial Consultation', status: 'Confirmed', date: new Date().toISOString().split('T')[0], time: '10:00 AM' });
     }
@@ -290,6 +296,8 @@ const AdminPage: React.FC<AdminPageProps> = ({
     const existing = client?.prescriptions || [];
     const updated = existing.map(r => r.id === rxId ? { ...r, ...updates } : r);
     await onUpdateClient(clientId, { prescriptions: updated });
+    const changedKeys = Object.keys(updates).join(', ');
+    await logClinicalAction(user?.id || 'admin', 'update_prescription', clientId, `Updated prescription ${rxId} (${changedKeys})`);
   };
 
   const onAddPayment = async (clientId: string, payment: Payment) => {
@@ -306,6 +314,7 @@ const AdminPage: React.FC<AdminPageProps> = ({
   };
 
   const onUpdatePayment = async (clientId: string, paymentId: string, updates: Partial<Payment>) => {
+    await logClinicalAction(user?.id || 'admin', 'update_payment', clientId, `Updated payment ${paymentId}: ${Object.keys(updates).join(', ')}`);
     const client = clients.find(c => c.id === clientId);
     const existing = client?.payments || [];
     const updated = existing.map(p => p.id === paymentId ? { ...p, ...updates } : p);

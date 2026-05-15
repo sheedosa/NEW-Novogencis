@@ -1,4 +1,4 @@
-import React, { useState, memo } from 'react';
+import React, { useState, useEffect, memo } from 'react';
 import { useAdminContext } from './context';
 import { ClientRecordTab } from './context';
 import { Card } from '../../components/Card';
@@ -36,6 +36,15 @@ const ClientRecord: React.FC = () => {
     onAddPayment,
     onUpdatePayment,
   } = useAdminContext();
+
+  // Audit-log every admin record view — required for GDPR/CQC. Fires once
+  // per (admin, client) record open. Tab navigation within the record does
+  // not re-fire.
+  useEffect(() => {
+    if (user?.role === 'admin' && selectedClientId && user.id) {
+      logClinicalAction(user.id, 'view_client_record', selectedClientId, 'Opened client record');
+    }
+  }, [user?.id, user?.role, selectedClientId]);
 
   const [rescheduleApt, setRescheduleApt] = useState<Appointment | null>(null);
   const [rescheduleForm, setRescheduleForm] = useState({ date: '', time: '' });

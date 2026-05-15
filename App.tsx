@@ -4,6 +4,7 @@ import { collection, onSnapshot, doc, getDoc, setDoc, query, orderBy, limit, del
 import { Page, User, Client, Appointment, Message, GalleryItem, AppNotification } from './types';
 import { auth, db, handleFirestoreError, OperationType, cleanData } from './firebase';
 import { CURRENT_POLICY_VERSION } from './constants';
+import { logClinicalAction } from './utils/auditLogger';
 import {
   notifyNewAssessment,
   notifyClientNewMessage,
@@ -291,6 +292,15 @@ const App: React.FC = () => {
     const path = `appointments/${id}`;
     try {
       await setDoc(doc(db, 'appointments', id), cleanData(updates), { merge: true });
+      if (currentUser?.role === 'admin') {
+        const apt = appointments.find(a => a.id === id);
+        await logClinicalAction(
+          currentUser.id,
+          'update_appointment',
+          apt?.clientId || id,
+          `Updated appointment ${id}: ${Object.keys(updates).join(', ')}`,
+        );
+      }
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, path);
     }
@@ -299,7 +309,16 @@ const App: React.FC = () => {
   const handleDeleteAppointment = async (id: string) => {
     const path = `appointments/${id}`;
     try {
+      const apt = appointments.find(a => a.id === id);
       await deleteDoc(doc(db, 'appointments', id));
+      if (currentUser?.role === 'admin') {
+        await logClinicalAction(
+          currentUser.id,
+          'delete_appointment',
+          apt?.clientId || id,
+          `Deleted ${apt?.type || 'appointment'} on ${apt?.date} ${apt?.time}`,
+        );
+      }
     } catch (error) {
       handleFirestoreError(error, OperationType.DELETE, path);
     }
@@ -361,6 +380,14 @@ const App: React.FC = () => {
     const path = `clients/${id}`;
     try {
       await setDoc(doc(db, 'clients', id), cleanData(updates), { merge: true });
+      if (currentUser?.role === 'admin') {
+        await logClinicalAction(
+          currentUser.id,
+          'update_client',
+          id,
+          `Updated fields: ${Object.keys(updates).join(', ')}`,
+        );
+      }
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, path);
     }
