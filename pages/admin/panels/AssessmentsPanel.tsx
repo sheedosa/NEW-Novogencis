@@ -183,7 +183,7 @@ function AssessmentsPanel() {
               <div className="bg-white rounded-[2rem] border border-black/5 shadow-sm p-6 md:p-8">
                 <h4 className="text-[10px] font-medium text-muted uppercase mb-6">Assessment Summary</h4>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                  {triageSelected.assessmentData?.answers && Object.entries(triageSelected.assessmentData.answers).slice(0, 8).map(([key, val]: [string, any]) => (
+                  {triageSelected.assessmentData?.answers && Object.entries(triageSelected.assessmentData.answers).slice(0, 8).map(([key, val]: [string, { text: string; value: string | string[] }]) => (
                     <div key={key} className="bg-cream/50 rounded-xl p-4">
                       <p className="text-[9px] font-medium text-primary uppercase mb-1">Q{key.replace(/[fm]/, '')}</p>
                       <p className="text-[11px] font-bold text-obsidian leading-relaxed">

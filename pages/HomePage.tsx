@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { Page } from '../types';
-import { ShieldCheck, Star, ArrowRight, BarChart2, Quote, Stethoscope, BadgeCheck, Microscope } from 'lucide-react';
+import { ShieldCheck, Star, ArrowRight, Quote, Stethoscope } from 'lucide-react';
 
 interface HomePageProps {
   onNavigate: (page: Page) => void;

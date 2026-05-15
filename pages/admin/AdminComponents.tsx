@@ -134,10 +134,13 @@ export const InternalNotesEditor = ({
   const [notes, setNotes] = useState(initialNotes);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
 
+  // Reset local state when the underlying record changes (e.g. switching clients).
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { setNotes(initialNotes); setSaveStatus('idle'); }, [initialNotes]);
 
   useEffect(() => {
     if (notes === initialNotes) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setSaveStatus('idle');
     const timer = setTimeout(async () => {
       setSaveStatus('saving');
@@ -202,6 +205,8 @@ export const FeedbackEditor = ({
 }) => {
   const [feedback, setFeedback] = useState(initialFeedback);
   const [status, setStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  // Reset local state when the underlying record changes.
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { setFeedback(initialFeedback); setStatus('idle'); }, [initialFeedback]);
 
   const handleSubmit = async () => {

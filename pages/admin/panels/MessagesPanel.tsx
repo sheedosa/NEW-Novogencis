@@ -2,7 +2,7 @@ import React, { memo } from 'react';
 import { useAdminContext } from '../context';
 import { MessageInputForm } from '../AdminComponents';
 import { FORMS } from '../../../constants';
-import { Search, MessageCircle, Phone, FileText, CreditCard, Send } from 'lucide-react';
+import { Search, MessageCircle, Phone, FileText, CreditCard } from 'lucide-react';
 
 const MessagesPanel: React.FC = () => {
   const {
@@ -262,14 +262,19 @@ const MessagesPanel: React.FC = () => {
                       ))}
                       <button
                         onClick={async () => {
-                          const amount = '150'; // Default amount to avoid prompt in iframe
+                          const paymentUrl = import.meta.env.VITE_STRIPE_PAYMENT_LINK;
+                          if (!paymentUrl) {
+                            alert('Payment link is not configured. Please set VITE_STRIPE_PAYMENT_LINK in the environment before sending payment requests.');
+                            return;
+                          }
+                          const amount = '150';
                           await onSendMessage({
                             senderId: 'admin',
                             recipientId: selectedThreadId,
                             subject: 'Payment Request',
                             body: `Payment Request: £${amount} for treatment session`,
                             type: 'payment',
-                            paymentUrl: 'https://buy.stripe.com/test_6oE7v9gX8',
+                            paymentUrl,
                             read: false,
                             createdAt: new Date().toISOString()
                           });

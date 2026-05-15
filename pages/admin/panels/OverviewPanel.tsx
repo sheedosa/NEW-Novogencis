@@ -4,10 +4,17 @@ import {
   ArrowRight, CalendarX2, MailX, ChevronRight, Clock, MapPin,
 } from 'lucide-react';
 
+const formatTimeAgo = (iso: string, nowMs: number) => {
+  const diff = nowMs - new Date(iso).getTime();
+  if (diff < 60_000) return 'just now';
+  if (diff < 3_600_000) return `${Math.floor(diff / 60_000)}m`;
+  if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)}h`;
+  return `${Math.floor(diff / 86_400_000)}d`;
+};
+
 function OverviewPanel() {
   const {
     filteredClients,
-    filteredAppointments,
     appointments,
     messages,
     clients,
@@ -69,13 +76,10 @@ function OverviewPanel() {
     return Math.abs(start - now) < 30;
   }) || todayAppts[0];
 
-  const timeAgo = (iso: string) => {
-    const diff = Date.now() - new Date(iso).getTime();
-    if (diff < 60_000) return 'just now';
-    if (diff < 3_600_000) return `${Math.floor(diff / 60_000)}m`;
-    if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)}h`;
-    return `${Math.floor(diff / 86_400_000)}d`;
-  };
+  // Snapshot of the wall clock used for relative-time labels. Recomputed
+  // whenever messages change, which is good enough — labels round to minutes/hours.
+  // eslint-disable-next-line react-hooks/purity, react-hooks/exhaustive-deps
+  const nowMs = useMemo(() => Date.now(), [messages]);
 
   return (
     <div className="animate-fade-up space-y-5">
@@ -282,7 +286,7 @@ function OverviewPanel() {
                     <div className="flex-grow min-w-0 text-left">
                       <div className="flex items-center justify-between gap-2">
                         <p className="text-sm font-medium text-obsidian truncate">{sender?.name || 'Unknown'}</p>
-                        <span className="text-2xs text-hint shrink-0">{timeAgo(m.createdAt)}</span>
+                        <span className="text-2xs text-hint shrink-0">{formatTimeAgo(m.createdAt, nowMs)}</span>
                       </div>
                       <p className="text-xs text-muted truncate">{m.body || m.subject}</p>
                     </div>

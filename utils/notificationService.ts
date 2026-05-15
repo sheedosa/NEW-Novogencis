@@ -1,4 +1,4 @@
-import { collection, addDoc, serverTimestamp, query, where, updateDoc, doc } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, updateDoc, doc } from 'firebase/firestore';
 import emailjs from '@emailjs/browser';
 import { db } from '../firebase';
 import { EMAIL_CONFIG, EMAIL_TEMPLATES, EmailTemplateKey } from './emailTemplates';

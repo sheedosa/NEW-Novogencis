@@ -409,7 +409,7 @@ const App: React.FC = () => {
     };
 
     const isFemale = gender === 'female';
-    const consultation: Record<string, any> = {
+    const consultation: Record<string, unknown> = {
       onset: g(isFemale ? 'f3' : 'm3'),
       triggers: g(isFemale ? 'f4' : 'm4'),
       medicalHistory: g(isFemale ? 'f8' : 'm8'),
@@ -487,7 +487,7 @@ const App: React.FC = () => {
     } else {
       navigateTo(Page.ClientDashboard);
     }
-  }, [navigateTo, getGalleryFromAnswers]);
+  }, [navigateTo, getGalleryFromAnswers, mapAnswersToConsultation]);
 
   const handleLogout = async () => {
     try {
@@ -717,7 +717,7 @@ const App: React.FC = () => {
       console.error('Account creation error:', error);
       throw error;
     }
-  }, [navigateTo]);
+  }, [navigateTo, getGalleryFromAnswers, mapAnswersToConsultation]);
 
   const handleAcceptPolicies = async () => {
     if (!currentUser) return;

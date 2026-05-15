@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- form data is a heterogeneous bag of string/number/boolean values; refactoring to a discriminated schema is tracked separately */
 import React, { useState, useRef, useEffect } from 'react';
 import { Message, Client } from '../types';
 import { FORMS } from '../constants';
@@ -96,7 +97,7 @@ export const InteractiveForm: React.FC<InteractiveFormProps> = ({ message, clien
     }
   };
 
-  const handleInputChange = (field: string, value: any) => {
+  const handleInputChange = (field: string, value: unknown) => {
     if (isReadOnly) return;
     setFormData(prev => ({ ...prev, [field]: value }));
   };

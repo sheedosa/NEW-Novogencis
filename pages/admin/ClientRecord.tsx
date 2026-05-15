@@ -2,15 +2,11 @@ import React, { useState, memo } from 'react';
 import { useAdminContext } from './context';
 import { ClientRecordTab } from './context';
 import { Card } from '../../components/Card';
-import { InteractiveForm } from '../../components/InteractiveForm';
 import { InternalNotesEditor, FeedbackEditor, MessageInputForm } from './AdminComponents';
 import { FORMS } from '../../constants';
-import { Camera, Upload, X, Plus, Image as ImageIcon, Loader2, ArrowLeft, CheckCircle, History, CalendarClock, FileText, CreditCard, ChevronDown, Send, GitCompare, ClipboardList, Stethoscope, Pencil } from 'lucide-react';
-import { storage } from '../../firebase';
-import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
-import { processImageForUpload, validateImageFile, ACCEPTED_IMAGE_TYPES } from '../../imageUtils';
+import { Camera, X, Plus, Image as ImageIcon, ArrowLeft, CheckCircle, History, CalendarClock, FileText, CreditCard, ChevronDown, Send, GitCompare, ClipboardList, Stethoscope, Pencil } from 'lucide-react';
 import { logClinicalAction } from '../../utils/auditLogger';
-import { notifyFeedbackReceived, notifyFormSent, notifyPaymentSent } from '../../utils/notificationService';
+import { notifyFeedbackReceived } from '../../utils/notificationService';
 import { Appointment, TreatmentPlan, TreatmentPhase, Prescription, Payment } from '../../types';
 
 const ClientRecord: React.FC = () => {
@@ -20,32 +16,14 @@ const ClientRecord: React.FC = () => {
     setClientRecordTab,
     setSelectedClientId,
     setLightboxImage,
-    lightboxImage,
-    isUploading,
-    setIsUploading,
-    showGalleryUpload,
     setShowGalleryUpload,
-    galleryUploadFile,
-    setGalleryUploadFile,
-    galleryUploadLabel,
-    setGalleryUploadLabel,
-    galleryUploadPreview,
-    setGalleryUploadPreview,
-    viewingForm,
     setViewingForm,
-    fileInputRef,
-    cameraInputRef,
     openBookingModal,
-    uploadProgress,
-    setUploadProgress,
     onUpdateClient,
     onSendMessage,
-    onMarkMessageRead,
-    onUpdateMessage,
     handleSendForm,
     messages,
     appointments,
-    clients,
     user,
     formatDOB,
     calculateAge,
@@ -735,7 +713,7 @@ const ClientRecord: React.FC = () => {
                      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-6">
                         {Object.entries(selectedClient.assessmentData?.answers || {})
                           .filter(([key]) => ['f1','f2','f3','f4','f5','m1','m2','m3','m4','m5'].includes(key))
-                          .map(([key, val]: [string, any]) => (
+                          .map(([key, val]: [string, { text: string; value: string | string[] }]) => (
                              <div key={key} className="space-y-1">
                                 <p className="text-[9px] font-medium text-muted uppercase tracking-tighter leading-tight">{val.text}</p>
                                 <p className="text-xs font-bold text-obsidian leading-relaxed">
@@ -755,8 +733,9 @@ const ClientRecord: React.FC = () => {
                      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-6">
                         {Object.entries(selectedClient.assessmentData?.answers || {})
                           .filter(([key]) => !['f1','f2','f3','f4','f5','m1','m2','m3','m4','m5','f26','m22'].includes(key))
-                          .map(([key, val]: [string, any]) => {
-                             const isSignificant = val.value && val.value !== 'No' && val.value !== 'None' && !val.value.includes('None');
+                          .map(([key, val]: [string, { text: string; value: string | string[] }]) => {
+                             const valStr = Array.isArray(val.value) ? val.value.join(', ') : val.value;
+                             const isSignificant = valStr && valStr !== 'No' && valStr !== 'None' && !valStr.includes('None');
                              return (
                                <div key={key} className={`space-y-1 p-2 -m-2 rounded-lg transition-colors ${isSignificant ? 'bg-red-50/50' : ''}`}>
                                   <p className="text-[9px] font-medium text-muted uppercase tracking-tighter leading-tight">{val.text}</p>

@@ -246,10 +246,11 @@ const AssessmentPage: React.FC<AssessmentPageProps> = ({ onNavigate, onIntakeCom
         };
       });
       alert('Photo uploaded successfully.');
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Upload error:', err);
-      alert(err?.message || 'Failed to upload image. Please try again.');
-      setError(err?.message || 'Failed to upload image. Please try again.');
+      const msg = err instanceof Error ? err.message : 'Failed to upload image. Please try again.';
+      alert(msg);
+      setError(msg);
     } finally {
       setUploading(false);
     }

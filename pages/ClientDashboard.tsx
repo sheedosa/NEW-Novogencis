@@ -1,5 +1,5 @@
 import React, { useState, useMemo, memo, useCallback } from 'react';
-import { Stethoscope, FileText, CheckCircle, CreditCard, MessageCircle, Send, CalendarDays, FlaskConical, Navigation, History, ClipboardList, Info, UserIcon, X, LogOut, Menu, Bell, BellOff, ArrowRight, Pill, Camera, Upload, RefreshCw, BarChart2, LayoutGrid, ChevronRight } from 'lucide-react';
+import { Stethoscope, FileText, CheckCircle, CreditCard, MessageCircle, Send, CalendarDays, FlaskConical, Navigation, History, ClipboardList, Info, UserIcon, X, LogOut, Menu, Bell, BellOff, ArrowRight, Pill, Camera, Upload, RefreshCw, BarChart2, LayoutGrid } from 'lucide-react';
 
 const CLIENT_NAV_ICONS: Record<string, React.ComponentType<{ size?: number; className?: string }>> = {
   grid_view:        LayoutGrid,
@@ -313,9 +313,10 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
       setGalleryUploadPreview(null);
       setUploadProgress(0);
       alert('Photo uploaded successfully.');
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error uploading gallery photo:', error);
-      alert(error?.message || 'Failed to upload photo. Please try again.');
+      const msg = error instanceof Error ? error.message : 'Failed to upload photo. Please try again.';
+      alert(msg);
     } finally {
       setIsUploading(false);
     }
