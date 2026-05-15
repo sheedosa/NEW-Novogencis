@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Type-check, lint, build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type-check
+        run: npm run type-check
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build
+        env:
+          # Placeholders so Vite's `import.meta.env` reads succeed during build.
+          # The real values are injected at deploy time from repo/environment secrets.
+          VITE_EMAILJS_SERVICE_ID: ci_placeholder
+          VITE_EMAILJS_PUBLIC_KEY: ci_placeholder
+          VITE_ADMIN_NOTIFICATION_EMAIL: ci@example.com
+          VITE_STRIPE_PAYMENT_LINK: https://example.com/ci-placeholder
+        run: npm run build

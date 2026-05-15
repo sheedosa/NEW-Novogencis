@@ -25,7 +25,13 @@ export interface User {
   username: string;
   role: UserRole;
   adminType?: AdminType;
+  /** Legacy boolean flag; superseded by acceptedPolicyVersion. Kept for
+   *  back-compat with records created before consent versioning. */
   policiesAccepted?: boolean;
+  /** The CURRENT_POLICY_VERSION value the user last accepted. */
+  acceptedPolicyVersion?: string;
+  /** ISO timestamp of the most recent policy acceptance. */
+  policiesAcceptedAt?: string;
   createdAt: string;
 }
 
@@ -69,6 +75,8 @@ export interface Client {
   medicalHistory?: string;
   status: string;
   policiesAccepted?: boolean;
+  acceptedPolicyVersion?: string;
+  policiesAcceptedAt?: string;
   doctorPreference?: 'female-only' | 'ok-with-male';
   gallery?: GalleryItem[];
   completedForms?: {

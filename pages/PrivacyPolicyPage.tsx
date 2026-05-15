@@ -35,10 +35,13 @@ const PrivacyPolicyPage: React.FC = () => {
           <section>
             <h2 className="text-xl font-bold text-obsidian mb-3">3. How We Store Your Information</h2>
             <p>
-              All personal health records and appointment information are securely stored within our own GDPR-compliant, encrypted clinical practice management system.
+              Personal health records, photographs and appointment information are stored in Google Cloud (Firebase) data centres located in the United Kingdom and the European Economic Area. Data in transit is protected by TLS 1.2 or higher, and Google Cloud encrypts data at rest using AES-256 by default. Access is gated by role-based security rules so that clients can only see their own records.
             </p>
             <p>
-              Only Dr. Aminah Amer (clinic owner and practitioner) has access to your full clinical record.
+              Only authorised clinicians (currently Dr. Aminah Amer, clinic owner and practitioner) have access to your full clinical record. All administrative access is logged.
+            </p>
+            <p>
+              If you would like more detail about our technical safeguards or to raise a data-protection concern, please email <a href="mailto:privacy@novogenics.co.uk" className="underline">privacy@novogenics.co.uk</a>.
             </p>
           </section>
 

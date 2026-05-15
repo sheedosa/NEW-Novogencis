@@ -10,7 +10,7 @@ const CLIENT_NAV_ICONS: Record<string, React.ComponentType<{ size?: number; clas
   person:           UserIcon,
 };
 import { Page, User, Appointment, Client, Message, GalleryItem } from '../types';
-import { FORMS } from '../constants';
+import { FORMS, CURRENT_POLICY_VERSION } from '../constants';
 import { Card } from '../components/Card';
 import { InteractiveForm } from '../components/InteractiveForm';
 import Logo from '../components/Logo';
@@ -216,7 +216,8 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
   const [activeTab, setActiveTab] = useState<Tab>('overview');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isFormSaving, setIsFormSaving] = useState(false);
-  const [showPolicyModal, setShowPolicyModal] = useState(!user?.policiesAccepted);
+  const needsPolicyAcceptance = !user?.policiesAccepted || user?.acceptedPolicyVersion !== CURRENT_POLICY_VERSION;
+  const [showPolicyModal, setShowPolicyModal] = useState(needsPolicyAcceptance);
   const [showNotifications, setShowNotifications] = useState(false);
   const [notifFilter, setNotifFilter] = useState<'all' | 'message' | 'appointment' | 'feedback'>('all');
 

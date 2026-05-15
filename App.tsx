@@ -3,6 +3,7 @@ import { onAuthStateChanged, createUserWithEmailAndPassword, signOut } from 'fir
 import { collection, onSnapshot, doc, getDoc, setDoc, query, orderBy, limit, deleteDoc, updateDoc, where, or } from 'firebase/firestore';
 import { Page, User, Client, Appointment, Message, GalleryItem, AppNotification } from './types';
 import { auth, db, handleFirestoreError, OperationType, cleanData } from './firebase';
+import { CURRENT_POLICY_VERSION } from './constants';
 import {
   notifyNewAssessment,
   notifyClientNewMessage,
@@ -644,6 +645,7 @@ const App: React.FC = () => {
       // server-side (Firebase Console or a privileged Cloud Function) — never
       // bestowed by the client based on an email allowlist. Firestore rules
       // also reject any client-side attempt to create a doc with role='admin'.
+      const nowIso = new Date().toISOString();
       const newUser: User = {
         id: uid,
         fullName: normalizedFullName,
@@ -651,7 +653,9 @@ const App: React.FC = () => {
         username: displayUsername,
         role: 'client',
         policiesAccepted: true,
-        createdAt: new Date().toISOString()
+        acceptedPolicyVersion: CURRENT_POLICY_VERSION,
+        policiesAcceptedAt: nowIso,
+        createdAt: nowIso
       };
       
       // Save to Firestore
@@ -675,7 +679,7 @@ const App: React.FC = () => {
         const { consultation, conditions } = mapAnswersToConsultation(answers, intakeData.gender || 'female');
 
         const newClient: Client = {
-          id: uid, 
+          id: uid,
           name: normalizedFullName,
           gender: intakeData.gender || 'female',
           email: authEmail,
@@ -683,7 +687,9 @@ const App: React.FC = () => {
           dob: intakeData.dateOfBirth,
           status: 'Assessment Submitted',
           policiesAccepted: true,
-          createdAt: new Date().toISOString(),
+          acceptedPolicyVersion: CURRENT_POLICY_VERSION,
+          policiesAcceptedAt: nowIso,
+          createdAt: nowIso,
           gallery: getGalleryFromAnswers(answers),
           assessmentData: {
             screening: {
@@ -721,19 +727,23 @@ const App: React.FC = () => {
 
   const handleAcceptPolicies = async () => {
     if (!currentUser) return;
+    const acceptance = {
+      policiesAccepted: true,
+      acceptedPolicyVersion: CURRENT_POLICY_VERSION,
+      policiesAcceptedAt: new Date().toISOString(),
+    };
     try {
       const userRef = doc(db, 'users', currentUser.id);
-      await updateDoc(userRef, { policiesAccepted: true });
-      
-      // Also update the client record if it exists
+      await updateDoc(userRef, acceptance);
+
+      // Also update the client record if it exists.
       const clientRef = doc(db, 'clients', currentUser.id);
       const clientDoc = await getDoc(clientRef);
       if (clientDoc.exists()) {
-        await updateDoc(clientRef, { policiesAccepted: true });
+        await updateDoc(clientRef, acceptance);
       }
 
-      // Update local state
-      setCurrentUser(prev => prev ? { ...prev, policiesAccepted: true } : null);
+      setCurrentUser(prev => prev ? { ...prev, ...acceptance } : null);
     } catch (error) {
       console.error('Failed to accept policies:', error);
     }

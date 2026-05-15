@@ -1,3 +1,10 @@
+// ── Policy / consent versioning ───────────────────────────────────────────
+// Bump CURRENT_POLICY_VERSION whenever the privacy policy or terms of service
+// change in a way that requires re-consent (new data sharing, new processors,
+// expanded retention, etc). When this changes the next sign-in will re-prompt
+// every user with the updated policy.
+export const CURRENT_POLICY_VERSION = '2025-05-15';
+
 export const FORMS = [
   {
     id: 'prp-consent',
