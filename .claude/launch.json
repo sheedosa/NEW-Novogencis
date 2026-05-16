@@ -1,0 +1,11 @@
+{
+  "servers": [
+    {
+      "name": "novogenics-dev",
+      "command": "npm run dev",
+      "cwd": ".",
+      "url": "http://localhost:5173",
+      "ready": "Local:"
+    }
+  ]
+}
