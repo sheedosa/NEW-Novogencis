@@ -73,6 +73,10 @@ firebase-debug.log*
 firestore-debug.log*
 pubsub-debug.log*
 
+# Service account key — NEVER commit this
+service-account.json
+*-service-account.json
+
 # OS files
 .DS_Store
 Thumbs.db

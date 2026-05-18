@@ -1,37 +1,46 @@
 /** @type {import('tailwindcss').Config} */
 export default {
-  content: ['./index.html', './**/*.{ts,tsx}'],
+  content: ['./index.html', './src/**/*.{ts,tsx}', './*.{ts,tsx}', './pages/**/*.{ts,tsx}', './components/**/*.{ts,tsx}', './utils/**/*.{ts,tsx}'],
   theme: {
     extend: {
       colors: {
         // ── Brand core ──────────────────────────────────────────────
         primary:       '#C9A86A',   // Gold — accent only, never decorative
         'primary-dim': '#A8894F',   // Hover / pressed state
+        'primary-soft':'#F4EDD9',   // Soft gold tint — positive moments
 
-        // ── Neutrals ────────────────────────────────────────────────
-        obsidian:      '#1C1917',   // replaces clinical-dark
-        ivory:         '#FDFCFB',   // page background
-        cream:         '#F5F0EB',   // surface / sidebar bg
-        sand:          '#E5DDD4',   // border default
-        muted:         '#6B5E52',   // secondary text
-        hint:          '#9C8878',   // tertiary / placeholder
+        // ── Neutrals (warm-premium SaaS — Oura/wellness archetype) ──
+        obsidian:      '#1A1916',   // warm near-black text & primary surfaces
+        ivory:         '#FAFAF8',   // page background — soft warm off-white
+        cream:         '#F4F3EF',   // subtle surface / hover bg (warm-tinted)
+        sand:          '#E8E6E1',   // border default (warm-tinted)
+        muted:         '#6E6A65',   // secondary text (warm grey)
+        hint:          '#A39E97',   // tertiary / placeholder (warm tan-grey)
+
+        // ── Categorical chart palette (organic, color-blind safe) ──
+        chart: {
+          sage:       '#7FA288',
+          terracotta: '#C49072',
+          indigo:     '#6B7FB8',
+          slate:      '#94A3B8',
+        },
 
         // ── Legacy aliases (keep so existing components don't break) ─
-        'bg-soft':      '#F5F0EB',
-        'clinical-dark':'#1C1917',
-        'text-main':    '#1C1917',
-        'text-muted':   '#6B5E52',
+        'bg-soft':      '#F4F3EF',
+        'clinical-dark':'#1A1916',
+        'text-main':    '#1A1916',
+        'text-muted':   '#6E6A65',
         'accent-gold':  '#C9A86A',
-        'brand-green':  '#4F6F52',
+        'brand-green':  '#7FA288',
 
-        // ── Semantic status ─────────────────────────────────────────
-        success: { DEFAULT: '#059669', light: '#ECFDF5', text: '#065F46' },
-        warning: { DEFAULT: '#D97706', light: '#FFFBEB', text: '#92400E' },
-        danger:  { DEFAULT: '#DC2626', light: '#FEF2F2', text: '#991B1B' },
-        info:    { DEFAULT: '#2563EB', light: '#EFF6FF', text: '#1D4ED8' },
+        // ── Semantic status — muted & warm (premium-wellness) ──────
+        success: { DEFAULT: '#3B8C5F', light: '#E8F0EB', text: '#2D6E47' },
+        warning: { DEFAULT: '#C68726', light: '#F8F0DB', text: '#8B5E1A' },
+        danger:  { DEFAULT: '#C04A4A', light: '#F4E3E1', text: '#8A3535' },
+        info:    { DEFAULT: '#3B6FB8', light: '#E5ECF5', text: '#2B5285' },
 
         // ── AI feature colour ────────────────────────────────────────
-        ai: { DEFAULT: '#1C1917', accent: '#C9A86A' },
+        ai: { DEFAULT: '#1A1916', accent: '#C9A86A' },
       },
 
       fontFamily: {
@@ -75,10 +84,10 @@ export default {
       },
 
       boxShadow: {
-        // Minimal — only functional elevation
-        'card':   '0 1px 3px 0 rgba(28,25,23,0.06), 0 1px 2px -1px rgba(28,25,23,0.04)',
-        'panel':  '0 4px 16px -4px rgba(28,25,23,0.10)',
-        'modal':  '0 20px 48px -12px rgba(28,25,23,0.22)',
+        // Minimal, cool-neutral shadows
+        'card':   '0 1px 2px 0 rgba(15,15,16,0.04), 0 0 0 0.5px rgba(15,15,16,0.04)',
+        'panel':  '0 4px 16px -4px rgba(15,15,16,0.08)',
+        'modal':  '0 20px 48px -12px rgba(15,15,16,0.18)',
         'focus':  '0 0 0 3px rgba(201,168,106,0.25)',
         'none':   'none',
       },

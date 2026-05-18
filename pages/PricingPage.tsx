@@ -144,7 +144,7 @@ const PricingPage: React.FC<PricingPageProps> = ({ onNavigate }) => {
             
             {/* Klarna Payment Indicator - Unified URL */}
             <div className="flex flex-col items-center gap-2 mt-4">
-               <span className="text-[8px] md:text-[10px] font-medium uppercase tracking-[0.3em] text-muted/60">Payment plans available via</span>
+               <span className="text-[10px] font-medium uppercase tracking-[0.3em] text-muted/60">Payment plans available via</span>
                <div className="h-5 flex items-center">
                   <img 
                     src="https://lh3.googleusercontent.com/d/1G4qDbkBW0teKcS1IaKy7oaly8CVTKkQK" 

@@ -1,10 +1,22 @@
 import { createContext, useContext, RefObject } from 'react';
 import {
   Page, User, Client, Appointment, Message, GalleryItem,
-  AdminType, AppNotification, TreatmentPlan, Prescription, Payment,
+  AdminType, AppNotification, TreatmentPlan, Prescription, Payment, Task, Template,
 } from '../../types';
 
-export type AdminTab = 'overview' | 'assessments' | 'clients' | 'appointments' | 'messages' | 'platform-health';
+export type AdminTab =
+  | 'today'
+  | 'inbox'
+  | 'calendar'
+  | 'patients'
+  | 'money'
+  | 'insights'
+  | 'marketing'
+  | 'platform-health'
+  // legacy aliases (resolved to the new tabs in AdminPage). Kept so existing
+  // setActiveTab('overview' | 'assessments' | 'clients' | 'appointments' | 'messages')
+  // call sites don't break.
+  | 'overview' | 'assessments' | 'clients' | 'appointments' | 'messages';
 export type ClientRecordTab = 'overview' | 'communications' | 'forms' | 'gallery' | 'assessment' | 'treatment' | 'financials';
 export type NotifFilter = 'all' | 'assessment' | 'message' | 'appointment';
 export type AppointmentView = 'list' | 'calendar';
@@ -26,9 +38,22 @@ export interface AdminPageProps {
   onMarkMessageRead: (id: string) => Promise<void>;
   onUpdateMessage: (id: string, updates: Partial<Message>) => Promise<void>;
   onUpdateClient: (id: string, updates: Partial<Client>) => Promise<void>;
-  onBootstrapAdmins?: () => Promise<void>;
   notifications: AppNotification[];
   onMarkNotificationRead: (id: string) => Promise<void>;
+  tasks: Task[];
+  onAddTask: (task: Omit<Task, 'id' | 'createdAt' | 'createdBy'>) => Promise<void>;
+  onUpdateTask: (id: string, updates: Partial<Task>) => Promise<void>;
+  onDeleteTask: (id: string) => Promise<void>;
+  templates: Template[];
+  onAddTemplate: (tpl: Omit<Template, 'id' | 'createdAt' | 'createdBy'>) => Promise<void>;
+  onUpdateTemplate: (id: string, updates: Partial<Template>) => Promise<void>;
+  onDeleteTemplate: (id: string) => Promise<void>;
+
+  /** Preview mode controls — admin can toggle into the dummy patient view. */
+  viewAsTestPatient?: boolean;
+  onSetViewAsTestPatient?: (next: boolean) => void;
+  /** Tech admin only — seeds/resets the dummy patient's Firestore data. */
+  onSeedDummyPatient?: () => Promise<void>;
 }
 
 // ── Full context value ─────────────────────────────────────────────────────
@@ -38,10 +63,6 @@ export interface AdminContextValue extends AdminPageProps {
   setActiveTab: (tab: AdminTab) => void;
   effectiveAdminType: AdminType | 'all';
   setEffectiveAdminType: (t: AdminType | 'all') => void;
-  isBootstrapping: boolean;
-  setIsBootstrapping: (v: boolean) => void;
-  bootstrapStatus: string | null;
-  setBootstrapStatus: (s: string | null) => void;
   selectedClientId: string | null;
   setSelectedClientId: (id: string | null) => void;
   clientRecordTab: ClientRecordTab;
@@ -116,9 +137,9 @@ export interface AdminContextValue extends AdminPageProps {
   handleNotificationClick: (n: AppNotification) => void;
   clearAll: () => void;
   handleSidebarClick: (id: AdminTab) => void;
-  openBookingModal: (clientId?: string) => void;
+  openBookingModal: (clientId?: string, prefill?: { date?: string; time?: string }) => void;
   handleBookingSubmit: (e: React.FormEvent) => void;
-  handleSendForm: (formId: string, clientId: string, clientEmail: string) => Promise<void>;
+  handleSendForm: (formId: string) => Promise<void>;
   changeMonth: (offset: number) => void;
   getCalendarDays: () => CalendarDay[];
 

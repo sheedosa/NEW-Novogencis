@@ -16,14 +16,20 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks: {
-          'react-vendor': ['react', 'react-dom'],
-          'firebase-vendor': [
-            'firebase/app',
-            'firebase/auth',
-            'firebase/firestore',
-            'firebase/storage',
+          'react-vendor':    ['react', 'react-dom'],
+          'firebase-vendor': ['firebase/app', 'firebase/auth', 'firebase/firestore', 'firebase/storage'],
+          'motion-vendor':   ['motion/react'],
+          'admin-panels':    [
+            './pages/admin/panels/TodayPanel',
+            './pages/admin/panels/InboxPanel',
+            './pages/admin/panels/CalendarPanel',
+            './pages/admin/panels/ClientsPanel',
+            './pages/admin/panels/MoneyPanel',
+            './pages/admin/panels/InsightsPanel',
+            './pages/admin/panels/MarketingPanel',
+            './pages/admin/panels/PlatformHealthPanel',
+            './pages/admin/ClientRecord',
           ],
-          'motion-vendor': ['motion/react'],
         },
       },
     },

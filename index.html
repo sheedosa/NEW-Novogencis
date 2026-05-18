@@ -3,10 +3,25 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    
+
     <!-- Favicon -->
     <link rel="icon" type="image/png" href="https://lh3.googleusercontent.com/d/1e_7ol4_MvFJsM4dGkVA5SLLbI70gL9Gz">
     <link rel="apple-touch-icon" href="https://lh3.googleusercontent.com/d/1e_7ol4_MvFJsM4dGkVA5SLLbI70gL9Gz">
+
+    <!-- ── PWA + native-app feel ─────────────────────────────────────────── -->
+    <!-- Manifest enables Add-to-Home-Screen on Android & desktop -->
+    <link rel="manifest" href="/manifest.json">
+    <!-- Theme colour for browser chrome (Android, PWA window) -->
+    <meta name="theme-color" content="#1C1917" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#1C1917" media="(prefers-color-scheme: dark)">
+
+    <!-- iOS: launch as a full-screen standalone app from the home screen.
+         No browser chrome, no URL bar — it looks native. -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Novogenics">
+    <meta name="application-name" content="Novogenics">
 
     <!-- Primary Meta Tags -->
     <title>Novogenics | Regenerative Hair Restoration</title>
@@ -104,7 +119,7 @@
       }
     </style>
 </head>
-<body class="bg-bg-soft text-text-main antialiased overflow-x-hidden selection:bg-primary/30">
+<body class="bg-ivory text-text-main antialiased overflow-x-hidden selection:bg-primary/30">
     <div id="root"></div>
     <script type="module" src="./index.tsx" defer></script>
 </body>

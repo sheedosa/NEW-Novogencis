@@ -9,25 +9,30 @@
 
 /* ── CSS Design Tokens ──────────────────────────────────────── */
 :root {
-  /* Core palette */
-  --color-obsidian:   #1C1917;
+  /* Core palette — warm-premium SaaS (Oura/wellness archetype) */
+  --color-obsidian:   #1A1916;
   --color-gold:       #C9A86A;
   --color-gold-dim:   #A8894F;
-  --color-ivory:      #FDFCFB;
-  --color-cream:      #F5F0EB;
-  --color-sand:       #E5DDD4;
-  --color-muted:      #6B5E52;
-  --color-hint:       #9C8878;
+  --color-gold-soft:  #F4EDD9;
+  --color-ivory:      #FAFAF8;   /* page bg — soft warm off-white */
+  --color-cream:      #F4F3EF;   /* subtle surface / hover (warm-tinted) */
+  --color-sand:       #E8E6E1;   /* borders (warm-tinted) */
+  --color-muted:      #6E6A65;   /* secondary text (warm grey) */
+  --color-hint:       #A39E97;   /* tertiary text (warm tan-grey) */
 
-  /* Semantic */
-  --color-success:    #059669;
-  --color-success-bg: #ECFDF5;
-  --color-warning:    #D97706;
-  --color-warning-bg: #FFFBEB;
-  --color-danger:     #DC2626;
-  --color-danger-bg:  #FEF2F2;
-  --color-info:       #2563EB;
-  --color-info-bg:    #EFF6FF;
+  /* Semantic — muted & warm (premium-wellness, not stoplight) */
+  --color-success:     #3B8C5F;
+  --color-success-bg:  #E8F0EB;
+  --color-success-text:#2D6E47;
+  --color-warning:     #C68726;
+  --color-warning-bg:  #F8F0DB;
+  --color-warning-text:#8B5E1A;
+  --color-danger:      #C04A4A;
+  --color-danger-bg:   #F4E3E1;
+  --color-danger-text: #8A3535;
+  --color-info:        #3B6FB8;
+  --color-info-bg:     #E5ECF5;
+  --color-info-text:   #2B5285;
 
   /* Layout */
   --sidebar-width:    240px;
@@ -43,9 +48,9 @@
   --radius-pill:9999px;
 
   /* Shadows (minimal) */
-  --shadow-card:  0 1px 3px 0 rgba(28,25,23,0.06), 0 1px 2px -1px rgba(28,25,23,0.04);
-  --shadow-panel: 0 4px 16px -4px rgba(28,25,23,0.10);
-  --shadow-modal: 0 20px 48px -12px rgba(28,25,23,0.22);
+  --shadow-card:  0 1px 2px 0 rgba(15,15,16,0.04), 0 0 0 0.5px rgba(15,15,16,0.04);
+  --shadow-panel: 0 4px 16px -4px rgba(15,15,16,0.08);
+  --shadow-modal: 0 20px 48px -12px rgba(15,15,16,0.18);
   --shadow-focus: 0 0 0 3px rgba(201,168,106,0.25);
 }
 
@@ -61,6 +66,57 @@ html {
   scroll-padding-top: 80px;
   background-color: var(--color-ivory);
   color: var(--color-obsidian);
+  /* Native-app feel: remove the 300ms tap delay, no grey tap flash */
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  /* Prevent text from scaling on iOS landscape orientation change */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+/* PWA standalone-launch tweaks: respect the iOS notch and home indicator */
+@supports (padding: max(0px)) {
+  body {
+    padding-left:  env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+}
+
+/* App-like tactile feedback on interactive elements.
+   Buttons & nav items lightly compress on tap; scrolls don't bounce the body. */
+button,
+.nav-item,
+[role="button"],
+a {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+button:active:not(:disabled),
+.nav-item:active,
+[role="button"]:active {
+  transform: scale(0.97);
+  transition: transform 0.06s ease-out;
+}
+
+/* Smooth momentum scroll inside cards / panels, no body bounce */
+.portal-content,
+.portal-main,
+.no-scrollbar,
+[data-scroll] {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+/* Don't let long-press select text on UI chrome (sidebar, headers, modals) */
+.portal-sidebar,
+.portal-topbar,
+header,
+nav {
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 body {
@@ -134,7 +190,7 @@ input:focus, textarea:focus  {
 .portal-shell {
   display: flex;
   min-height: 100vh;
-  background: var(--color-cream);
+  background: var(--color-ivory);
 }
 
 /* Sidebar */
@@ -170,7 +226,9 @@ input:focus, textarea:focus  {
 /* Portal header bar */
 .portal-topbar {
   height: var(--header-height);
-  background: rgba(253, 252, 251, 0.92);
+  background: rgba(250, 250, 248, 0.92);   /* matches new ivory off-white */
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   border-bottom: 0.5px solid var(--color-sand);
   display: flex;
   align-items: center;
@@ -241,10 +299,10 @@ input:focus, textarea:focus  {
   border-radius: 9999px;
   flex-shrink: 0;
 }
-.nav-badge-blue   { background: #EFF6FF; color: #1D4ED8; }
-.nav-badge-gold   { background: var(--color-obsidian); color: var(--color-gold); }
-.nav-badge-green  { background: #ECFDF5; color: #065F46; }
-.nav-badge-amber  { background: #FFFBEB; color: #92400E; }
+.nav-badge-blue   { background: var(--color-info-bg);    color: var(--color-info-text); }
+.nav-badge-gold   { background: var(--color-obsidian);   color: var(--color-gold); }
+.nav-badge-green  { background: var(--color-success-bg); color: var(--color-success-text); }
+.nav-badge-amber  { background: var(--color-warning-bg); color: var(--color-warning-text); }
 
 /* ── Cards ──────────────────────────────────────────────────── */
 .card {
@@ -252,13 +310,27 @@ input:focus, textarea:focus  {
   border: 0.5px solid var(--color-sand);
   border-radius: var(--radius-lg);
   padding: 16px 18px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+/* Elevated variant — for hero/feature cards that need to stand out.
+   Used sparingly: morning briefing, primary KPI, AI triage results. */
+.card-elevated {
+  border-color: transparent;
+  box-shadow:
+    0 1px 2px 0 rgba(15, 15, 16, 0.04),
+    0 4px 16px -6px rgba(15, 15, 16, 0.08),
+    0 0 0 0.5px rgba(15, 15, 16, 0.06);
 }
 
 .card-dark {
-  background: var(--color-obsidian);
+  background: linear-gradient(135deg, #1A1916 0%, #2A2724 100%);
   border: none;
   border-radius: var(--radius-lg);
   padding: 16px 18px;
+  box-shadow:
+    0 1px 2px 0 rgba(15, 15, 16, 0.08),
+    0 8px 24px -8px rgba(15, 15, 16, 0.20);
 }
 
 .card-title {
@@ -266,6 +338,7 @@ input:focus, textarea:focus  {
   font-weight: 500;
   color: var(--color-obsidian);
   margin-bottom: 12px;
+  letter-spacing: -0.005em;
 }
 
 /* Metric/stat card */
@@ -276,16 +349,41 @@ input:focus, textarea:focus  {
   padding: 14px 16px;
 }
 .stat-value {
-  font-size: 24px;
+  font-size: 26px;
   font-weight: 500;
   color: var(--color-obsidian);
-  line-height: 1.1;
+  line-height: 1.05;
+  letter-spacing: -0.01em;
 }
 .stat-label {
   font-size: 11px;
   color: var(--color-hint);
-  margin-top: 2px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 500;
 }
+.stat-hint {
+  font-size: 11px;
+  color: var(--color-muted);
+  margin-top: 4px;
+}
+/* Trend pill — tinted background instead of bare coloured text for stronger
+   visual rhythm on dashboards. */
+.stat-delta-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11px;
+  font-weight: 500;
+  margin-top: 8px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  line-height: 1;
+}
+.stat-delta-up      { background: var(--color-success-bg); color: var(--color-success-text); }
+.stat-delta-down    { background: var(--color-danger-bg); color: var(--color-danger-text); }
+.stat-delta-neutral { background: var(--color-cream); color: var(--color-muted); }
+/* Backwards-compat for any remaining .stat-delta usages */
 .stat-delta {
   display: flex;
   align-items: center;
@@ -321,7 +419,7 @@ input:focus, textarea:focus  {
   background: var(--color-obsidian);
   color: #fff;
 }
-.btn-primary:hover:not(:disabled) { background: #2d2925; }
+.btn-primary:hover:not(:disabled) { background: #27272A; }
 
 /* Secondary — obsidian outline */
 .btn-secondary {
@@ -352,7 +450,7 @@ input:focus, textarea:focus  {
   background: var(--color-obsidian);
   color: var(--color-gold);
 }
-.btn-ai:hover:not(:disabled) { background: #2d2925; }
+.btn-ai:hover:not(:disabled) { background: #27272A; }
 
 /* Sizes */
 .btn-sm { padding: 6px 13px; font-size: 12px; }
@@ -380,14 +478,36 @@ input:focus, textarea:focus  {
   font-size: 11px;
   font-weight: 500;
   white-space: nowrap;
+  letter-spacing: 0.005em;
+  /* Subtle 1px ring lifts pills off the page; works on coloured cards too. */
+  box-shadow: inset 0 0 0 0.5px rgba(15, 15, 16, 0.04);
 }
-.badge-active   { background: #ECFDF5; color: #065F46; }
-.badge-pending  { background: #FFFBEB; color: #92400E; }
-.badge-new      { background: #EFF6FF; color: #1D4ED8; }
-.badge-review   { background: #F5F3FF; color: #4C1D95; }
-.badge-inactive { background: var(--color-cream); color: var(--color-muted); }
-.badge-danger   { background: #FEF2F2; color: #991B1B; }
-.badge-ai       { background: var(--color-obsidian); color: var(--color-gold); font-size: 10px; }
+.badge-active   { background: var(--color-success-bg); color: var(--color-success-text); }
+.badge-pending  { background: var(--color-warning-bg); color: var(--color-warning-text); }
+.badge-new      { background: var(--color-info-bg);    color: var(--color-info-text); }
+.badge-review   { background: var(--color-gold-soft);  color: var(--color-gold-dim); }
+.badge-inactive { background: var(--color-cream);      color: var(--color-muted); }
+.badge-danger   { background: var(--color-danger-bg);  color: var(--color-danger-text); }
+.badge-ai       { background: var(--color-obsidian);   color: var(--color-gold); font-size: 10px; }
+
+/* Compact dot+text variant — for inline use where a full pill would be noisy. */
+.badge-dot {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-obsidian);
+}
+.badge-dot::before {
+  content: '';
+  display: block;
+  width: 6px;
+  height: 6px;
+  border-radius: 9999px;
+  background: currentColor;
+  opacity: 0.7;
+}
 
 /* ── AI chip — signals AI-generated content ─────────────────── */
 .ai-chip {
@@ -480,6 +600,53 @@ input:focus, textarea:focus  {
 .delay-200 { animation-delay: 0.2s; }
 .delay-300 { animation-delay: 0.3s; }
 .delay-400 { animation-delay: 0.4s; }
+
+/* ── Density toggle (Comfortable / Compact) ─────────────────── */
+/* Applies when <body data-density="compact"> is set via the Settings panel.
+   Tightens padding, slightly shrinks line-height, hides large gutters. */
+body[data-density="compact"] .card,
+body[data-density="compact"] .card-dark,
+body[data-density="compact"] .stat-card {
+  padding: 11px 13px;
+}
+body[data-density="compact"] .portal-content {
+  padding: 12px;
+}
+body[data-density="compact"] .nav-item {
+  padding: 6px 9px;
+  font-size: 12px;
+}
+body[data-density="compact"] .btn {
+  padding: 7px 14px;
+  font-size: 12px;
+}
+body[data-density="compact"] .btn-sm {
+  padding: 4px 10px;
+  font-size: 11px;
+}
+body[data-density="compact"] .data-table th,
+body[data-density="compact"] .data-table td {
+  padding: 7px 10px;
+}
+
+/* ── Skeleton shimmer (loading placeholders) ────────────────── */
+@keyframes skeleton-shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position:  200% 0; }
+}
+.skeleton-shimmer {
+  background-image: linear-gradient(
+    90deg,
+    rgba(229, 221, 212, 0.6) 0%,
+    rgba(229, 221, 212, 0.9) 50%,
+    rgba(229, 221, 212, 0.6) 100%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.6s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .skeleton-shimmer { animation: none; }
+}
 
 /* ── Public website — glass header ──────────────────────────── */
 .glass-header {
@@ -586,7 +753,7 @@ input:focus, textarea:focus  {
   vertical-align: middle;
 }
 .data-table tr:last-child td { border-bottom: none; }
-.data-table tr:hover td { background: #FDFCFB; }
+.data-table tr:hover td { background: var(--color-cream); }
 
 /* ── Marquee (testimonials) ─────────────────────────────────── */
 @keyframes marquee {

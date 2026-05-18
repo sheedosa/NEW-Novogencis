@@ -6,7 +6,16 @@ import { InteractiveForm } from '../components/InteractiveForm';
 import Logo from '../components/Logo';
 import { storage } from '../firebase';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
-import { Camera, Upload, X, PanelLeftClose, Menu, Search, Bell, BellOff, LogOut, Sun, CalendarDays, Settings, ChevronsUpDown, Eye } from 'lucide-react';
+import {
+  Camera, Upload, X, PanelLeftClose, PanelLeftOpen, Menu, Search, Bell, BellOff,
+  LogOut, Sun, CalendarDays, Settings, ChevronsUpDown, Eye,
+  LayoutDashboard, ClipboardList, Users, Calendar as CalendarIcon,
+  HeartPulse, MessageSquare, Inbox, FileText, BadgeCheck, CalendarCheck,
+  StickyNote, CreditCard, Star, ChevronDown, UserCheck,
+  Receipt, BarChart3, ListChecks, TrendingUp,
+} from 'lucide-react';
+import { Button, Modal, Input, Select, Textarea, SidebarItem as UISidebarItem, EmptyState, CommandPalette } from '../components/ui';
+import type { CommandItem } from '../components/ui';
 import { processImageForUpload, validateImageFile, ACCEPTED_IMAGE_TYPES } from '../imageUtils';
 import { logClinicalAction } from '../utils/auditLogger';
 import { notifyPaymentSent } from '../utils/notificationService';
@@ -18,12 +27,14 @@ import {
   ClientRecordTab,
   CalendarDay,
 } from './admin/context';
-import { SidebarItem } from './admin/AdminComponents';
-import OverviewPanel from './admin/panels/OverviewPanel';
-import AssessmentsPanel from './admin/panels/AssessmentsPanel';
-import MessagesPanel from './admin/panels/MessagesPanel';
-import AppointmentsPanel from './admin/panels/AppointmentsPanel';
+import SettingsDrawer from './admin/SettingsDrawer';
+import TodayPanel from './admin/panels/TodayPanel';
+import InboxPanel from './admin/panels/InboxPanel';
+import CalendarPanel from './admin/panels/CalendarPanel';
 import ClientsPanel from './admin/panels/ClientsPanel';
+import MoneyPanel from './admin/panels/MoneyPanel';
+import InsightsPanel from './admin/panels/InsightsPanel';
+import MarketingPanel from './admin/panels/MarketingPanel';
 import PlatformHealthPanel from './admin/panels/PlatformHealthPanel';
 
 const AdminPage: React.FC<AdminPageProps> = ({
@@ -31,13 +42,14 @@ const AdminPage: React.FC<AdminPageProps> = ({
   clients, appointments, messages, notifications,
   onAddAppointment, onUpdateAppointment, onDeleteAppointment,
   onSendMessage, onMarkMessageRead, onUpdateMessage, onUpdateClient,
-  onBootstrapAdmins, onMarkNotificationRead,
+  onMarkNotificationRead,
+  tasks, onAddTask, onUpdateTask, onDeleteTask,
+  templates, onAddTemplate, onUpdateTemplate, onDeleteTemplate,
+  viewAsTestPatient, onSetViewAsTestPatient, onSeedDummyPatient,
 }) => {
   // ── UI state ───────────────────────────────────────────────────────────────
   const [activeTab, setActiveTab]                   = useState<AdminTab>('overview');
   const [effectiveAdminType, setEffectiveAdminType] = useState<AdminType | 'all'>(user?.adminType || 'all');
-  const [isBootstrapping, setIsBootstrapping]       = useState(false);
-  const [bootstrapStatus, setBootstrapStatus]       = useState<string | null>(null);
   const [selectedClientId, setSelectedClientId]     = useState<string | null>(null);
   const [clientRecordTab, setClientRecordTab]       = useState<ClientRecordTab>('overview');
   const [isSidebarOpen, setIsSidebarOpen]           = useState(false);
@@ -63,6 +75,8 @@ const AdminPage: React.FC<AdminPageProps> = ({
   const [triageSelectedId, setTriageSelectedId] = useState<string | null>(null);
   const [notifFilter, setNotifFilter]           = useState<'all' | 'assessment' | 'message' | 'appointment'>('all');
   const [showMorningBriefing, setShowMorningBriefing] = useState(false);
+  const [showCommandPalette, setShowCommandPalette]   = useState(false);
+  const [showSettings, setShowSettings]               = useState(false);
   const [isUploading, setIsUploading]               = useState(false);
   const [showGalleryUpload, setShowGalleryUpload]   = useState(false);
   const [galleryUploadFile, setGalleryUploadFile]   = useState<File | null>(null);
@@ -213,11 +227,35 @@ const AdminPage: React.FC<AdminPageProps> = ({
 
   const selectedClient = filteredClients.find(c => c.id === selectedClientId);
 
-  const mockStats = useMemo(() => [
-    { label: 'Assessments Today', value: filteredClients.filter(c => c.status === 'Assessment Submitted').length.toString(), trend: 'New', icon: 'assignment', tab: 'assessments' as AdminTab },
-    { label: 'Appointments Today', value: filteredAppointments.filter(a => a.date === new Date().toISOString().split('T')[0]).length.toString(), icon: 'event', tab: 'appointments' as AdminTab },
-    { label: 'Active Clients', value: filteredClients.filter(c => c.status === 'Active' || c.status === 'Ongoing' || c.status === 'Converted').length.toString(), trend: 'Total', icon: 'groups', tab: 'clients' as AdminTab },
-  ], [filteredClients, filteredAppointments]);
+  // ── Sidebar badge counts (computed once per render from filtered data) ────
+  const today = new Date().toISOString().split('T')[0];
+  const todayBadge = filteredAppointments.filter(
+    a => a.date === today && a.status !== 'Cancelled',
+  ).length;
+  const pendingTriageCount = filteredClients.filter(c => c.status === 'Assessment Submitted').length;
+  const unreadFromClientsCount = messages.filter(m => !m.read && m.recipientId === 'admin').length;
+  const unsignedFormsCount = messages.filter(m => m.type === 'form' && !m.isSigned).length;
+  const pendingPaymentsCount = filteredClients.reduce(
+    (acc, c) => acc + (c.payments || []).filter(p => p.status === 'Pending' || p.status === 'Overdue').length,
+    0,
+  );
+  const openTaskCount = tasks.filter(
+    t => t.status === 'open' && (!t.assigneeId || t.assigneeId === user?.id) &&
+         (!t.snoozedUntil || t.snoozedUntil <= today),
+  ).length;
+  const inboxBadge = pendingTriageCount + unreadFromClientsCount + unsignedFormsCount + pendingPaymentsCount + openTaskCount;
+  const moneyBadge = pendingPaymentsCount;
+
+  const mockStats = useMemo(() => {
+    // `today` captured at memo time so the count is always today's date
+    // (avoids stale memoization across day boundaries during long sessions).
+    const todayIso = new Date().toISOString().split('T')[0];
+    return [
+      { label: 'Assessments Today', value: filteredClients.filter(c => c.status === 'Assessment Submitted').length.toString(), trend: 'New', icon: 'assignment', tab: 'assessments' as AdminTab },
+      { label: 'Appointments Today', value: filteredAppointments.filter(a => a.date === todayIso).length.toString(), icon: 'event', tab: 'appointments' as AdminTab },
+      { label: 'Active Clients', value: filteredClients.filter(c => c.status === 'Active' || c.status === 'Ongoing' || c.status === 'Converted').length.toString(), trend: 'Total', icon: 'groups', tab: 'clients' as AdminTab },
+    ];
+  }, [filteredClients, filteredAppointments, today]);
 
   // ── Handlers ───────────────────────────────────────────────────────────────
   const handleNotificationClick = (notification: AppNotification) => {
@@ -243,11 +281,18 @@ const AdminPage: React.FC<AdminPageProps> = ({
     setIsSidebarOpen(false);
   };
 
-  const openBookingModal = (clientId?: string) => {
-    if (clientId) {
-      const client = filteredClients.find(c => c.id === clientId);
-      setBookingForm(prev => ({ ...prev, clientId, clientName: client?.name }));
-    }
+  const openBookingModal = (clientId?: string, prefill?: { date?: string; time?: string }) => {
+    setBookingForm(prev => {
+      const next = { ...prev };
+      if (clientId) {
+        const client = filteredClients.find(c => c.id === clientId);
+        next.clientId = clientId;
+        next.clientName = client?.name;
+      }
+      if (prefill?.date) next.date = prefill.date;
+      if (prefill?.time) next.time = prefill.time;
+      return next;
+    });
     setShowBookingModal(true);
   };
 
@@ -332,6 +377,7 @@ const AdminPage: React.FC<AdminPageProps> = ({
       });
     } catch (error) {
       console.error('Failed to send form:', error);
+      alert('Failed to send form. Please try again.');
     }
   };
 
@@ -366,20 +412,64 @@ const AdminPage: React.FC<AdminPageProps> = ({
     }
   }, [filteredAppointments]);
 
+  // Cmd+K / Ctrl+K opens the command palette
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const isMod = e.metaKey || e.ctrlKey;
+      if (isMod && (e.key === 'k' || e.key === 'K')) {
+        e.preventDefault();
+        setShowCommandPalette(s => !s);
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, []);
+
+  // Build the command palette items: navigation + actions + every patient
+  const commandItems: CommandItem[] = useMemo(() => {
+    const items: CommandItem[] = [
+      { id: 'nav-today',     group: 'Navigate', icon: <Sun size={13} />,              label: 'Go to Today',                onSelect: () => setActiveTab('today') },
+      { id: 'nav-inbox',     group: 'Navigate', icon: <Inbox size={13} />,            label: 'Go to Inbox',                onSelect: () => setActiveTab('inbox') },
+      { id: 'nav-calendar',  group: 'Navigate', icon: <CalendarIcon size={13} />,     label: 'Go to Calendar',             onSelect: () => setActiveTab('calendar') },
+      { id: 'nav-patients',  group: 'Navigate', icon: <Users size={13} />,            label: 'Go to Patients',             onSelect: () => setActiveTab('patients') },
+      { id: 'nav-money',     group: 'Navigate', icon: <Receipt size={13} />,          label: 'Go to Money',                onSelect: () => setActiveTab('money') },
+      { id: 'nav-insights',  group: 'Navigate', icon: <BarChart3 size={13} />,        label: 'Go to Insights',             onSelect: () => setActiveTab('insights') },
+      { id: 'act-book',      group: 'Actions',  icon: <CalendarDays size={13} />,     label: 'Book a new appointment',     onSelect: () => setShowBookingModal(true) },
+      { id: 'act-settings',  group: 'Actions',  icon: <Settings size={13} />,         label: 'Open settings',              onSelect: () => setShowSettings(true) },
+      { id: 'act-notifs',    group: 'Actions',  icon: <Bell size={13} />,             label: 'Open notifications',         onSelect: () => setShowNotifications(true) },
+      { id: 'act-logout',    group: 'Actions',  icon: <LogOut size={13} />,           label: 'Sign out',                   onSelect: () => onLogout() },
+    ];
+    // Patients (limit to first 50 to keep the list snappy)
+    clients.slice(0, 50).forEach(c => {
+      items.push({
+        id: `client-${c.id}`,
+        group: 'Patients',
+        icon: <Users size={13} />,
+        label: c.name || 'Unnamed patient',
+        keywords: [c.email, c.phone, c.id, c.status].filter(Boolean) as string[],
+        hint: c.status,
+        onSelect: () => {
+          setActiveTab('patients');
+          setSelectedClientId(c.id);
+        },
+      });
+    });
+    return items;
+  }, [clients, setActiveTab, setShowBookingModal, setShowNotifications, onLogout, setSelectedClientId]);
+
   // ── Context value ──────────────────────────────────────────────────────────
   const ctx = {
     // Props
     user, onLogout, onNavigate, clients, appointments, messages, notifications,
     onAddAppointment, onUpdateAppointment, onDeleteAppointment,
     onSendMessage, onMarkMessageRead, onUpdateMessage, onUpdateClient,
-    onBootstrapAdmins, onMarkNotificationRead,
+    onMarkNotificationRead,
+    tasks, onAddTask, onUpdateTask, onDeleteTask,
     onSaveTreatmentPlan, onAddPrescription, onUpdatePrescription,
     onAddPayment, onUpdatePayment,
     // State
     activeTab, setActiveTab,
     effectiveAdminType, setEffectiveAdminType,
-    isBootstrapping, setIsBootstrapping,
-    bootstrapStatus, setBootstrapStatus,
     selectedClientId, setSelectedClientId,
     clientRecordTab, setClientRecordTab,
     isSidebarOpen, setIsSidebarOpen,
@@ -415,16 +505,33 @@ const AdminPage: React.FC<AdminPageProps> = ({
     handleFileSelect, handleNotificationClick, clearAll,
     handleSidebarClick, openBookingModal, handleBookingSubmit,
     handleSendForm, changeMonth, getCalendarDays,
+    // Templates
+    templates, onAddTemplate, onUpdateTemplate, onDeleteTemplate,
+    // Preview mode (view as test patient)
+    viewAsTestPatient, onSetViewAsTestPatient, onSeedDummyPatient,
   };
 
   // ── Panel selector ─────────────────────────────────────────────────────────
+  // Map legacy tab IDs onto the new structure so external setActiveTab() calls
+  // (e.g. notifications, panels deep-linking back into the admin) keep working.
+  const legacyToNewTab: Record<string, AdminTab> = {
+    overview: 'today',
+    assessments: 'inbox',
+    messages: 'inbox',
+    clients: 'patients',
+    appointments: 'calendar',
+  };
+  const resolvedTab: AdminTab = legacyToNewTab[activeTab as string] || activeTab;
+
   const renderPanel = () => {
-    switch (activeTab) {
-      case 'overview':        return <OverviewPanel />;
-      case 'assessments':     return <AssessmentsPanel />;
-      case 'messages':        return <MessagesPanel />;
-      case 'appointments':    return <AppointmentsPanel />;
-      case 'clients':         return <ClientsPanel />;
+    switch (resolvedTab) {
+      case 'today':           return <TodayPanel />;
+      case 'inbox':           return <InboxPanel />;
+      case 'calendar':        return <CalendarPanel />;
+      case 'patients':        return <ClientsPanel />;
+      case 'money':           return <MoneyPanel />;
+      case 'insights':        return <InsightsPanel />;
+      case 'marketing':       return <MarketingPanel />;
       case 'platform-health': return <PlatformHealthPanel />;
       default: return (
         <div className="py-20 md:py-32 text-center">
@@ -438,156 +545,247 @@ const AdminPage: React.FC<AdminPageProps> = ({
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <AdminContext.Provider value={ctx}>
-      <div className="min-h-screen bg-[#FDFCFB] flex font-sans selection:bg-primary/20">
+      <div className="portal-shell font-sans selection:bg-primary/20">
         {/* Sidebar */}
-        <aside className={`h-screen fixed left-0 top-0 bg-white border-r border-black/5 flex flex-col p-8 z-50 transition-all duration-500 ease-in-out lg:translate-x-0 lg:bg-gradient-to-b lg:from-white lg:to-bg-soft/30 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} ${isSidebarCollapsed ? 'w-24' : 'w-[300px]'}`}>
-          <div className="flex items-center justify-between mb-12">
-            {!isSidebarCollapsed && <Logo size="sm" className="!justify-start scale-90 -ml-4 lg:scale-100 lg:-ml-2" />}
-            <div className="flex items-center gap-2">
-              <button onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)} className="hidden lg:flex w-8 h-8 rounded-full bg-cream items-center justify-center text-muted hover:text-primary transition-colors">
-                {isSidebarCollapsed ? <PanelLeftClose size={18} /> : <Menu size={18} />}
+        <aside className={`portal-sidebar ${isSidebarOpen ? 'open' : ''} ${isSidebarCollapsed ? 'collapsed' : ''}`}>
+          <div className="flex items-center justify-between mb-4 px-2">
+            {!isSidebarCollapsed ? (
+              <Logo size="sm" className="!justify-start scale-75 -ml-3" />
+            ) : (
+              <div className="w-8 h-8 rounded-md bg-obsidian text-primary flex items-center justify-center text-xs font-medium">N</div>
+            )}
+            <div className="flex items-center">
+              <button
+                onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+                className="hidden lg:inline-flex w-7 h-7 rounded-md text-muted hover:text-obsidian hover:bg-cream items-center justify-center transition-colors"
+                aria-label={isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+              >
+                {isSidebarCollapsed ? <PanelLeftOpen size={15} /> : <PanelLeftClose size={15} />}
               </button>
-              <button onClick={() => setIsSidebarOpen(false)} className="lg:hidden text-muted hover:text-primary">
-                <X size={18} />
+              <button onClick={() => setIsSidebarOpen(false)} className="lg:hidden w-7 h-7 inline-flex items-center justify-center text-muted hover:text-obsidian">
+                <X size={15} />
               </button>
             </div>
           </div>
 
-          <nav className="flex-grow space-y-2">
-            <SidebarItem id="overview"         label="Overview"        icon="space_dashboard"    activeTab={activeTab} selectedClientId={selectedClientId} onClick={handleSidebarClick} isCollapsed={isSidebarCollapsed} />
-            <SidebarItem id="assessments"      label="Assessments"     icon="assignment"         activeTab={activeTab} selectedClientId={selectedClientId} onClick={handleSidebarClick} isCollapsed={isSidebarCollapsed} />
-            <SidebarItem id="clients"          label="Clients"         icon="database"           activeTab={activeTab} selectedClientId={selectedClientId} onClick={handleSidebarClick} isCollapsed={isSidebarCollapsed} />
-            <SidebarItem id="appointments"     label="Appointments"    icon="calendar_month"     activeTab={activeTab} selectedClientId={selectedClientId} onClick={handleSidebarClick} isCollapsed={isSidebarCollapsed} />
+          {!isSidebarCollapsed && (
+            <p className="nav-section-label">Clinic</p>
+          )}
+          <nav className="flex flex-col gap-0.5">
+            <UISidebarItem
+              icon={<Sun size={15} />}
+              label="Today"
+              badge={todayBadge}
+              active={resolvedTab === 'today' && !selectedClientId}
+              collapsed={isSidebarCollapsed}
+              onClick={() => handleSidebarClick('today')}
+            />
+            <UISidebarItem
+              icon={<Inbox size={15} />}
+              label="Inbox"
+              badge={inboxBadge}
+              active={resolvedTab === 'inbox' && !selectedClientId}
+              collapsed={isSidebarCollapsed}
+              onClick={() => handleSidebarClick('inbox')}
+            />
+            <UISidebarItem
+              icon={<CalendarIcon size={15} />}
+              label="Calendar"
+              active={resolvedTab === 'calendar' && !selectedClientId}
+              collapsed={isSidebarCollapsed}
+              onClick={() => handleSidebarClick('calendar')}
+            />
+            <UISidebarItem
+              icon={<Users size={15} />}
+              label="Patients"
+              active={resolvedTab === 'patients' && !selectedClientId}
+              collapsed={isSidebarCollapsed}
+              onClick={() => handleSidebarClick('patients')}
+            />
+            <UISidebarItem
+              icon={<Receipt size={15} />}
+              label="Money"
+              badge={moneyBadge}
+              active={resolvedTab === 'money' && !selectedClientId}
+              collapsed={isSidebarCollapsed}
+              onClick={() => handleSidebarClick('money')}
+            />
+            <UISidebarItem
+              icon={<BarChart3 size={15} />}
+              label="Insights"
+              active={resolvedTab === 'insights' && !selectedClientId}
+              collapsed={isSidebarCollapsed}
+              onClick={() => handleSidebarClick('insights')}
+            />
+            <UISidebarItem
+              icon={<TrendingUp size={15} />}
+              label="Marketing"
+              active={resolvedTab === 'marketing' && !selectedClientId}
+              collapsed={isSidebarCollapsed}
+              onClick={() => handleSidebarClick('marketing')}
+            />
             {user?.adminType === 'technical' && (
-              <SidebarItem id="platform-health" label="Platform Health" icon="health_and_safety" activeTab={activeTab} selectedClientId={selectedClientId} onClick={handleSidebarClick} isCollapsed={isSidebarCollapsed} />
+              <>
+                {!isSidebarCollapsed && <p className="nav-section-label">System</p>}
+                <UISidebarItem
+                  icon={<HeartPulse size={15} />}
+                  label="Platform health"
+                  active={resolvedTab === 'platform-health' && !selectedClientId}
+                  collapsed={isSidebarCollapsed}
+                  onClick={() => handleSidebarClick('platform-health')}
+                />
+              </>
             )}
-            <SidebarItem id="messages"         label="Messages"        icon="forum"              activeTab={activeTab} selectedClientId={selectedClientId} onClick={handleSidebarClick} isCollapsed={isSidebarCollapsed} />
           </nav>
 
-          <div className="mt-auto pt-8 border-t border-gray-100 relative">
-            {user?.adminType === 'technical' && showAccountSwitcher && (
+          {/* Settings sits between nav and the user profile block */}
+          <div className="mt-2">
+            <UISidebarItem
+              icon={<Settings size={15} />}
+              label="Settings"
+              active={false}
+              collapsed={isSidebarCollapsed}
+              onClick={() => setShowSettings(true)}
+            />
+          </div>
+
+          <div className="mt-auto pt-3 border-t border-sand relative">
+            {showAccountSwitcher && (
               <motion.div
-                initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                initial={{ opacity: 0, y: 6, scale: 0.98 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
-                className="absolute bottom-full left-0 w-full mb-4 p-4 bg-white rounded-2xl border border-black/5 shadow-2xl z-[60]"
+                className="absolute bottom-full left-0 right-0 mb-2 p-2 bg-white rounded-lg border border-sand shadow-panel z-[60]"
               >
-                <p className="text-[8px] font-medium text-muted uppercase mb-3 flex items-center gap-2">
-                  <Eye size={16} />
-                  Switch View Mode
+                {/* Tech admin can switch which doctor's workspace they're viewing */}
+                {user?.adminType === 'technical' && (
+                  <>
+                    <p className="text-xs font-medium text-muted px-2 py-1 flex items-center gap-1.5">
+                      <Eye size={13} /> View workspace as
+                    </p>
+                    <div className="flex flex-col gap-0.5 mt-1 mb-2">
+                      {[
+                        { id: 'all', label: 'All accounts' },
+                        { id: 'doctor-female', label: 'Dr Aminah' },
+                        { id: 'doctor-male', label: 'Dr Waqas' },
+                      ].map((mode) => (
+                        <button
+                          key={mode.id}
+                          onClick={() => { setEffectiveAdminType(mode.id as AdminType | 'all'); setShowAccountSwitcher(false); }}
+                          className={`text-left px-2 py-1.5 rounded-sm text-sm transition-colors ${effectiveAdminType === mode.id ? 'bg-obsidian text-white' : 'text-obsidian hover:bg-cream'}`}
+                        >
+                          {mode.label}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="h-px bg-sand my-1.5" />
+                  </>
+                )}
+                {/* All admins can preview the patient portal via the dummy account */}
+                <p className="text-xs font-medium text-muted px-2 py-1 flex items-center gap-1.5">
+                  <UserCheck size={13} /> Test the patient portal
                 </p>
-                <div className="grid grid-cols-1 gap-1">
-                  {[
-                    { id: 'all', label: 'Ultimate Access', icon: 'hub' },
-                    { id: 'doctor-female', label: 'Dr. Aminah (F)', icon: 'female' },
-                    { id: 'doctor-male', label: 'Dr. Waqas (M)', icon: 'male' },
-                  ].map((mode) => (
-                    <button
-                      key={mode.id}
-                      onClick={() => { setEffectiveAdminType(mode.id as AdminType | 'all'); setShowAccountSwitcher(false); }}
-                      className={`flex items-center gap-3 px-3 py-2 rounded-xl text-2xs font-medium text-hint transition-all ${effectiveAdminType === mode.id ? 'bg-primary text-clinical-dark shadow-sm' : 'text-muted hover:bg-cream hover:text-clinical-dark'}`}
-                    >
-                      <span className="material-symbols-outlined text-base">{mode.icon}</span>
-                      {mode.label}
-                    </button>
-                  ))}
-                </div>
+                <button
+                  onClick={() => { onSetViewAsTestPatient?.(true); setShowAccountSwitcher(false); }}
+                  className="w-full text-left px-2 py-1.5 rounded-sm text-sm transition-colors text-obsidian hover:bg-cream flex items-center gap-2"
+                >
+                  <span className="w-1.5 h-1.5 rounded-full bg-primary" />
+                  View as test patient
+                </button>
+                <p className="text-xs text-hint px-2 py-1 leading-relaxed">
+                  Opens the patient dashboard using the clinic's demo account. You stay signed in as yourself.
+                </p>
               </motion.div>
             )}
             <button
-              onClick={() => user?.adminType === 'technical' && setShowAccountSwitcher(!showAccountSwitcher)}
-              className={`w-full flex items-center gap-4 px-4 py-3 rounded-2xl transition-all mb-4 text-left group ${showAccountSwitcher ? 'bg-primary/10 ring-2 ring-primary/20' : 'bg-obsidian text-white hover:bg-primary transition-colors'}`}
+              onClick={() => setShowAccountSwitcher(!showAccountSwitcher)}
+              className="w-full flex items-center gap-2.5 p-2 rounded-md text-left transition-colors hover:bg-cream cursor-pointer"
             >
-              <div className={`w-10 h-10 rounded-full flex items-center justify-center font-medium text-xs transition-colors ${showAccountSwitcher ? 'bg-primary text-white' : 'bg-primary/20 text-primary group-hover:bg-white group-hover:text-primary'}`}>
-                {getInitials(user?.fullName)}
-              </div>
-              <div className="flex flex-col min-w-0 flex-grow">
-                <span className={`text-[10px] font-medium truncate uppercase transition-colors ${showAccountSwitcher ? 'text-clinical-dark' : 'text-white group-hover:text-clinical-dark'}`}>{user?.fullName}</span>
-                <span className={`text-[8px] font-bold truncate lowercase transition-colors ${showAccountSwitcher ? 'text-primary' : 'text-primary/60 group-hover:text-clinical-dark/60'}`}>@{user?.username}</span>
-                <span className={`text-[8px] font-bold uppercase transition-colors ${showAccountSwitcher ? 'text-muted' : 'text-gray-500 group-hover:text-clinical-dark/40'}`}>
-                  {user?.adminType === 'technical' ? (
-                    <span className="flex items-center gap-1">
-                      {effectiveAdminType === 'all' ? 'Technical Admin' : effectiveAdminType === 'doctor-female' ? 'Viewing as Aminah' : 'Viewing as Waqas'}
-                      <ChevronsUpDown size={12} />
+              <div className="avatar avatar-sm">{getInitials(user?.fullName)}</div>
+              {!isSidebarCollapsed && (
+                <>
+                  <div className="flex flex-col min-w-0 flex-grow">
+                    <span className="text-sm font-medium text-obsidian truncate">{user?.fullName}</span>
+                    <span className="text-xs text-muted truncate">
+                      {user?.adminType === 'technical'
+                        ? (effectiveAdminType === 'all' ? 'Technical admin' : effectiveAdminType === 'doctor-female' ? 'Viewing as Aminah' : 'Viewing as Waqas')
+                        : user?.adminType === 'doctor-female' ? 'Clinical director' : user?.adminType === 'doctor-male' ? 'Clinical director' : 'System admin'}
                     </span>
-                  ) : user?.adminType === 'doctor-female' ? 'Clinical Director (F)' : user?.adminType === 'doctor-male' ? 'Clinical Director (M)' : 'System Admin'}
-                </span>
-              </div>
-            </button>
-            <button onClick={onLogout} className="w-full flex items-center gap-4 px-6 py-4 rounded-2xl text-muted hover:text-red-500 hover:bg-red-50 transition-all group">
-              <LogOut size={18} className="group-hover:rotate-180 transition-transform" />
-              <span className="text-xs font-medium">End Session</span>
+                  </div>
+                  <ChevronsUpDown size={13} className="text-hint shrink-0" />
+                </>
+              )}
             </button>
           </div>
         </aside>
 
         {/* Main content */}
-        <main className={`flex-grow min-h-screen transition-all duration-500 ease-in-out ${isSidebarCollapsed ? 'lg:pl-24' : 'lg:pl-[300px]'}`}>
+        <main className={`portal-main ${isSidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
           {/* Morning briefing toast */}
           {showMorningBriefing && (() => {
             const todayAppts = filteredAppointments.filter(a => a.date === new Date().toISOString().split('T')[0] && a.status !== 'Cancelled');
             return (
-              <div className="fixed bottom-6 right-6 z-[100] w-[360px] bg-obsidian text-white rounded-[1.5rem] shadow-2xl shadow-clinical-dark/40 overflow-hidden animate-fade-up">
-                <div className="p-5 border-b border-white/10 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-xl bg-primary/20 flex items-center justify-center">
-                      <Sun size={18} className="text-primary" />
-                    </div>
-                    <div>
-                      <p className="text-xs font-medium">Good Morning</p>
-                      <p className="text-[10px] text-gray-400">Today's Clinical Briefing</p>
-                    </div>
+              <div className="fixed bottom-5 right-5 z-[100] w-[340px] bg-obsidian text-white rounded-lg shadow-modal overflow-hidden animate-fade-up">
+                <div className="px-4 py-3 border-b border-white/10 flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <Sun size={15} className="text-primary" />
+                    <p className="text-sm font-medium">Good morning</p>
                   </div>
-                  <button onClick={() => setShowMorningBriefing(false)} className="text-gray-400 hover:text-white transition-colors">
-                    <X size={18} />
+                  <button onClick={() => setShowMorningBriefing(false)} className="text-white/60 hover:text-white transition-colors">
+                    <X size={14} />
                   </button>
                 </div>
-                <div className="p-5 space-y-3">
-                  <p className="text-[10px] font-medium text-gray-400 uppercase">{todayAppts.length} appointment{todayAppts.length !== 1 ? 's' : ''} today</p>
+                <div className="p-4 space-y-2">
+                  <p className="text-xs text-white/60">{todayAppts.length} appointment{todayAppts.length !== 1 ? 's' : ''} today</p>
                   {todayAppts.slice(0, 4).map(apt => (
-                    <div key={apt.id} className="flex items-center gap-3 bg-white/5 rounded-xl p-3">
-                      <div className="w-8 h-8 bg-primary/20 rounded-lg flex items-center justify-center shrink-0">
-                        <CalendarDays size={16} className="text-primary" />
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-[11px] font-medium truncate">{apt.clientName}</p>
-                        <p className="text-[10px] text-gray-400">{apt.type} · {apt.time}</p>
+                    <div key={apt.id} className="flex items-center gap-2.5 bg-white/5 rounded-md p-2">
+                      <CalendarDays size={13} className="text-primary shrink-0" />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-medium truncate">{apt.clientName}</p>
+                        <p className="text-xs text-white/50">{apt.type} · {apt.time}</p>
                       </div>
                     </div>
                   ))}
-                  {todayAppts.length > 4 && <p className="text-[10px] text-primary font-medium text-center">+{todayAppts.length - 4} more</p>}
+                  {todayAppts.length > 4 && <p className="text-xs text-primary text-center">+{todayAppts.length - 4} more</p>}
                 </div>
-                <button onClick={() => { setShowMorningBriefing(false); setActiveTab('appointments'); }} className="w-full p-4 bg-primary text-clinical-dark text-2xs font-medium text-hint hover:opacity-90 transition-opacity">
-                  View Full Schedule
+                <button onClick={() => { setShowMorningBriefing(false); setActiveTab('appointments'); }} className="w-full px-4 py-2.5 bg-white/5 hover:bg-white/10 text-sm font-medium transition-colors">
+                  View full schedule
                 </button>
               </div>
             );
           })()}
 
-          {/* Header */}
-          <header className="h-20 bg-white/60 backdrop-blur-xl border-b border-black/5 px-6 lg:px-12 flex items-center justify-between sticky top-0 z-40">
-            <div className="flex items-center gap-4 lg:gap-8">
-              <button onClick={() => setIsSidebarOpen(true)} className="lg:hidden text-muted hover:text-primary">
-                <Menu size={18} />
-              </button>
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted hidden sm:inline">ADMIN PORTAL</span>
-                <span className="text-muted/30 hidden sm:inline">/</span>
-                <span className="text-[10px] font-medium uppercase tracking-[0.2em] text-primary">{activeTab}</span>
-              </div>
-              <div className="hidden lg:flex items-center relative w-96">
-                <Search size={20} className="absolute left-4 text-primary" />
-                <input type="text" placeholder="Search clients, appointments, or messages..." className="w-full bg-cream/50 border-transparent rounded-full pl-12 pr-6 py-2.5 text-xs font-bold focus:ring-2 focus:ring-primary/20 focus:bg-white transition-all border border-black/5" />
-              </div>
+          {/* Top bar */}
+          <header className="portal-topbar">
+            <button onClick={() => setIsSidebarOpen(true)} className="lg:hidden text-muted hover:text-obsidian">
+              <Menu size={16} />
+            </button>
+            <div className="flex items-center gap-1.5 text-sm">
+              <span className="text-muted hidden sm:inline">Admin</span>
+              <span className="text-hint hidden sm:inline">/</span>
+              <span className="text-obsidian font-medium capitalize">
+                {resolvedTab.replace('-', ' ')}
+              </span>
             </div>
-            <div className="flex items-center gap-3 sm:gap-6">
+            {/* Cmd+K trigger button (hidden on smallest screens) */}
+            <button
+              onClick={() => setShowCommandPalette(true)}
+              className="hidden md:inline-flex items-center gap-2 px-2.5 py-1 ml-4 rounded-md border border-sand bg-white hover:bg-cream text-muted hover:text-obsidian transition-colors"
+              aria-label="Open command palette"
+            >
+              <Search size={13} />
+              <span className="text-xs">Quick find…</span>
+              <span className="text-xs text-hint border border-sand rounded px-1 ml-2">⌘K</span>
+            </button>
+            <div className="ml-auto flex items-center gap-1">
               <div className="relative">
                 <button
                   onClick={() => setShowNotifications(!showNotifications)}
-                  className={`relative p-2 transition-colors rounded-full hover:bg-cream ${showNotifications ? 'text-primary bg-cream' : 'text-muted'}`}
+                  className={`btn-icon relative ${showNotifications ? 'bg-cream text-obsidian' : ''}`}
+                  aria-label="Notifications"
                 >
-                  <Bell size={18} />
+                  <Bell size={15} />
                   {unreadCount > 0 && (
-                    <span className="absolute top-1.5 right-1.5 w-4 h-4 bg-red-500 rounded-full border-2 border-white text-[8px] font-medium text-white flex items-center justify-center">
+                    <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-[16px] px-1 bg-danger rounded-full text-[10px] font-medium text-white flex items-center justify-center">
                       {unreadCount > 9 ? '9+' : unreadCount}
                     </span>
                   )}
@@ -596,121 +794,131 @@ const AdminPage: React.FC<AdminPageProps> = ({
                 {showNotifications && (
                   <>
                     <div className="fixed inset-0 z-40" onClick={() => setShowNotifications(false)} />
-                    <div className="absolute right-0 mt-4 w-[340px] md:w-[420px] bg-white rounded-3xl shadow-2xl border border-black/5 z-50 overflow-hidden animate-fade-up origin-top-right">
-                      <div className="p-5 border-b border-gray-50">
-                        <div className="flex justify-between items-center mb-4">
-                          <h3 className="text-xs font-medium uppercase text-obsidian">Notifications</h3>
-                          <button onClick={clearAll} className="text-2xs font-medium text-hint text-muted hover:text-primary transition-colors">Mark All Read</button>
+                    <div className="absolute right-0 mt-2 w-[340px] md:w-[400px] bg-white rounded-lg shadow-modal border border-sand z-50 overflow-hidden animate-fade-up origin-top-right">
+                      <div className="px-4 py-3 border-b border-sand">
+                        <div className="flex justify-between items-center mb-3">
+                          <h3 className="text-sm font-medium text-obsidian">Notifications</h3>
+                          <button onClick={clearAll} className="text-xs text-muted hover:text-obsidian transition-colors">Mark all read</button>
                         </div>
-                        <div className="flex gap-1 bg-cream p-1 rounded-full">
+                        <div className="flex gap-1">
                           {(['all', 'assessment', 'message', 'appointment'] as const).map(f => (
-                            <button key={f} onClick={() => setNotifFilter(f)} className={`flex-1 py-1.5 rounded-full text-2xs font-medium text-hint transition-all ${notifFilter === f ? 'bg-white text-primary shadow-sm' : 'text-muted'}`}>
-                              {f === 'all' ? 'All' : f === 'assessment' ? 'Assess.' : f === 'message' ? 'Msgs' : 'Appts'}
+                            <button key={f} onClick={() => setNotifFilter(f)} className={`px-2.5 py-1 rounded-sm text-xs transition-colors ${notifFilter === f ? 'bg-obsidian text-white' : 'text-muted hover:bg-cream'}`}>
+                              {f === 'all' ? 'All' : f === 'assessment' ? 'Assessments' : f === 'message' ? 'Messages' : 'Appointments'}
                             </button>
                           ))}
                         </div>
                       </div>
-                      <div className="max-h-[420px] overflow-y-auto no-scrollbar">
+                      <div className="max-h-[420px] overflow-y-auto">
                         {filteredNotifications.length > 0 ? filteredNotifications.map((n) => {
-                          const iconMap: Record<string, string> = { new_assessment: 'assignment', new_message: 'forum', form_signed: 'draw', appointment_confirmed: 'event', feedback_received: 'rate_review', form_sent: 'description', payment_received: 'payments', welcome: 'waving_hand', daily_briefing: 'wb_sunny' };
-                          const colorMap: Record<string, string> = { new_assessment: 'bg-blue-100 text-blue-600', new_message: 'bg-purple-100 text-purple-600', form_signed: 'bg-green-100 text-green-600', appointment_confirmed: 'bg-emerald-100 text-emerald-600', feedback_received: 'bg-amber-100 text-amber-600' };
+                          const iconFor = (t: string) => {
+                            if (t.includes('assessment')) return <ClipboardList size={14} />;
+                            if (t.includes('message')) return <MessageSquare size={14} />;
+                            if (t.includes('form_signed')) return <BadgeCheck size={14} />;
+                            if (t.includes('form_sent')) return <FileText size={14} />;
+                            if (t.includes('appointment')) return <CalendarCheck size={14} />;
+                            if (t.includes('payment')) return <CreditCard size={14} />;
+                            if (t.includes('feedback')) return <Star size={14} />;
+                            if (t.includes('welcome')) return <BadgeCheck size={14} />;
+                            if (t.includes('briefing')) return <Sun size={14} />;
+                            return <Bell size={14} />;
+                          };
                           const diff = n.createdAt ? Date.now() - new Date(n.createdAt).getTime() : -1;
                           const timeAgo = diff < 0 ? 'Recently' : diff < 60000 ? 'Just now' : diff < 3600000 ? `${Math.floor(diff / 60000)}m ago` : diff < 86400000 ? `${Math.floor(diff / 3600000)}h ago` : `${Math.floor(diff / 86400000)}d ago`;
                           return (
-                            <div key={n.id} onClick={() => handleNotificationClick(n)} className={`p-5 border-b border-gray-50 flex gap-4 hover:bg-cream transition-colors cursor-pointer relative ${!n.read ? 'bg-primary/5' : ''}`}>
-                              {!n.read && <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary rounded-r" />}
-                              <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${colorMap[n.type] || 'bg-gray-100 text-gray-600'}`}>
-                                <span className="material-symbols-outlined text-xl">{iconMap[n.type] || 'notifications'}</span>
+                            <div key={n.id} onClick={() => handleNotificationClick(n)} className={`px-4 py-3 border-b border-cream flex gap-3 hover:bg-cream/50 transition-colors cursor-pointer relative ${!n.read ? 'bg-primary/5' : ''}`}>
+                              {!n.read && <div className="absolute left-0 top-0 bottom-0 w-[2px] bg-primary" />}
+                              <div className="w-7 h-7 rounded-md bg-cream flex items-center justify-center shrink-0 text-muted">
+                                {iconFor(n.type)}
                               </div>
                               <div className="min-w-0 flex-grow">
-                                <p className="text-[11px] font-medium text-obsidian mb-0.5">{n.title}</p>
-                                <p className="text-[10px] text-muted leading-relaxed mb-2 line-clamp-2">{n.body}</p>
-                                <p className="text-[8px] font-bold text-muted uppercase">{timeAgo}</p>
+                                <p className="text-sm font-medium text-obsidian">{n.title}</p>
+                                <p className="text-xs text-muted leading-relaxed mt-0.5 line-clamp-2">{n.body}</p>
+                                <p className="text-xs text-hint mt-1">{timeAgo}</p>
                               </div>
-                              {!n.read && <div className="w-2 h-2 bg-primary rounded-full shrink-0 mt-1" />}
                             </div>
                           );
                         }) : (
-                          <div className="p-12 text-center">
-                            <BellOff size={40} className="text-primary/20 mb-3 mx-auto block" />
-                            <p className="text-[10px] font-medium text-muted uppercase">All caught up</p>
-                          </div>
+                          <EmptyState icon={<BellOff size={16} />} title="All caught up" compact />
                         )}
                       </div>
                     </div>
                   </>
                 )}
               </div>
-              <div className="h-8 w-[1px] bg-gray-100 hidden sm:block" />
-              <div className="items-center gap-3 hidden sm:flex">
-                <p className="text-[10px] font-medium text-obsidian uppercase">Live Mode</p>
-                <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-              </div>
-              <div className="h-8 w-[1px] bg-gray-100 hidden sm:block" />
-              <button onClick={onLogout} className="flex items-center gap-2 text-muted hover:text-red-500 transition-colors group">
-                <LogOut size={20} className="group-hover:rotate-180 transition-transform" />
-                <span className="text-2xs font-medium text-hint hidden md:inline">Sign Out</span>
+              <button onClick={onLogout} className="btn-icon" aria-label="Sign out">
+                <LogOut size={15} />
               </button>
             </div>
           </header>
 
-          <div className="p-4 sm:p-6 lg:p-12 xl:p-16 2xl:p-20 max-w-[1600px] mx-auto">
+          <div className="portal-content mx-auto" data-scroll key={`${resolvedTab}-${selectedClientId || 'list'}`}>
+            {/* Each panel applies its own `animate-fade-up` for a soft enter.
+                AnimatePresence-wrapped transitions caused stuck opacity:0 states
+                when rapid tab clicks interrupted mid-flight animations. */}
             {renderPanel()}
           </div>
 
           {/* Booking Modal */}
-          {showBookingModal && (
-            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-8">
-              <div className="absolute inset-0 bg-obsidian/60 backdrop-blur-sm" onClick={() => setShowBookingModal(false)} />
-              <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} className="bg-white w-full max-w-lg rounded-[2.5rem] shadow-2xl relative z-10 overflow-hidden max-h-[90vh] flex flex-col">
-                <div className="p-6 md:p-8 border-b border-gray-50 flex justify-between items-center bg-cream shrink-0">
-                  <h3 className="text-base md:text-lg font-medium text-obsidian uppercase">Book Appointment</h3>
-                  <button onClick={() => setShowBookingModal(false)} className="text-muted hover:text-primary transition-colors">
-                    <X size={18} />
-                  </button>
-                </div>
-                <form onSubmit={handleBookingSubmit} className="p-6 md:p-8 space-y-4 md:space-y-6 overflow-y-auto">
-                  <div className="space-y-2">
-                    <label className="text-2xs font-medium text-hint text-muted ml-1">Select Client</label>
-                    <select required value={bookingForm.clientId || ''} onChange={(e) => setBookingForm(prev => ({ ...prev, clientId: e.target.value }))} className="w-full bg-cream border-transparent rounded-2xl px-5 py-4 text-sm font-bold focus:ring-primary focus:border-primary transition-all">
-                      <option value="" disabled>Choose a client...</option>
-                      {clients.map(c => <option key={c.id} value={c.id}>{c.name} ({c.id})</option>)}
-                    </select>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <label className="text-2xs font-medium text-hint text-muted ml-1">Date</label>
-                      <input type="date" required value={bookingForm.date || ''} onChange={(e) => setBookingForm(prev => ({ ...prev, date: e.target.value }))} className="w-full bg-cream border-transparent rounded-2xl px-5 py-4 text-sm font-bold focus:ring-primary focus:border-primary transition-all" />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-2xs font-medium text-hint text-muted ml-1">Time</label>
-                      <select required value={bookingForm.time || ''} onChange={(e) => setBookingForm(prev => ({ ...prev, time: e.target.value }))} className="w-full bg-cream border-transparent rounded-2xl px-5 py-4 text-sm font-bold focus:ring-primary focus:border-primary transition-all">
-                        {['09:00 AM','09:30 AM','10:00 AM','10:30 AM','11:00 AM','11:30 AM','01:00 PM','01:30 PM','02:00 PM','02:30 PM','03:00 PM','03:30 PM','04:00 PM'].map(t => <option key={t} value={t}>{t}</option>)}
-                      </select>
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-2xs font-medium text-hint text-muted ml-1">Treatment Type</label>
-                    <select required value={bookingForm.type || ''} onChange={(e) => setBookingForm(prev => ({ ...prev, type: e.target.value as Appointment['type'] }))} className="w-full bg-cream border-transparent rounded-2xl px-5 py-4 text-sm font-bold focus:ring-primary focus:border-primary transition-all">
-                      <option value="Initial Consultation">Initial Consultation</option>
-                      <option value="Follow-up Consultation">Follow-up Consultation</option>
-                      <option value="PRP Session">PRP Session</option>
-                      <option value="EV-Enriched Plasma Session">EV-Enriched Plasma Session</option>
-                      <option value="Hair Assessment">Hair Assessment</option>
-                      <option value="Microneedling Session">Microneedling Session</option>
-                    </select>
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-2xs font-medium text-hint text-muted ml-1">Clinical Notes (Optional)</label>
-                    <textarea value={bookingForm.notes || ''} onChange={(e) => setBookingForm(prev => ({ ...prev, notes: e.target.value }))} className="w-full bg-cream border-transparent rounded-2xl px-5 py-4 text-sm font-bold focus:ring-primary focus:border-primary transition-all h-24 resize-none" placeholder="Add any specific instructions or prep notes..." />
-                  </div>
-                  <button type="submit" className="w-full bg-primary text-clinical-dark py-4 rounded-2xl text-[12px] font-medium uppercase tracking-[0.2em] shadow-xl shadow-primary/20 hover:scale-105 transition-all active:scale-95">
-                    Confirm Appointment
-                  </button>
-                </form>
-              </motion.div>
-            </div>
-          )}
+          <Modal
+            open={showBookingModal}
+            onClose={() => setShowBookingModal(false)}
+            title="Book appointment"
+            subtitle="Schedule a clinical session for a client"
+            size="md"
+          >
+            <form id="booking-form" onSubmit={handleBookingSubmit} className="flex flex-col gap-4">
+              <Select
+                label="Client"
+                required
+                value={bookingForm.clientId || ''}
+                onChange={(e) => setBookingForm(prev => ({ ...prev, clientId: e.target.value }))}
+              >
+                <option value="" disabled>Choose a client…</option>
+                {clients.map(c => <option key={c.id} value={c.id}>{c.name} ({c.id})</option>)}
+              </Select>
+              <div className="grid grid-cols-2 gap-3">
+                <Input
+                  label="Date"
+                  type="date"
+                  required
+                  value={bookingForm.date || ''}
+                  onChange={(e) => setBookingForm(prev => ({ ...prev, date: e.target.value }))}
+                />
+                <Select
+                  label="Time"
+                  required
+                  value={bookingForm.time || ''}
+                  onChange={(e) => setBookingForm(prev => ({ ...prev, time: e.target.value }))}
+                >
+                  {['09:00 AM','09:30 AM','10:00 AM','10:30 AM','11:00 AM','11:30 AM','01:00 PM','01:30 PM','02:00 PM','02:30 PM','03:00 PM','03:30 PM','04:00 PM'].map(t => <option key={t} value={t}>{t}</option>)}
+                </Select>
+              </div>
+              <Select
+                label="Treatment type"
+                required
+                value={bookingForm.type || ''}
+                onChange={(e) => setBookingForm(prev => ({ ...prev, type: e.target.value as Appointment['type'] }))}
+              >
+                <option value="Initial Consultation">Initial Consultation</option>
+                <option value="Follow-up Consultation">Follow-up Consultation</option>
+                <option value="PRP Session">PRP Session</option>
+                <option value="EV-Enriched Plasma Session">EV-Enriched Plasma Session</option>
+                <option value="Hair Assessment">Hair Assessment</option>
+                <option value="Microneedling Session">Microneedling Session</option>
+              </Select>
+              <Textarea
+                label="Clinical notes (optional)"
+                rows={3}
+                value={bookingForm.notes || ''}
+                onChange={(e) => setBookingForm(prev => ({ ...prev, notes: e.target.value }))}
+                placeholder="Add any specific instructions or prep notes…"
+              />
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <Button variant="ghost" onClick={() => setShowBookingModal(false)}>Cancel</Button>
+                <Button type="submit" variant="primary">Confirm appointment</Button>
+              </div>
+            </form>
+          </Modal>
         </main>
 
         {/* Form viewer */}
@@ -719,87 +927,87 @@ const AdminPage: React.FC<AdminPageProps> = ({
         )}
 
         {/* Gallery upload modal */}
-        <AnimatePresence>
-          {showGalleryUpload && selectedClient && (
-            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => !isUploading && setShowGalleryUpload(false)} className="absolute inset-0 bg-obsidian/80 backdrop-blur-sm" />
-              <motion.div initial={{ opacity: 0, scale: 0.9, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 20 }} className="relative w-full max-w-lg bg-white rounded-[32px] shadow-2xl overflow-hidden">
-                <div className="p-6 md:p-8">
-                  <div className="flex justify-between items-center mb-6 md:mb-8">
-                    <div>
-                      <h3 className="text-xl md:text-2xl font-medium text-obsidian">Add Progress Photo</h3>
-                      <p className="text-[10px] md:text-xs font-bold text-muted uppercase mt-1">Upload for {selectedClient.name}</p>
-                    </div>
-                    <button onClick={() => setShowGalleryUpload(false)} disabled={isUploading} className="w-10 h-10 rounded-full bg-cream flex items-center justify-center text-muted hover:text-obsidian transition-colors disabled:opacity-50">
-                      <X className="w-5 h-5" />
+        {selectedClient && (
+          <Modal
+            open={showGalleryUpload}
+            onClose={() => !isUploading && setShowGalleryUpload(false)}
+            title="Add progress photo"
+            subtitle={`Upload for ${selectedClient.name}`}
+            size="md"
+            closeOnBackdrop={!isUploading}
+          >
+            <div className="flex flex-col gap-4">
+              <div className="aspect-video bg-cream rounded-md border border-dashed border-sand overflow-hidden relative flex flex-col items-center justify-center">
+                {galleryUploadPreview ? (
+                  <>
+                    <img src={galleryUploadPreview} alt="Preview" className="w-full h-full object-cover" />
+                    <button onClick={() => { setGalleryUploadFile(null); setGalleryUploadPreview(null); }} className="absolute top-3 right-3 w-7 h-7 rounded-full bg-obsidian/70 text-white flex items-center justify-center hover:bg-obsidian transition-colors">
+                      <X size={13} />
                     </button>
-                  </div>
-                  <div className="space-y-6">
-                    <div className="aspect-video bg-cream rounded-2xl border-2 border-dashed border-black/5 overflow-hidden relative flex flex-col items-center justify-center group">
-                      {galleryUploadPreview ? (
-                        <>
-                          <img src={galleryUploadPreview} alt="Preview" className="w-full h-full object-cover" />
-                          <button onClick={() => { setGalleryUploadFile(null); setGalleryUploadPreview(null); }} className="absolute top-4 right-4 w-8 h-8 rounded-full bg-black/50 text-white flex items-center justify-center hover:bg-black/70 transition-colors">
-                            <X className="w-4 h-4" />
-                          </button>
-                        </>
-                      ) : (
-                        <div className="flex flex-col items-center gap-4 p-8">
-                          <div className="flex gap-4">
-                            <button onClick={() => fileInputRef.current?.click()} className="w-16 h-16 rounded-2xl bg-white shadow-sm border border-black/5 flex flex-col items-center justify-center gap-1 text-muted hover:text-primary hover:border-primary/20 transition-all">
-                              <Upload className="w-6 h-6" />
-                              <span className="text-[8px] font-medium uppercase">Gallery</span>
-                            </button>
-                            <button onClick={() => cameraInputRef.current?.click()} className="w-16 h-16 rounded-2xl bg-white shadow-sm border border-black/5 flex flex-col items-center justify-center gap-1 text-muted hover:text-primary hover:border-primary/20 transition-all">
-                              <Camera className="w-6 h-6" />
-                              <span className="text-[8px] font-medium uppercase">Camera</span>
-                            </button>
-                          </div>
-                          <p className="text-[10px] font-bold text-muted uppercase">Select or take a photo</p>
-                        </div>
-                      )}
-                      <input ref={fileInputRef} type="file" accept={ACCEPTED_IMAGE_TYPES} className="hidden" onChange={handleFileSelect} />
-                      <input ref={cameraInputRef} type="file" accept={ACCEPTED_IMAGE_TYPES} capture="environment" className="hidden" onChange={handleFileSelect} />
+                  </>
+                ) : (
+                  <div className="flex flex-col items-center gap-3 p-6">
+                    <div className="flex gap-2">
+                      <Button variant="ghost" onClick={() => fileInputRef.current?.click()} leadingIcon={<Upload size={14} />}>From device</Button>
+                      <Button variant="ghost" onClick={() => cameraInputRef.current?.click()} leadingIcon={<Camera size={14} />}>Camera</Button>
                     </div>
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-medium text-muted uppercase ml-1">Photo Label</label>
-                      <input type="text" value={galleryUploadLabel} onChange={(e) => setGalleryUploadLabel(e.target.value)} placeholder="e.g., Post-Session 1 - Vertex" className="w-full px-6 py-4 bg-cream rounded-2xl border border-black/5 font-bold text-obsidian placeholder:text-muted/40 focus:outline-none focus:border-primary/30 transition-all" />
-                    </div>
-                    <button
-                      onClick={() => handleGalleryUpload(selectedClient.id, selectedClient.gallery)}
-                      disabled={isUploading || !galleryUploadFile}
-                      className="w-full bg-primary text-clinical-dark py-5 rounded-2xl font-medium uppercase text-xs md:text-sm flex items-center justify-center gap-3 shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 disabled:scale-100 disabled:shadow-none"
-                    >
-                      {isUploading ? (
-                        <div className="flex items-center gap-3 w-full">
-                          <div className="flex-grow h-2 bg-white/30 rounded-full overflow-hidden">
-                            <div className="h-full bg-white rounded-full transition-all duration-300" style={{ width: `${uploadProgress}%` }} />
-                          </div>
-                          <span className="text-xs font-medium">{uploadProgress}%</span>
-                        </div>
-                      ) : (
-                        <><Upload className="w-5 h-5" />Save to Gallery</>
-                      )}
-                    </button>
+                    <p className="text-xs text-muted">Select or take a photo</p>
                   </div>
+                )}
+                <input ref={fileInputRef} type="file" accept={ACCEPTED_IMAGE_TYPES} className="hidden" onChange={handleFileSelect} />
+                <input ref={cameraInputRef} type="file" accept={ACCEPTED_IMAGE_TYPES} capture="environment" className="hidden" onChange={handleFileSelect} />
+              </div>
+              <Input
+                label="Photo label"
+                type="text"
+                value={galleryUploadLabel}
+                onChange={(e) => setGalleryUploadLabel(e.target.value)}
+                placeholder="e.g. Post-session 1 — vertex"
+              />
+              {isUploading && (
+                <div className="flex items-center gap-3">
+                  <div className="progress-track flex-1"><div className="progress-fill gold" style={{ width: `${uploadProgress}%` }} /></div>
+                  <span className="text-xs font-medium text-muted">{uploadProgress}%</span>
                 </div>
-              </motion.div>
+              )}
+              <div className="flex items-center justify-end gap-2 pt-1">
+                <Button variant="ghost" onClick={() => setShowGalleryUpload(false)} disabled={isUploading}>Cancel</Button>
+                <Button
+                  variant="primary"
+                  onClick={() => handleGalleryUpload(selectedClient.id, selectedClient.gallery)}
+                  disabled={isUploading || !galleryUploadFile}
+                  leadingIcon={<Upload size={14} />}
+                >
+                  Save to gallery
+                </Button>
+              </div>
             </div>
-          )}
-        </AnimatePresence>
+          </Modal>
+        )}
 
         {/* Lightbox */}
         {lightboxImage && (
-          <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/90 backdrop-blur-xl animate-fade-up" onClick={() => setLightboxImage(null)}>
-            <img src={lightboxImage.url} alt={lightboxImage.label} className="max-w-full max-h-[90dvh] object-contain rounded-xl" />
-            <button onClick={() => setLightboxImage(null)} className="absolute top-6 right-6 w-10 h-10 bg-white/10 rounded-full flex items-center justify-center text-white hover:bg-white/20 transition-all">
-              <X size={18} />
+          <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-obsidian/95 animate-fade-in" onClick={() => setLightboxImage(null)}>
+            <img src={lightboxImage.url} alt={lightboxImage.label} className="max-w-full max-h-[90dvh] object-contain rounded-md" />
+            <button onClick={() => setLightboxImage(null)} className="absolute top-4 right-4 w-9 h-9 bg-white/10 rounded-md flex items-center justify-center text-white hover:bg-white/20 transition-all">
+              <X size={15} />
             </button>
-            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-black/50 text-white px-6 py-3 rounded-full text-xs font-medium uppercase text-center">
-              {lightboxImage.label} • {new Date(lightboxImage.uploadedAt).toLocaleDateString()}
+            <div className="absolute bottom-5 left-1/2 -translate-x-1/2 bg-white/10 text-white px-3 py-1.5 rounded-md text-xs text-center">
+              {lightboxImage.label} · {new Date(lightboxImage.uploadedAt).toLocaleDateString()}
             </div>
           </div>
         )}
+
+        {/* Command palette (Cmd+K / Ctrl+K) */}
+        <CommandPalette
+          open={showCommandPalette}
+          onClose={() => setShowCommandPalette(false)}
+          items={commandItems}
+          placeholder="Jump to a section, action or patient…"
+        />
+
+        {/* Settings drawer */}
+        <SettingsDrawer open={showSettings} onClose={() => setShowSettings(false)} />
       </div>
     </AdminContext.Provider>
   );

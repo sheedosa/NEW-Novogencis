@@ -1,29 +1,36 @@
-import { initializeApp } from 'firebase/app';
+import { initializeApp, getApp, getApps } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import {
   initializeFirestore,
-  doc,
-  getDocFromServer,
+  getFirestore,
   persistentLocalCache,
   persistentMultipleTabManager,
+  Firestore,
 } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 import firebaseConfig from './firebase-applet-config.json';
 
-const app = initializeApp(firebaseConfig);
+// Reuse the existing app on HMR reloads — Firebase throws if initializeApp is
+// called twice with the same options, and the named-DB Firestore won't re-init.
+const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
 
-// Modern persistent cache (replaces deprecated enableIndexedDbPersistence).
-// Multi-tab manager lets every open tab share the same IndexedDB cache safely.
-export const db = initializeFirestore(
-  app,
-  {
-    localCache: persistentLocalCache({
-      tabManager: persistentMultipleTabManager(),
-    }),
-  },
-  firebaseConfig.firestoreDatabaseId,
-);
-export const auth = getAuth();
+// Initialise Firestore with persistent multi-tab cache on first load; on HMR
+// the second call would throw, so fall back to getFirestore() which returns
+// the already-initialised instance.
+function initDb(): Firestore {
+  try {
+    return initializeFirestore(
+      app,
+      { localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }) },
+      firebaseConfig.firestoreDatabaseId,
+    );
+  } catch {
+    return getFirestore(app, firebaseConfig.firestoreDatabaseId);
+  }
+}
+
+export const db = initDb();
+export const auth = getAuth(app);
 export const storage = getStorage(app);
 
 export enum OperationType {
@@ -35,46 +42,19 @@ export enum OperationType {
   WRITE = 'write',
 }
 
-export interface FirestoreErrorInfo {
-  error: string;
-  operationType: OperationType;
-  path: string | null;
-  authInfo: {
-    userId: string | undefined;
-    email: string | null | undefined;
-    emailVerified: boolean | undefined;
-    isAnonymous: boolean | undefined;
-    tenantId: string | null | undefined;
-    providerInfo: {
-      providerId: string;
-      displayName: string | null;
-      email: string | null;
-      photoUrl: string | null;
-    }[];
-  }
-}
-
 export function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
-  const errInfo: FirestoreErrorInfo = {
-    error: error instanceof Error ? error.message : String(error),
-    authInfo: {
-      userId: auth.currentUser?.uid,
-      email: auth.currentUser?.email,
-      emailVerified: auth.currentUser?.emailVerified,
-      isAnonymous: auth.currentUser?.isAnonymous,
-      tenantId: auth.currentUser?.tenantId,
-      providerInfo: auth.currentUser?.providerData.map(provider => ({
-        providerId: provider.providerId,
-        displayName: provider.displayName,
-        email: provider.email,
-        photoUrl: provider.photoURL
-      })) || []
-    },
-    operationType,
-    path
-  };
-  console.error('Firestore Error: ', JSON.stringify(errInfo));
-  throw new Error(JSON.stringify(errInfo));
+  // Log only what's needed for debugging — never PII, never auth tokens, never email addresses.
+  // Sanitised info is safe to send to monitoring services (Sentry, etc).
+  const message = error instanceof Error ? error.message : String(error);
+  const code = (error as { code?: string })?.code;
+  console.error(`[Firestore] ${operationType.toUpperCase()} ${path ?? '<unknown>'} — ${code ?? 'error'}: ${message}`);
+  // Re-throw a clean error so callers can decide how to surface it to the user.
+  // The original error message is preserved without the PII payload.
+  const cleanError = new Error(message);
+  (cleanError as Error & { code?: string; operationType: OperationType; path: string | null }).code = code;
+  (cleanError as Error & { code?: string; operationType: OperationType; path: string | null }).operationType = operationType;
+  (cleanError as Error & { code?: string; operationType: OperationType; path: string | null }).path = path;
+  throw cleanError;
 }
 
 /**
@@ -96,14 +76,3 @@ export function cleanData<T>(data: T): T {
   return cleaned as T;
 }
 
-// Test connection
-async function testConnection() {
-  try {
-    await getDocFromServer(doc(db, 'test', 'connection'));
-  } catch (error) {
-    if (error instanceof Error && error.message.includes('the client is offline')) {
-      console.error("Please check your Firebase configuration. ");
-    }
-  }
-}
-testConnection();

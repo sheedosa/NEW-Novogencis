@@ -1,6 +1,44 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect, useRef, useState } from 'react';
 import { Page } from '../types';
 import { ShieldCheck, Star, ArrowRight, BarChart2, Quote, Stethoscope, BadgeCheck, Microscope } from 'lucide-react';
+
+// Static marquee CSS — extracted from JSX so it isn't recreated each render.
+const MARQUEE_CSS = `
+  @keyframes marquee {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-33.33%); }
+  }
+  .animate-marquee {
+    display: flex;
+    width: fit-content;
+    animation: marquee 60s linear infinite;
+    will-change: transform;
+  }
+  .animate-marquee[data-paused="true"] {
+    animation-play-state: paused;
+  }
+  @media (max-width: 1023px) {
+    .animate-marquee { animation-duration: 80s; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .animate-marquee { animation: none; }
+  }
+`;
+
+// Hook: returns true when the ref'd element is at least partially visible.
+function useInView<T extends Element>(ref: React.RefObject<T | null>): boolean {
+  const [inView, setInView] = useState(true);
+  useEffect(() => {
+    if (!ref.current || typeof IntersectionObserver === 'undefined') return;
+    const obs = new IntersectionObserver(
+      ([entry]) => setInView(entry.isIntersecting),
+      { rootMargin: '100px' },
+    );
+    obs.observe(ref.current);
+    return () => obs.disconnect();
+  }, [ref]);
+  return inView;
+}
 
 interface HomePageProps {
   onNavigate: (page: Page) => void;
@@ -72,6 +110,9 @@ const HeroImage = ({ className = "" }: { className?: string }) => {
 };
 
 const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
+  const marqueeSectionRef = useRef<HTMLElement>(null);
+  const marqueeInView = useInView(marqueeSectionRef);
+
   const testimonials = useMemo(() => [
     {
       name: "Rusul Al-Hashimi",
@@ -149,7 +190,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
             </div>
 
             <div className="flex items-center justify-center lg:justify-start gap-2 mt-2 opacity-0 animate-fade-in" style={{ animationDelay: '450ms' }}>
-               <span className="text-[7px] md:text-[8px] font-medium uppercase tracking-[0.3em] text-muted/60">Payment plans available via</span>
+               <span className="text-[10px] font-medium uppercase tracking-[0.3em] text-muted/60">Payment plans available via</span>
                <div className="h-4 flex items-center">
                   <img 
                     src="https://lh3.googleusercontent.com/d/1G4qDbkBW0teKcS1IaKy7oaly8CVTKkQK" 
@@ -340,28 +381,8 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
       </section>
 
       {/* Testimonials Section - Continuous Marquee */}
-      <section className="py-12 md:py-32 bg-cream/50 overflow-hidden relative">
-        <style>
-          {`
-            @keyframes marquee {
-              0% { transform: translateX(0); }
-              100% { transform: translateX(-33.33%); }
-            }
-            .animate-marquee {
-              display: flex;
-              width: fit-content;
-              animation: marquee 60s linear infinite;
-            }
-            /* Pause marquee while user is scrolling — combined GPU work
-               causes flicker on mobile during fast scroll */
-            @media (max-width: 1023px) {
-              .animate-marquee {
-                animation-duration: 80s;
-                animation-play-state: var(--marquee-state, running);
-              }
-            }
-          `}
-        </style>
+      <section ref={marqueeSectionRef} className="py-12 md:py-32 bg-cream/50 overflow-hidden relative">
+        <style>{MARQUEE_CSS}</style>
 
         <div className="max-w-[1440px] mx-auto px-6 md:px-20">
           <div className="text-center mb-10 md:mb-20">
@@ -375,9 +396,9 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
           </div>
 
           <div className="relative mt-8">
-            <div className="animate-marquee">
+            <div className="animate-marquee" data-paused={!marqueeInView}>
               {marqueeItems.map((t, idx) => (
-                <div key={idx} className="w-[300px] md:w-[450px] shrink-0 px-3 md:px-5">
+                <div key={idx} className="w-[260px] sm:w-[300px] md:w-[450px] shrink-0 px-3 md:px-5">
                   <div className="premium-card p-5 md:p-10 rounded-[1.5rem] md:rounded-[2.5rem] flex flex-col gap-3 md:gap-6 group h-full shadow-2xl shadow-primary/5 bg-white border border-primary/5">
                     <div className="flex items-center justify-between">
                       <div className="flex text-[#FBBC05] gap-0.5">
@@ -385,7 +406,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
                           <Star key={i} size={16} fill="currentColor" />
                         ))}
                       </div>
-                      <span className="text-[8px] md:text-[9px] font-bold text-muted/50 uppercase">{t.date}</span>
+                      <span className="text-[10px] font-bold text-muted/50 uppercase">{t.date}</span>
                     </div>
                     
                     <div className="relative">
@@ -402,7 +423,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
                       </div>
                       <div className="flex flex-col">
                         <span className="text-xs md:text-base font-medium text-obsidian">{t.name}</span>
-                        <span className="text-[8px] md:text-2xs font-medium text-hint text-muted/60">Verified Client</span>
+                        <span className="text-2xs font-medium text-hint text-muted/60">Verified Client</span>
                       </div>
                     </div>
                   </div>

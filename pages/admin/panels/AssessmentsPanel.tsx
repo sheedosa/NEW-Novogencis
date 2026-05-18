@@ -1,10 +1,28 @@
-import React, { memo } from 'react';
-import { Client } from '../../../types';
+import React, { memo, useState } from 'react';
+import { Client, AITriage } from '../../../types';
 import { useAdminContext } from '../context';
-import { StatusBadge, FeedbackEditor } from '../AdminComponents';
+import { FeedbackEditor } from '../AdminComponents';
 import { logClinicalAction } from '../../../utils/auditLogger';
 import { notifyFeedbackReceived } from '../../../utils/notificationService';
-import { Inbox, AlertTriangle, Check, ClipboardList, ExternalLink, Siren, ArrowRight } from 'lucide-react';
+import {
+  Inbox, AlertTriangle, Check, ClipboardList, ExternalLink,
+  Siren, ArrowRight, Sparkles, RefreshCw, Brain, FileText,
+} from 'lucide-react';
+import {
+  PageHeader, Card, CardHeader, Badge, StatusBadge, Button, EmptyState,
+} from '../../../components/ui';
+
+const SUITABILITY_VARIANT: Record<AITriage['suitability'], 'active' | 'pending' | 'danger'> = {
+  'strong-candidate': 'active',
+  'suitable-with-caveats': 'pending',
+  'not-suitable': 'danger',
+};
+
+const SUITABILITY_LABEL: Record<AITriage['suitability'], string> = {
+  'strong-candidate': 'Strong candidate',
+  'suitable-with-caveats': 'Suitable with caveats',
+  'not-suitable': 'Not suitable',
+};
 
 function AssessmentsPanel() {
   const {
@@ -19,6 +37,9 @@ function AssessmentsPanel() {
     user,
   } = useAdminContext();
 
+  // Lets the doctor click "Use this draft" to load the AI draft into the editor.
+  const [useAiDraftForClientId, setUseAiDraftForClientId] = useState<string | null>(null);
+
   const pendingTriage = filteredClients.filter(c => c.status === 'Assessment Submitted');
   const reviewedTriage = filteredClients.filter(c => c.status === 'Reviewed');
   const effectiveTriageId = triageSelectedId ?? (pendingTriage[0]?.id || null);
@@ -31,45 +52,31 @@ function AssessmentsPanel() {
   };
 
   return (
-    <div className="animate-fade-up flex flex-col gap-6 h-[calc(100vh-10rem)]">
-      {/* Header */}
-      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 shrink-0">
-        <div>
-          <div className="flex items-center gap-3">
-            <h2 className="text-2xl md:text-4xl font-medium text-obsidian tracking-tight">Triage Queue</h2>
-            {pendingTriage.length > 0 && (
-              <span className="px-3 py-1 bg-red-50 text-red-600 rounded-full text-xs font-medium animate-pulse">
-                {pendingTriage.length} Pending
-              </span>
-            )}
+    <div className="animate-fade-up flex flex-col gap-4 h-[calc(100vh-9rem)]">
+      <PageHeader
+        title="Assessments"
+        subtitle="Review intake forms and submit clinical feedback"
+        actions={
+          <div className="flex items-center gap-1.5">
+            <Badge variant="pending">{pendingTriage.length} pending</Badge>
+            <Badge variant="active">{reviewedTriage.length} reviewed</Badge>
           </div>
-          <p className="text-[11px] font-medium text-muted uppercase tracking-[0.2em] mt-2">
-            Review new intake forms and submit clinical feedback in one place
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          <div className="flex bg-cream p-1 rounded-full border border-black/5 text-2xs font-medium text-hint">
-            <span className="px-4 py-2 text-red-500">● {pendingTriage.length} Pending</span>
-            <span className="px-4 py-2 text-green-600">✓ {reviewedTriage.length} Reviewed</span>
-          </div>
-        </div>
-      </div>
+        }
+      />
 
-      {/* Split Panel */}
-      <div className="flex-grow grid grid-cols-1 xl:grid-cols-12 gap-6 min-h-0 overflow-hidden">
-
-        {/* LEFT: Queue List */}
-        <div className="xl:col-span-4 flex flex-col card-clinical overflow-hidden">
-          <div className="p-5 border-b border-black/5 bg-cream/30 shrink-0">
-            <p className="text-[10px] font-medium text-muted uppercase">Awaiting Clinical Review</p>
+      <div className="flex-grow grid grid-cols-1 lg:grid-cols-12 gap-3 min-h-0 overflow-hidden">
+        {/* Queue list */}
+        <Card padded={false} className="lg:col-span-4 flex flex-col overflow-hidden">
+          <div className="px-4 py-3 border-b border-sand shrink-0">
+            <p className="text-sm font-medium text-obsidian">Awaiting review</p>
           </div>
-          <div className="flex-grow overflow-y-auto no-scrollbar">
+          <div className="flex-grow overflow-y-auto">
             {pendingTriage.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-full p-12 text-center gap-4">
-                <Inbox size={48} className="text-primary/20" />
-                <p className="text-sm font-medium text-muted">Queue is clear</p>
-                <p className="text-xs text-muted/60">No pending assessments</p>
-              </div>
+              <EmptyState
+                icon={<Inbox size={16} />}
+                title="Queue is clear"
+                description="No assessments awaiting review."
+              />
             ) : (
               pendingTriage.map(client => {
                 const flags = getRedFlags(client);
@@ -78,26 +85,26 @@ function AssessmentsPanel() {
                   <button
                     key={client.id}
                     onClick={() => setTriageSelectedId(client.id)}
-                    className={`w-full text-left p-4 border-b border-black/[0.03] transition-all hover:bg-cream/50 ${isSelected ? 'bg-primary/5 border-l-2 border-l-primary' : ''}`}
+                    className={`w-full text-left px-4 py-3 border-b border-cream hover:bg-cream/50 transition-colors relative ${isSelected ? 'bg-primary/5' : ''}`}
                   >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-lg bg-obsidian flex items-center justify-center text-white font-medium text-[10px] shrink-0">
-                          {getInitials(client.name)}
-                        </div>
-                        <div>
-                          <p className="text-xs font-medium text-obsidian">{client.name}</p>
-                          <p className="text-[9px] font-bold text-muted capitalize">{client.gender} · {client.createdAt ? new Date(client.createdAt).toLocaleDateString() : 'Recently'}</p>
+                    {isSelected && <div className="absolute left-0 top-0 bottom-0 w-[2px] bg-primary" />}
+                    <div className="flex items-start justify-between gap-2 mb-1.5">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="avatar avatar-sm shrink-0">{getInitials(client.name)}</div>
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-obsidian truncate">{client.name}</p>
+                          <p className="text-xs text-muted capitalize">
+                            {client.gender} · {client.createdAt ? new Date(client.createdAt).toLocaleDateString() : 'Recently'}
+                          </p>
                         </div>
                       </div>
                       {flags.length > 0 && (
-                        <span className="shrink-0 flex items-center gap-1 bg-red-50 text-red-600 px-2 py-0.5 rounded-full text-[8px] font-medium uppercase">
-                          <AlertTriangle size={10} />
-                          {flags.length} Flag{flags.length > 1 ? 's' : ''}
-                        </span>
+                        <Badge variant="danger" icon={<AlertTriangle size={10} />}>
+                          {flags.length} flag{flags.length > 1 ? 's' : ''}
+                        </Badge>
                       )}
                     </div>
-                    <p className="text-[10px] text-muted mt-2 line-clamp-2 font-medium">
+                    <p className="text-xs text-muted line-clamp-2 leading-relaxed">
                       {client.assessmentData?.answers?.['f1']?.value || client.assessmentData?.answers?.['m1']?.value || 'General hair loss concern'}
                     </p>
                   </button>
@@ -105,129 +112,160 @@ function AssessmentsPanel() {
               })
             )}
 
-            {/* Reviewed section */}
             {reviewedTriage.length > 0 && (
               <>
-                <div className="px-5 py-3 bg-cream/50 border-y border-black/5">
-                  <p className="text-[9px] font-medium text-muted uppercase">Recently Reviewed</p>
+                <div className="px-4 py-2 bg-cream/60 border-y border-sand">
+                  <p className="text-xs font-medium text-muted">Recently reviewed</p>
                 </div>
                 {reviewedTriage.slice(0, 5).map(client => (
                   <button
                     key={client.id}
                     onClick={() => setTriageSelectedId(client.id)}
-                    className={`w-full text-left p-5 border-b border-black/5 transition-all hover:bg-cream/50 opacity-60 ${effectiveTriageId === client.id ? 'bg-primary/5 border-l-4 border-l-primary opacity-100' : ''}`}
+                    className={`w-full text-left px-4 py-3 border-b border-cream hover:bg-cream/50 transition-colors flex items-center gap-2.5 relative ${effectiveTriageId === client.id ? 'bg-primary/5' : 'opacity-70'}`}
                   >
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-green-100 flex items-center justify-center text-green-700 font-medium text-sm shrink-0">
-                        <Check size={18} />
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-obsidian">{client.name}</p>
-                        <p className="text-[10px] font-bold text-green-600 uppercase">Reviewed</p>
-                      </div>
+                    {effectiveTriageId === client.id && <div className="absolute left-0 top-0 bottom-0 w-[2px] bg-primary" />}
+                    <div className="w-7 h-7 rounded-md bg-success-bg flex items-center justify-center text-success shrink-0">
+                      <Check size={13} />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-obsidian truncate">{client.name}</p>
+                      <p className="text-xs text-success">Reviewed</p>
                     </div>
                   </button>
                 ))}
               </>
             )}
           </div>
-        </div>
+        </Card>
 
-        <div className="xl:col-span-8 flex flex-col min-h-0">
+        {/* Detail */}
+        <div className="lg:col-span-8 flex flex-col min-h-0 overflow-hidden">
           {!triageSelected ? (
-            <div className="flex flex-col items-center justify-center h-full card-clinical p-16 text-center gap-4">
-              <div className="w-16 h-16 bg-cream rounded-xl flex items-center justify-center text-primary/30">
-                <ClipboardList size={32} className="text-primary/30" />
-              </div>
-              <h3 className="text-base font-medium text-obsidian">Select an Assessment</h3>
-              <p className="text-xs text-muted font-medium max-w-xs">Choose a client from the queue to review their submission and provide clinical feedback.</p>
-            </div>
+            <Card className="h-full flex items-center justify-center">
+              <EmptyState
+                icon={<ClipboardList size={16} />}
+                title="Select an assessment"
+                description="Choose a client from the queue to review their submission."
+              />
+            </Card>
           ) : (
-            <div className="space-y-5 h-full overflow-y-auto no-scrollbar pb-10">
-              {/* Patient Header Card */}
-              <div className="bg-obsidian text-white p-6 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div className="flex items-center gap-4">
-                  <div className="w-14 h-14 rounded-xl bg-white/10 flex items-center justify-center font-medium text-lg">
-                    {getInitials(triageSelected.name)}
-                  </div>
-                  <div>
-                    <h3 className="text-base font-medium">{triageSelected.name}</h3>
-                    <div className="flex items-center gap-3 mt-1 flex-wrap">
-                      <span className={`px-2 py-0.5 rounded-full text-[8px] font-medium uppercase ${triageSelected.gender === 'male' ? 'bg-blue-500/20 text-blue-300' : 'bg-pink-500/20 text-pink-300'}`}>{triageSelected.gender}</span>
-                      <span className="text-[9px] text-gray-400 font-bold">{triageSelected.email}</span>
+            <div className="flex flex-col gap-3 h-full overflow-y-auto pr-1">
+              {/* Patient header */}
+              <Card tone="dark">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="avatar avatar-lg">{getInitials(triageSelected.name)}</div>
+                    <div>
+                      <h3 className="text-base font-medium text-white">{triageSelected.name}</h3>
+                      <div className="flex items-center gap-2 mt-0.5 flex-wrap text-xs text-white/60">
+                        <span className="capitalize">{triageSelected.gender}</span>
+                        <span className="w-1 h-1 bg-white/30 rounded-full" />
+                        <span>{triageSelected.email}</span>
+                      </div>
                     </div>
                   </div>
+                  <div className="flex items-center gap-2">
+                    <StatusBadge status={triageSelected.status || 'Assessment Submitted'} />
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      leadingIcon={<ExternalLink size={13} />}
+                      onClick={() => { setSelectedClientId(triageSelected.id); setActiveTab('clients'); setClientRecordTab('assessment'); }}
+                      className="!text-white !border-white/20 hover:!bg-white/10"
+                    >
+                      Full record
+                    </Button>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <StatusBadge status={triageSelected.status || 'Assessment Submitted'} />
-                  <button
-                    onClick={() => { setSelectedClientId(triageSelected.id); setActiveTab('clients'); setClientRecordTab('assessment'); }}
-                    className="flex items-center gap-2 bg-white/10 hover:bg-white/20 px-4 py-2 rounded-lg text-2xs font-medium text-hint transition-all"
-                  >
-                    <ExternalLink size={14} />
-                    Full Record
-                  </button>
-                </div>
-              </div>
+              </Card>
 
-              {/* Red Flags Alert */}
+              {/* AI Triage card */}
+              <AITriageCard
+                client={triageSelected}
+                onUseDraft={() => setUseAiDraftForClientId(triageSelected.id)}
+              />
+
+              {/* Red flags (multi-select question answer) */}
               {getRedFlags(triageSelected).length > 0 && (
-                <div className="bg-red-50 border border-red-200 rounded-2xl p-5 flex items-start gap-4">
-                  <Siren size={18} className="text-red-500 mt-0.5" />
-                  <div>
-                    <p className="text-[11px] font-medium text-red-700 uppercase mb-2">Clinical Red Flags Detected</p>
-                    <div className="flex flex-wrap gap-2">
-                      {getRedFlags(triageSelected).map((flag: string, i: number) => (
-                        <span key={i} className="bg-red-100 text-red-700 px-3 py-1 rounded-full text-[10px] font-medium">{flag}</span>
-                      ))}
+                <Card className="!bg-danger-bg !border-danger/20">
+                  <div className="flex items-start gap-3">
+                    <Siren size={16} className="text-danger mt-0.5 shrink-0" />
+                    <div>
+                      <p className="text-sm font-medium text-danger-text mb-2">Patient-reported red flags</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {getRedFlags(triageSelected).map((flag: string, i: number) => (
+                          <Badge key={i} variant="danger">{flag}</Badge>
+                        ))}
+                      </div>
                     </div>
                   </div>
-                </div>
+                </Card>
               )}
 
-              {/* Assessment Answers Summary */}
-              <div className="bg-white rounded-[2rem] border border-black/5 shadow-sm p-6 md:p-8">
-                <h4 className="text-[10px] font-medium text-muted uppercase mb-6">Assessment Summary</h4>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+              {/* Answer summary */}
+              <Card>
+                <CardHeader
+                  title="Assessment summary"
+                  trailing={
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      trailingIcon={<ArrowRight size={13} />}
+                      onClick={() => { setSelectedClientId(triageSelected.id); setActiveTab('clients'); setClientRecordTab('assessment'); }}
+                    >
+                      View all
+                    </Button>
+                  }
+                />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   {triageSelected.assessmentData?.answers && Object.entries(triageSelected.assessmentData.answers).slice(0, 8).map(([key, val]: [string, any]) => (
-                    <div key={key} className="bg-cream/50 rounded-xl p-4">
-                      <p className="text-[9px] font-medium text-primary uppercase mb-1">Q{key.replace(/[fm]/, '')}</p>
-                      <p className="text-[11px] font-bold text-obsidian leading-relaxed">
+                    <div key={key} className="bg-cream/60 rounded-md px-3 py-2">
+                      <p className="text-xs text-hint mb-0.5">Q{key.replace(/[fm]/, '')}</p>
+                      <p className="text-sm text-obsidian leading-snug">
                         {Array.isArray(val.value) ? val.value.join(', ') : val.value || '—'}
                       </p>
                     </div>
                   ))}
                 </div>
-                <button
-                  onClick={() => { setSelectedClientId(triageSelected.id); setActiveTab('clients'); setClientRecordTab('assessment'); }}
-                  className="mt-6 text-[10px] font-medium text-primary uppercase flex items-center gap-1 hover:gap-2 transition-all"
-                >
-                  View all answers <ArrowRight size={16} />
-                </button>
-              </div>
+              </Card>
 
-              {/* Inline Quick Feedback */}
-              <div className="bg-obsidian rounded-[2rem] p-6 md:p-8">
-                <h4 className="text-[10px] font-medium text-gray-400 uppercase mb-4">Submit Clinical Feedback</h4>
+              {/* Feedback */}
+              <Card tone="dark">
+                <CardHeader
+                  title={<span className="text-white">Submit clinical feedback</span>}
+                  subtitle={<span className="text-white/60">Client will be notified by email and in-portal.</span>}
+                />
                 <FeedbackEditor
-                  initialFeedback={triageSelected.assessmentData?.clinicalFeedback || ''}
+                  key={useAiDraftForClientId === triageSelected.id ? `ai-${triageSelected.id}` : triageSelected.id}
+                  initialFeedback={
+                    useAiDraftForClientId === triageSelected.id
+                      ? triageSelected.aiTriage?.draftFeedback || ''
+                      : triageSelected.assessmentData?.clinicalFeedback || ''
+                  }
                   onSave={async (feedback) => {
                     if (!feedback.trim()) return;
                     try {
-                      await onUpdateClient(triageSelected.id, {
+                      const updates: Partial<Client> = {
                         assessmentData: { ...triageSelected.assessmentData, clinicalFeedback: feedback, reviewDate: new Date().toISOString() },
-                        status: 'Reviewed'
-                      });
+                        status: 'Reviewed',
+                      };
+                      // Mark AI triage as sent if it informed this feedback.
+                      if (triageSelected.aiTriage) {
+                        updates.aiTriage = { ...triageSelected.aiTriage, status: 'sent' };
+                      }
+                      await onUpdateClient(triageSelected.id, updates);
                       await logClinicalAction(user?.id || 'admin', 'triage_feedback', triageSelected.id, 'Submitted triage feedback');
                       notifyFeedbackReceived(triageSelected.id, triageSelected.email, triageSelected.name);
+                      setUseAiDraftForClientId(null);
                       const next = pendingTriage.find(c => c.id !== triageSelected.id);
                       setTriageSelectedId(next?.id || reviewedTriage[0]?.id || null);
                     } catch (e) {
                       console.error('Feedback error:', e);
+                      alert('Failed to submit feedback. Please try again.');
                     }
                   }}
                 />
-              </div>
+              </Card>
             </div>
           )}
         </div>
@@ -237,3 +275,153 @@ function AssessmentsPanel() {
 }
 
 export default memo(AssessmentsPanel);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AI Triage Card
+// ─────────────────────────────────────────────────────────────────────────────
+// Renders the structured AI triage (clinical impression, red flags, suitability,
+// recommended treatments, draft feedback) produced by the Cloud Function.
+// Doctor uses "Use this draft" to populate the feedback editor with the AI text.
+
+interface AITriageCardProps {
+  client: Client;
+  onUseDraft: () => void;
+}
+
+const AITriageCard: React.FC<AITriageCardProps> = ({ client, onUseDraft }) => {
+  const triage = client.aiTriage;
+
+  // No triage yet — either still being generated or the function never ran.
+  // Show a "generating" state if the client is recent, otherwise a quiet hint.
+  if (!triage) {
+    const isRecent = client.createdAt
+      ? Date.now() - new Date(client.createdAt).getTime() < 5 * 60 * 1000
+      : false;
+    return (
+      <Card className="!border-primary/20">
+        <div className="flex items-start gap-3">
+          <div className="w-9 h-9 rounded-md bg-primary/10 flex items-center justify-center text-primary shrink-0">
+            {isRecent ? <RefreshCw size={15} className="animate-spin" /> : <Sparkles size={15} />}
+          </div>
+          <div className="flex-grow">
+            <p className="text-sm font-medium text-obsidian">
+              {isRecent ? 'AI is analysing this assessment…' : 'AI triage not available'}
+            </p>
+            <p className="text-xs text-muted mt-0.5 leading-relaxed">
+              {isRecent
+                ? 'Clinical impression, red flag check and draft feedback will appear in a few seconds.'
+                : 'This assessment was submitted before AI triage was enabled, or the function did not run. Review manually below.'}
+            </p>
+          </div>
+        </div>
+      </Card>
+    );
+  }
+
+  // Function ran but failed — show a clear failure state.
+  if (triage.error || (!triage.impression && !triage.draftFeedback)) {
+    return (
+      <Card className="!bg-warning-bg !border-warning/30">
+        <div className="flex items-start gap-3">
+          <AlertTriangle size={16} className="text-warning-text mt-0.5 shrink-0" />
+          <div>
+            <p className="text-sm font-medium text-warning-text">AI triage failed</p>
+            <p className="text-xs text-muted mt-0.5">
+              {triage.error || 'No content returned. Review the assessment manually below.'}
+            </p>
+          </div>
+        </div>
+      </Card>
+    );
+  }
+
+  return (
+    <Card className="!border-primary/20">
+      <div className="flex items-start justify-between gap-3 mb-3">
+        <div className="flex items-center gap-2">
+          <div className="w-7 h-7 rounded-md bg-primary/10 flex items-center justify-center text-primary">
+            <Brain size={14} />
+          </div>
+          <div>
+            <p className="text-sm font-medium text-obsidian">AI clinical triage</p>
+            <p className="text-2xs text-muted">
+              Generated {new Date(triage.generatedAt).toLocaleString('en-GB')} · {triage.model} · {triage.usage?.input ?? 0} → {triage.usage?.output ?? 0} tokens
+            </p>
+          </div>
+        </div>
+        <Badge variant={SUITABILITY_VARIANT[triage.suitability]}>
+          {SUITABILITY_LABEL[triage.suitability]}
+        </Badge>
+      </div>
+
+      {/* Clinical impression */}
+      {triage.impression && (
+        <div className="bg-cream/60 rounded-md p-3 mb-3">
+          <p className="text-2xs text-hint uppercase tracking-wider mb-1.5">Clinical impression</p>
+          <p className="text-sm text-obsidian leading-relaxed">{triage.impression}</p>
+        </div>
+      )}
+
+      {/* AI-detected red flags */}
+      {triage.redFlags.length > 0 && (
+        <div className="mb-3">
+          <p className="text-2xs text-hint uppercase tracking-wider mb-1.5">AI-detected red flags</p>
+          <div className="flex flex-wrap gap-1.5">
+            {triage.redFlags.map((flag, i) => (
+              <Badge key={i} variant="danger" icon={<AlertTriangle size={10} />}>{flag}</Badge>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Suitability reason */}
+      {triage.suitabilityReason && (
+        <div className="mb-3">
+          <p className="text-2xs text-hint uppercase tracking-wider mb-1.5">Why</p>
+          <p className="text-sm text-obsidian leading-relaxed">{triage.suitabilityReason}</p>
+        </div>
+      )}
+
+      {/* Recommended treatments */}
+      {triage.recommendedTreatments.length > 0 && (
+        <div className="mb-3">
+          <p className="text-2xs text-hint uppercase tracking-wider mb-1.5">Recommended treatments</p>
+          <div className="flex flex-wrap gap-1.5">
+            {triage.recommendedTreatments.map((t, i) => (
+              <Badge key={i} variant="active">{t}</Badge>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Draft feedback letter — collapsed preview with "use this draft" CTA */}
+      {triage.draftFeedback && (
+        <div className="mt-4 pt-4 border-t border-sand">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-1.5">
+              <FileText size={13} className="text-muted" />
+              <p className="text-sm font-medium text-obsidian">Draft feedback letter</p>
+              {triage.status === 'sent' && <Badge variant="active" icon={<Check size={10} />}>Sent</Badge>}
+            </div>
+            {triage.status !== 'sent' && (
+              <Button
+                variant="primary"
+                size="sm"
+                leadingIcon={<Sparkles size={12} />}
+                onClick={onUseDraft}
+              >
+                Use this draft
+              </Button>
+            )}
+          </div>
+          <div className="bg-cream/40 rounded-md p-3 max-h-40 overflow-y-auto">
+            <p className="text-sm text-obsidian leading-relaxed whitespace-pre-wrap">{triage.draftFeedback}</p>
+          </div>
+          <p className="text-2xs text-muted mt-1.5">
+            AI-generated — must be reviewed and edited by a clinician before sending.
+          </p>
+        </div>
+      )}
+    </Card>
+  );
+};

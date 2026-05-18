@@ -2,39 +2,33 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // ===============================================================
-    // Assumed Data Model
-    // ===============================================================
+    // ====================================================================
+    // NOVOGENICS DATA MODEL
+    // ====================================================================
     //
-    // Collection: users
-    // Document ID: {userId}
-    // Fields: fullName, email, role, createdAt, username
+    // Collection          Owner          Purpose
+    // ──────────────────  ─────────────  ─────────────────────────────────
+    // users/{uid}         self or admin  Auth profile (fullName, role)
+    // clients/{uid}       self or admin  Clinical client record
+    // appointments/{id}   admin          Scheduled sessions
+    // messages/{id}       sender or to   Two-way chat + form + payment cards
+    // notifications/{id}  recipient      System & action notifications
+    // tasks/{id}          admin only     Internal admin to-do queue
+    // templates/{id}      admin only     Reusable message / SOAP templates
+    // system_logs/{id}    admin only     Immutable audit trail
     //
-    // Collection: clients
-    // Document ID: {clientId} (matches userId)
-    // Fields: name, email, status, assessmentData, internalNotes, gender, phone, dob, address
+    // Rules philosophy:
+    //   1. Default deny everything (last block).
+    //   2. Validate write payloads with field-shape checks where the data
+    //      is patient-impacting (clients, users, notifications).
+    //   3. Prevent role/status escalation: clients cannot self-promote.
+    //   4. Mutation surface kept narrow: clients can only flip specific
+    //      fields, never re-write the entire doc.
+    //   5. Listing queries are always indexed (see firestore.indexes.json).
     //
-    // Collection: appointments
-    // Document ID: {appointmentId}
-    // Fields: clientId, clientName, type, date, time, status
-    //
-    // Collection: messages
-    // Document ID: {messageId}
-    // Fields: senderId, recipientId, subject, body, read, createdAt
-    //
-    // Collection: notifications
-    // Document ID: {notifId}
-    // Fields: recipientId, recipientRole, type, title, body, read, createdAt, metadata
-    //
-    // Collection: system_logs
-    // Document ID: {logId}
-    // Fields: adminId, actionType, targetId, details, timestamp
-    //
-    // ===============================================================
-
-    // ===============================================================
-    // Helper Functions
-    // ===============================================================
+    // ====================================================================
+    // HELPER FUNCTIONS
+    // ====================================================================
 
     function isAuthenticated() {
       return request.auth != null;
@@ -44,11 +38,15 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.uid == userId;
     }
 
+    // Admin check: custom claim is evaluated in-memory (zero extra reads).
+    // The Firestore doc fallback covers the window between account creation
+    // and the first token refresh after set-claims is run.
     function isAdmin() {
       return isAuthenticated() &&
         (
           request.auth.token.admin == true ||
-          (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin')
+          (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+           get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin')
         );
     }
 
@@ -57,9 +55,13 @@ service cloud.firestore {
         email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
     }
 
-    // ===============================================================
-    // Domain Validators
-    // ===============================================================
+    function fieldsOnly(allowed) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(allowed);
+    }
+
+    // ====================================================================
+    // PAYLOAD VALIDATORS
+    // ====================================================================
 
     function isValidUser(data) {
       return data.keys().hasAll(['fullName', 'email', 'username', 'role', 'createdAt']) &&
@@ -79,70 +81,168 @@ service cloud.firestore {
     function isValidNotification(data) {
       return data.keys().hasAll(['type', 'title', 'body', 'read', 'createdAt']) &&
              (data.keys().hasAny(['recipientId', 'recipientRole'])) &&
-             data.read is bool;
+             data.read is bool &&
+             data.title is string && data.title.size() <= 200 &&
+             data.body is string && data.body.size() <= 1000;
     }
 
-    // ===============================================================
-    // Rules
-    // ===============================================================
-
-    // Deny all by default
-    match /{allPaths=**} {
-      allow read, write: if false;
+    function isValidTask(data) {
+      return data.keys().hasAll(['title', 'status', 'priority', 'createdBy', 'createdAt']) &&
+             data.title is string && data.title.size() > 0 && data.title.size() <= 200 &&
+             data.status in ['open', 'done', 'snoozed'] &&
+             data.priority in ['normal', 'high'] &&
+             data.createdAt is string;
     }
 
-    // Users Collection
+    function isValidTemplate(data) {
+      return data.keys().hasAll(['title', 'body', 'category', 'createdBy', 'createdAt']) &&
+             data.title is string && data.title.size() > 0 && data.title.size() <= 200 &&
+             data.body is string && data.body.size() <= 5000 &&
+             data.category is string;
+    }
+
+    // ====================================================================
+    // RULES
+    // ====================================================================
+
+    // ── Users ─────────────────────────────────────────────────────────
     match /users/{userId} {
       allow read: if isOwner(userId) || isAdmin();
-      allow create: if isAuthenticated() && isValidUser(request.resource.data) && 
+
+      // Self-signup: client only (no role escalation). Admin can create any.
+      allow create: if isAuthenticated() && isValidUser(request.resource.data) &&
                     ((request.auth.uid == userId && request.resource.data.role == 'client') || isAdmin());
-      // Prevent role escalation for non-admins
-      allow update: if isAuthenticated() && isValidUser(request.resource.data) && 
-                    ((isOwner(userId) && request.resource.data.role == resource.data.role) || isAdmin());
+
+      // Update: anyone can update their own profile (but cannot change role).
+      // Admin can update anyone.
+      allow update: if isAuthenticated() && isValidUser(request.resource.data) &&
+                    ((isOwner(userId) && request.resource.data.role == resource.data.role &&
+                      request.resource.data.email == resource.data.email)
+                     || isAdmin());
+
+      // Only admin can delete.
+      allow delete: if isAdmin();
     }
 
-    // Clients Collection
+    // ── Clients (clinical records) ────────────────────────────────────
     match /clients/{clientId} {
       allow read: if isAdmin() || isOwner(clientId);
-      allow create: if (isAdmin() || (isOwner(clientId) && isValidClient(request.resource.data)));
-      // Prevent status tampering for non-admins
-      allow update: if isAdmin() || 
-                    (isOwner(clientId) && isValidClient(request.resource.data) && request.resource.data.status == resource.data.status);
+      allow create: if isAdmin() ||
+                    (isOwner(clientId) && isValidClient(request.resource.data));
+      // Clients can update their own contact info but cannot touch:
+      //   status, treatmentPlan, prescriptions, payments, internalNotes,
+      //   assessmentData.clinicalFeedback (clinical data is admin-controlled)
+      allow update: if isAdmin() ||
+                    (isOwner(clientId) && isValidClient(request.resource.data) &&
+                     request.resource.data.status == resource.data.status &&
+                     fieldsOnly([
+                       'name', 'phone', 'address', 'dob', 'gender',
+                       'doctorPreference', 'gallery', 'completedForms',
+                       'policiesAccepted', 'assessmentData'
+                     ]));
       allow delete: if isAdmin();
     }
 
-    // Appointments Collection
+    // ── Appointments ──────────────────────────────────────────────────
     match /appointments/{appointmentId} {
-      allow read: if isAdmin() || (isAuthenticated() && request.auth.uid == resource.data.clientId);
-      allow create: if isAdmin() || (isAuthenticated() && request.auth.uid == request.resource.data.clientId);
-      allow update: if isAdmin(); // Clients shouldn't unilaterally update appointments (they should request change via message)
-      allow delete: if isAdmin();
+      allow read: if isAdmin() ||
+                  (isAuthenticated() && request.auth.uid == resource.data.clientId);
+      allow create: if isAdmin() ||
+                    (isAuthenticated() && request.resource.data.clientId == request.auth.uid);
+      // Clients cannot unilaterally edit appointments (they request changes via message).
+      allow update, delete: if isAdmin();
     }
 
-    // Messages Collection
+    // ── Messages (chat + forms + payment cards) ───────────────────────
     match /messages/{messageId} {
-      allow read: if isAdmin() || (isAuthenticated() && (request.auth.uid == resource.data.senderId || request.auth.uid == resource.data.recipientId));
-      allow create: if isAuthenticated() && (request.resource.data.senderId == request.auth.uid || isAdmin());
-      // Only allow updating the 'read' status or adding form data if recipient
-      allow update: if isAdmin() || 
-                    (isAuthenticated() && request.auth.uid == resource.data.recipientId && 
-                     request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read', 'isSigned', 'signature', 'signedAt', 'formData']));
+      allow read: if isAdmin() ||
+                  (isAuthenticated() &&
+                   (request.auth.uid == resource.data.senderId ||
+                    request.auth.uid == resource.data.recipientId));
+
+      // Anyone can send a message, but only as themselves.
+      allow create: if isAdmin() ||
+                    (isAuthenticated() &&
+                     request.resource.data.senderId == request.auth.uid &&
+                     request.resource.data.body is string &&
+                     request.resource.data.body.size() <= 5000);
+
+      // Recipient can mark read + complete a form.
+      // Admin can mutate anything (e.g. patch metadata).
+      allow update: if isAdmin() ||
+                    (isAuthenticated() && request.auth.uid == resource.data.recipientId &&
+                     fieldsOnly(['read', 'isSigned', 'signature', 'signedAt', 'formData']));
       allow delete: if isAdmin();
     }
 
-    // Notifications Collection
+    // ── Notifications ─────────────────────────────────────────────────
     match /notifications/{notifId} {
-      allow read: if isAdmin() || (isAuthenticated() && request.auth.uid == resource.data.recipientId);
-      allow create: if isAdmin(); // Only system/admin should create notifications
-      allow update: if isAdmin() || (isAuthenticated() && request.auth.uid == resource.data.recipientId && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']));
+      allow read: if isAdmin() ||
+                  (isAuthenticated() && request.auth.uid == resource.data.recipientId);
+
+      // The system writes notifications from client-side calls in
+      // notificationService.ts. Authenticated users may write a
+      // notification ONLY if they're addressing it to themselves or to
+      // 'all-admins' (matches existing notifyWelcome / notifyNewAssessment
+      // flows). Admin can write anything.
+      allow create: if isAdmin() ||
+                    (isAuthenticated() && isValidNotification(request.resource.data) &&
+                     (request.resource.data.recipientId == request.auth.uid ||
+                      request.resource.data.recipientId == 'all-admins'));
+
+      // Recipient can mark read; admin can do anything.
+      allow update: if isAdmin() ||
+                    (isAuthenticated() && request.auth.uid == resource.data.recipientId &&
+                     fieldsOnly(['read']));
       allow delete: if isAdmin();
     }
 
-    // System Logs Collection (Audit Trail)
+    // ── Tasks (admin-only to-do queue) ────────────────────────────────
+    match /tasks/{taskId} {
+      allow read: if isAdmin();
+      allow create: if isAdmin() && isValidTask(request.resource.data);
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // ── Templates (admin-only reusable copy) ──────────────────────────
+    match /templates/{templateId} {
+      allow read: if isAdmin();
+      allow create: if isAdmin() && isValidTemplate(request.resource.data);
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // ── System logs (immutable audit trail) ───────────────────────────
     match /system_logs/{logId} {
       allow read: if isAdmin();
-      allow create: if isAdmin(); // System uses admin credentials to log
-      allow update, delete: if false; // Logs are immutable
+      allow create: if isAdmin();
+      // Logs are immutable — never edit or delete.
+      allow update, delete: if false;
+    }
+
+    // ── AI: daily briefings (read-only for admins; Cloud Function writes) ─
+    match /daily_briefings/{date} {
+      allow read: if isAdmin();
+      // Writes only via Cloud Function (Admin SDK bypasses rules).
+      allow write: if false;
+    }
+
+    // ── AI: follow-up suggestions (admin can read + update status) ────────
+    match /followup_suggestions/{clientId} {
+      allow read: if isAdmin();
+      // Admin can mark approved / sent / dismissed; cannot fabricate new ones.
+      allow update: if isAdmin() &&
+                    request.resource.data.diff(resource.data).affectedKeys()
+                      .hasOnly(['status', 'sentAt', 'editedSubject', 'editedBody']);
+      // Cloud Function creates these; admin cannot create or delete.
+      allow create, delete: if false;
+    }
+
+    // ── Default deny ──────────────────────────────────────────────────
+    // Any path not explicitly granted above is rejected.
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }

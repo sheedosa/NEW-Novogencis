@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { signInWithEmailAndPassword, signOut, createUserWithEmailAndPassword } from 'firebase/auth';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { Page, User, AdminType } from '../types';
-import { auth, db, cleanData } from '../firebase';
+import { signInWithEmailAndPassword, signOut } from 'firebase/auth';
+import { doc, getDoc } from 'firebase/firestore';
+import { Page, User } from '../types';
+import { auth, db } from '../firebase';
 import Logo from '../components/Logo';
 import { Mail, Eye, EyeOff, ArrowLeft } from 'lucide-react';
+import { Button, Input } from '../components/ui';
 
 interface AuthPagesProps {
   onLogin: (user: User) => void;
@@ -53,19 +54,15 @@ const AuthPages: React.FC<AuthPagesProps> = ({ onLogin, onNavigate }) => {
       
       let userDoc = await getDoc(doc(db, 'users', userCredential.user.uid));
       
-      // Retry logic for profile fetch (Firestore propagation can be slow)
+      // Retry once if profile doc isn't visible yet (Firestore propagation can lag).
       if (!userDoc.exists()) {
-        console.log('SignIn: User document not found, retrying in 2 seconds...');
         await new Promise(resolve => setTimeout(resolve, 2000));
         userDoc = await getDoc(doc(db, 'users', userCredential.user.uid));
       }
 
       if (userDoc.exists()) {
         const userData = userDoc.data() as User;
-        // Ensure ID is present even if not in document data
         const userWithId = { ...userData, id: userData.id || userCredential.user.uid };
-        console.log('SignIn: User document found:', userWithId.email);
-        
         onLogin(userWithId);
       } else {
         // If Auth succeeded but profile is missing, it's a "zombie" account
@@ -79,58 +76,6 @@ const AuthPages: React.FC<AuthPagesProps> = ({ onLogin, onNavigate }) => {
       }
     } catch (err: unknown) {
       const error = err as { code?: string; message?: string };
-      
-      // Auto-bootstrap admin accounts if they don't exist
-      const adminEmails = [
-        'rasheedamer99@gmail.com', 
-        'aminah_amer@hotmail.com', 
-        'wfarid812@gmail.com',
-        'aminah_doctor@novogenics.internal',
-        'waqass_doctor@novogenics.internal'
-      ];
-
-      if ((error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') && adminEmails.includes(loginEmail)) {
-        try {
-          const userCredential = await createUserWithEmailAndPassword(auth, loginEmail, password);
-          const uid = userCredential.user.uid;
-          
-          let adminType: AdminType | undefined = undefined;
-          if (loginEmail === 'rasheedamer99@gmail.com') {
-            adminType = 'technical';
-          } else if (loginEmail === 'aminah_amer@hotmail.com' || loginEmail === 'aminah_doctor@novogenics.internal') {
-            adminType = 'doctor-female';
-          } else if (loginEmail === 'wfarid812@gmail.com' || loginEmail === 'waqass_doctor@novogenics.internal') {
-            adminType = 'doctor-male';
-          }
-
-          const newUser: User = {
-            id: uid,
-            fullName: loginEmail.split('@')[0],
-            email: loginEmail,
-            username: loginEmail.split('@')[0],
-            role: 'admin',
-            adminType,
-            policiesAccepted: true,
-            createdAt: new Date().toISOString()
-          };
-
-          await setDoc(doc(db, 'users', uid), cleanData(newUser));
-          onLogin(newUser);
-          setLoading(false);
-          return;
-        } catch (createErr: unknown) {
-          const createError = createErr as { code?: string };
-          if (createError.code === 'auth/email-already-in-use') {
-             setError('Invalid clinical credentials.');
-          } else {
-             console.error('Admin bootstrap error:', createErr);
-             setError('Failed to initialize admin account.');
-          }
-          setLoading(false);
-          return;
-        }
-      }
-
       if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
         setError('Invalid clinical credentials.');
       } else {
@@ -144,125 +89,108 @@ const AuthPages: React.FC<AuthPagesProps> = ({ onLogin, onNavigate }) => {
 
   if (verificationSent) {
     return (
-      <div className="min-h-screen bg-bg-main flex flex-col items-center justify-center p-6">
-        <div className="w-full max-w-md bg-white rounded-[2.5rem] shadow-2xl shadow-primary/5 p-8 md:p-12 text-center space-y-6">
-          <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
-            <Mail size={40} className="text-primary" />
+      <div className="min-h-screen bg-cream flex items-center justify-center p-6">
+        <div className="w-full max-w-md bg-white rounded-xl shadow-panel p-8 text-center flex flex-col gap-4">
+          <div className="w-12 h-12 rounded-md bg-cream flex items-center justify-center mx-auto text-primary">
+            <Mail size={20} />
           </div>
-          <h2 className="text-2xl font-medium text-obsidian uppercase tracking-tight">Verify Your Email</h2>
-          <p className="text-muted text-sm font-medium leading-relaxed">
-            We've sent a verification link to your email address. Please click the link to enable your clinical account.
+          <h2 className="text-xl font-medium text-obsidian">Check your email</h2>
+          <p className="text-sm text-muted leading-relaxed">
+            We've sent a verification link to your inbox. Click it to activate your account.
           </p>
-          <div className="pt-4">
-            <button 
-              onClick={() => {
-                setVerificationSent(false);
-                onNavigate(Page.SignIn);
-              }}
-              className="w-full bg-primary text-white rounded-full py-4 text-xs font-medium uppercase shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all"
-            >
-              Back to Sign In
-            </button>
-          </div>
+          <Button
+            variant="primary"
+            fullWidth
+            onClick={() => {
+              setVerificationSent(false);
+              onNavigate(Page.SignIn);
+            }}
+          >
+            Back to sign in
+          </Button>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-cream flex items-start md:items-center justify-center p-6 pt-12 md:pt-44">
-      <div className="absolute top-0 left-0 w-full h-1/2 bg-white skew-y-3 -translate-y-1/2 pointer-events-none opacity-50" />
-      
-      <div className="max-w-md w-full relative z-10">
-        <div className="text-center mb-10">
-          <div className="cursor-pointer inline-block mb-8" onClick={() => onNavigate(Page.Home)}>
-            <Logo size="md" />
-          </div>
-          <h1 className="text-3xl md:text-4xl font-medium text-obsidian tracking-tight">
-            Welcome Back
-          </h1>
-          <p className="text-muted mt-2 font-medium">
-            Access your hair restoration portal
-          </p>
+    <div className="min-h-screen bg-cream flex flex-col items-center justify-center p-6">
+      <div className="max-w-sm w-full">
+        <div className="flex justify-center mb-6 cursor-pointer" onClick={() => onNavigate(Page.Home)}>
+          <Logo size="sm" />
         </div>
 
-        <div className="bg-white rounded-[2.5rem] p-8 md:p-12 shadow-2xl border border-primary/5">
-          <form onSubmit={handleSubmit} className="space-y-5">
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-muted ml-1">Email Address</label>
-              <input 
-                type="text" 
-                required
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                className="w-full bg-cream border-transparent rounded-2xl px-5 py-4 text-sm font-bold focus:ring-primary focus:border-primary transition-all"
-                placeholder="Clinical email address"
-              />
-            </div>
+        <div className="bg-white rounded-xl shadow-panel border border-sand p-7">
+          <div className="mb-5">
+            <h1 className="text-xl font-medium text-obsidian">Sign in</h1>
+            <p className="text-sm text-muted mt-1">Access your clinical portal</p>
+          </div>
 
-            <div className="space-y-1.5">
-              <div className="flex justify-between items-center ml-1">
+          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+            <Input
+              label="Email"
+              type="text"
+              required
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              placeholder="you@example.com"
+              autoComplete="email"
+            />
+
+            <div className="flex flex-col gap-1.5">
+              <div className="flex justify-between items-center">
                 <label className="text-xs font-medium text-muted">Password</label>
-                <button type="button" className="text-2xs font-medium text-hint text-primary hover:underline">Forgot?</button>
+                <button type="button" className="text-xs text-muted hover:text-obsidian transition-colors">Forgot?</button>
               </div>
               <div className="relative">
-                <input 
-                  type={showPassword ? "text" : "password"} 
+                <input
+                  type={showPassword ? 'text' : 'password'}
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full bg-cream border-transparent rounded-2xl px-5 py-4 text-sm font-bold focus:ring-primary focus:border-primary transition-all pr-12"
                   placeholder="••••••••"
+                  autoComplete="current-password"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-muted hover:text-primary transition-colors"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted hover:text-obsidian transition-colors"
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
                 >
-                  {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
               </div>
             </div>
 
             {error && (
-              <div className="bg-red-50 text-red-500 text-2xs font-medium text-hint p-4 rounded-xl text-center">
+              <div className="bg-danger-bg text-danger-text text-xs px-3 py-2 rounded-md border border-danger/15">
                 {error}
               </div>
             )}
 
-            <button 
-              type="submit" 
-              disabled={loading}
-              className="w-full bg-primary text-clinical-dark py-4 rounded-2xl text-[12px] font-medium uppercase tracking-[0.2em] shadow-xl shadow-primary/20 hover:scale-105 transition-all flex items-center justify-center gap-3 active:scale-95"
-            >
-              {loading ? (
-                <span className="w-5 h-5 border-2 border-clinical-dark border-t-transparent rounded-full animate-spin" />
-              ) : (
-                'Sign In'
-              )}
-            </button>
+            <Button type="submit" variant="primary" fullWidth loading={loading}>
+              Sign in
+            </Button>
           </form>
 
-          <div className="mt-8 pt-8 border-t border-gray-100 text-center">
-            <p className="text-[11px] font-bold text-muted uppercase">
-              Don't have an account?
-              <button 
-                onClick={() => onNavigate(Page.Assessment)}
-                className="text-primary ml-2 hover:underline"
-              >
-                Register Now
-              </button>
-            </p>
+          <div className="mt-5 pt-5 border-t border-sand flex items-center justify-center gap-1 text-sm">
+            <span className="text-muted">New here?</span>
+            <button
+              onClick={() => onNavigate(Page.Assessment)}
+              className="text-obsidian font-medium hover:underline"
+            >
+              Create account
+            </button>
           </div>
         </div>
 
-        <div className="mt-8 text-center">
-           <button 
+        <div className="mt-5 text-center">
+          <button
             onClick={() => onNavigate(Page.Home)}
-            className="text-2xs font-medium text-hint text-muted hover:text-primary transition-colors flex items-center gap-2 mx-auto"
-           >
-             <ArrowLeft size={16} /> Back to Website
-           </button>
+            className="text-xs text-muted hover:text-obsidian transition-colors inline-flex items-center gap-1.5"
+          >
+            <ArrowLeft size={13} /> Back to website
+          </button>
         </div>
       </div>
     </div>

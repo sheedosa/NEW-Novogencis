@@ -8,7 +8,15 @@
     "build": "vite build",
     "preview": "vite preview",
     "type-check": "tsc --noEmit",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "admin:set-claims": "node scripts/admin.mjs set-claims",
+    "admin:verify": "node scripts/admin.mjs verify",
+    "admin:list-users": "node scripts/admin.mjs list-users",
+    "deploy:rules": "bash scripts/deploy.sh rules",
+    "deploy:indexes": "bash scripts/deploy.sh indexes",
+    "deploy:hosting": "bash scripts/deploy.sh hosting",
+    "deploy:all": "bash scripts/deploy.sh all",
+    "deploy:verify": "bash scripts/deploy.sh verify"
   },
   "dependencies": {
     "@emailjs/browser": "^4.4.1",
@@ -33,6 +41,8 @@
     "eslint": "^9.39.3",
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.5.2",
+    "firebase-admin": "^13.10.0",
+    "firebase-tools": "^15.18.0",
     "globals": "^17.3.0",
     "postcss": "^8.4.49",
     "tailwindcss": "^3.4.16",

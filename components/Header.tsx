@@ -108,8 +108,8 @@ const Header: React.FC<HeaderProps> = React.memo(({ currentPage, onNavigate }) =
             <Logo size={scrolled || isMobile ? "sm" : "md"} />
           </div>
 
-          {/* Desktop Navigation */}
-          <div className="hidden xl:flex items-center gap-10">
+          {/* Desktop Navigation — shown on lg+ (1024px), mobile menu below 1024px */}
+          <div className="hidden lg:flex items-center gap-6 xl:gap-10">
             <nav className="flex items-center gap-8 lg:gap-10">
               {navItems.map((item) => (
                 <div 
@@ -164,8 +164,8 @@ const Header: React.FC<HeaderProps> = React.memo(({ currentPage, onNavigate }) =
             </button>
           </div>
 
-          {/* Mobile Toggle */}
-          <div className="flex xl:hidden items-center gap-2 z-50">
+          {/* Mobile Toggle — visible below lg */}
+          <div className="flex lg:hidden items-center gap-2 z-50">
             <button
               onClick={() => handleNavigate(Page.SignIn)}
               className="p-2 rounded-full text-primary hover:bg-primary/10 transition-colors duration-200"
@@ -189,8 +189,8 @@ const Header: React.FC<HeaderProps> = React.memo(({ currentPage, onNavigate }) =
       </header>
 
       {/* Mobile Menu Panel */}
-      <div 
-        className={`fixed inset-0 z-[60] xl:hidden transition-all duration-500 ease-in-out ${
+      <div
+        className={`fixed inset-0 z-[60] lg:hidden transition-all duration-500 ease-in-out ${
           isMenuOpen ? 'opacity-100 visible' : 'opacity-0 invisible'
         }`}
       >

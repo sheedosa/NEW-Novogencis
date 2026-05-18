@@ -93,7 +93,7 @@ const Footer: React.FC<FooterProps> = React.memo(({ onNavigate }) => {
               
               {/* Klarna Logo Integration */}
               <div className="flex items-center gap-3">
-                 <span className="text-[8px] font-medium uppercase tracking-[0.2em] text-muted/60">We accept</span>
+                 <span className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted/60">We accept</span>
                  <img 
                     src="https://lh3.googleusercontent.com/d/1G4qDbkBW0teKcS1IaKy7oaly8CVTKkQK" 
                     alt="Klarna Logo" 
@@ -104,7 +104,7 @@ const Footer: React.FC<FooterProps> = React.memo(({ onNavigate }) => {
            </div>
 
            <div className="flex items-center gap-2">
-              <span className="text-[9px] font-medium uppercase tracking-[0.2em] text-muted/50">Designed and Powered by</span>
+              <span className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted/50">Designed and Powered by</span>
               <a href="https://elconekt.com/" target="_blank" rel="noopener noreferrer" className="text-[10px] font-medium uppercase tracking-[0.2em] text-primary hover:text-clinical-dark transition-colors">Elconekt</a>
            </div>
         </div>

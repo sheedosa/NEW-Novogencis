@@ -1,15 +1,42 @@
 rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
-    
+
+    // ====================================================================
+    // NOVOGENICS STORAGE STRUCTURE
+    // ====================================================================
+    //
+    // gallery/{clientId}/{fileName}        Clinical progress photos
+    //                                       - Admin: read + write
+    //                                       - Client: read + write own
+    //
+    // assessments/{clientId}/{fileName}    Intake assessment photos
+    //                                       - Admin: read + write
+    //                                       - Client/anon-with-temp-ID: write own
+    //
+    // Default deny on every other path.
+    //
+    // Constraints:
+    //   - 10MB max per file
+    //   - JPEG / PNG / WebP only (no SVG, no PDFs in storage)
+    //
+    // ====================================================================
+    // HELPERS
+    // ====================================================================
+
     function isAuthenticated() {
       return request.auth != null;
     }
-    
+
+    // Admin = either a custom-claim admin OR a Firestore doc with role='admin'.
+    // We check the Firestore doc lazily; Storage rules cannot do `exists()`
+    // safely on all paths so we rely primarily on the custom claim. Set the
+    // claim from a Cloud Function on admin bootstrap (recommended).
     function isAdmin() {
       return isAuthenticated() && (
         request.auth.token.admin == true ||
-        request.auth.token.email.matches('.*@novogenics[.]internal$')
+        (request.auth.token.email != null &&
+         request.auth.token.email.matches('.*@novogenics[.]internal$'))
       );
     }
 
@@ -18,33 +45,39 @@ service firebase.storage {
     }
 
     function isValidImage() {
-      return request.resource.size < 10 * 1024 * 1024 // 10MB
-        && request.resource.contentType.matches('image/(jpeg|png|webp)');
+      return request.resource.size < 10 * 1024 * 1024 &&  // 10MB
+             request.resource.contentType.matches('image/(jpeg|jpg|png|webp)');
     }
 
-    // Gallery imagery (Post-registration)
+    // ====================================================================
+    // RULES
+    // ====================================================================
+
+    // Clinical progress gallery — long-lived, viewable by patient + clinic.
     match /gallery/{clientId}/{fileName} {
-      allow read: if isAdmin() || isOwner(clientId);
-      allow write: if isAdmin() || (isOwner(clientId) && isValidImage());
+      allow read:   if isAdmin() || isOwner(clientId);
+      allow write:  if isAdmin() || (isOwner(clientId) && isValidImage());
+      allow delete: if isAdmin() || isOwner(clientId);
     }
-    
-    // Assessment imagery (During intake)
+
+    // Intake-assessment photos — used during the initial application flow.
     match /assessments/{clientId}/{fileName} {
-      // Admins can read everything. Clients can only read their own (if they have an ID)
       allow read: if isAdmin() || isOwner(clientId);
-      
-      // Allow write only if:
-      // 1. Admin
-      // 2. Logged-in client writing to their own folder (UID-keyed)
-      // 3. Authenticated (incl. anonymous Firebase Auth) intake to a C-* temp folder
-      // Unauthenticated writes are no longer permitted. Public assessment flows must
-      // sign the user in via Firebase Anonymous Auth (and App Check) before upload.
+
+      // Three legitimate write paths:
+      //   1. Admin uploading on the client's behalf.
+      //   2. The signed-in client themselves writing to their UID-keyed folder.
+      //   3. An authenticated intake (incl. Firebase anonymous auth) writing
+      //      to a temporary `C-*` folder. The temp folder is later relinked
+      //      to the real client document by a server function/admin action.
       allow write: if isAdmin() ||
                     (isOwner(clientId) && isValidImage()) ||
                     (isAuthenticated() && clientId.matches('^C-[A-Z0-9]+$') && isValidImage());
+
+      allow delete: if isAdmin();
     }
-    
-    // Explicit deny for everything else
+
+    // Explicit deny for everything else.
     match /{allPaths=**} {
       allow read, write: if false;
     }

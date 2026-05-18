@@ -437,7 +437,7 @@ const AssessmentPage: React.FC<AssessmentPageProps> = ({ onNavigate, onIntakeCom
 
       <div className="w-full max-w-[1200px] mx-auto flex flex-col h-full md:h-auto max-h-screen">
         <div className="text-center mb-4 md:mb-10 px-4 pt-8 md:pt-0 flex-shrink-0">
-          <span className="text-primary font-medium text-[8px] md:text-xs uppercase tracking-[0.4em] block mb-1 md:mb-2">
+          <span className="text-primary font-medium text-[10px] md:text-xs uppercase tracking-[0.4em] block mb-1 md:mb-2">
             {phase === 'gender' ? 'Free Instant Hair Assessment' : phase === 'intake' ? 'Almost Done' : `Step ${step + 1} of ${currentQuestions.length}`}
           </span>
           <h1 className="text-xl md:text-5xl font-medium text-obsidian tracking-tight leading-tight mb-1">
@@ -548,7 +548,7 @@ const AssessmentPage: React.FC<AssessmentPageProps> = ({ onNavigate, onIntakeCom
                       placeholder="e.g. name@example.com"
                     />
                     {formData.email && !isValidEmail && (
-                      <span className="text-[9px] font-medium text-red-500 uppercase ml-1">Please enter a valid clinical email</span>
+                      <span className="text-[10px] font-medium text-red-500 uppercase ml-1">Please enter a valid clinical email</span>
                     )}
                   </div>
                   <div className="space-y-2">
@@ -559,7 +559,7 @@ const AssessmentPage: React.FC<AssessmentPageProps> = ({ onNavigate, onIntakeCom
                       placeholder="e.g. 07123 456789"
                     />
                     {formData.phone && !isValidUKPhone && (
-                      <span className="text-[9px] font-medium text-red-500 uppercase ml-1">Please enter a valid UK phone number</span>
+                      <span className="text-[10px] font-medium text-red-500 uppercase ml-1">Please enter a valid UK phone number</span>
                     )}
                   </div>
                   
@@ -584,7 +584,7 @@ const AssessmentPage: React.FC<AssessmentPageProps> = ({ onNavigate, onIntakeCom
                       </button>
                     </div>
                     {accountForm.password && accountForm.password.length < 6 && (
-                      <span className="text-[9px] font-medium text-red-500 uppercase ml-1">Password must be at least 6 characters</span>
+                      <span className="text-[10px] font-medium text-red-500 uppercase ml-1">Password must be at least 6 characters</span>
                     )}
                   </div>
                 </div>
@@ -612,7 +612,7 @@ const AssessmentPage: React.FC<AssessmentPageProps> = ({ onNavigate, onIntakeCom
                       type="checkbox" name="agreedToPrivacy" checked={formData.agreedToPrivacy} onChange={handleInputChange}
                       className="mt-1 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
                     />
-                    <span className="text-[9px] md:text-[10px] font-bold text-muted leading-relaxed uppercase tracking-tight">I agree to the Privacy Policy and clinical data processing.</span>
+                    <span className="text-[10px] font-bold text-muted leading-relaxed uppercase tracking-tight">I agree to the Privacy Policy and clinical data processing.</span>
                   </label>
                 </div>
               </div>

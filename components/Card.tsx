@@ -5,8 +5,12 @@ interface CardProps {
   className?: string;
 }
 
+/**
+ * Legacy Card import shim. New code should use `components/ui/Card`.
+ * Uses the `.card` CSS class from index.css so all surfaces share one elevation/radius system.
+ */
 export const Card: React.FC<CardProps> = ({ children, className = '' }) => (
-  <div className={`bg-white rounded-2xl md:rounded-[2.5rem] border border-black/5 shadow-sm overflow-hidden ${className}`}>
-    {children}
-  </div>
+  <div className={`card ${className}`}>{children}</div>
 );
+
+export default Card;

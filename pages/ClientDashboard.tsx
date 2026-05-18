@@ -1,5 +1,18 @@
 import React, { useState, useMemo, memo, useCallback } from 'react';
-import { Stethoscope, FileText, CheckCircle, CreditCard, MessageCircle, Send, CalendarDays, FlaskConical, Navigation, History, ClipboardList, Info, UserIcon, X, LogOut, Menu, Bell, BellOff, ArrowRight, Pill, Camera, Upload, RefreshCw, BarChart2 } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
+import {
+  Stethoscope, FileText, CheckCircle, CreditCard, MessageCircle, Send,
+  CalendarDays, FlaskConical, Navigation, History, ClipboardList, Info,
+  UserIcon, X, LogOut, Menu, Bell, BellOff, ArrowRight, Pill, Camera,
+  Upload, RefreshCw, BarChart2,
+  LayoutDashboard, Calendar as CalendarIcon, MessageSquare,
+  BadgeCheck, CalendarCheck, Star,
+} from 'lucide-react';
+import {
+  Button, Input, Modal, PageHeader, EmptyState, StatusBadge as UIStatusBadge,
+  Stat, Card as UICard, CardHeader, SidebarItem as UISidebarItem,
+  BottomNav,
+} from '../components/ui';
 import { Page, User, Appointment, Client, Message, GalleryItem } from '../types';
 import { FORMS } from '../constants';
 import { Card } from '../components/Card';
@@ -35,21 +48,23 @@ interface SidebarItemProps {
   badge?: number;
 }
 
-const SidebarItem: React.FC<SidebarItemProps> = ({ id, label, icon, activeTab, onClick, badge }) => (
-  <button 
+const iconMap: Record<string, React.ReactNode> = {
+  overview: <LayoutDashboard size={15} />,
+  treatments: <FlaskConical size={15} />,
+  appointments: <CalendarIcon size={15} />,
+  assessments: <ClipboardList size={15} />,
+  messages: <MessageSquare size={15} />,
+  profile: <UserIcon size={15} />,
+};
+
+const SidebarItem: React.FC<SidebarItemProps> = ({ id, label, activeTab, onClick, badge }) => (
+  <UISidebarItem
+    icon={iconMap[id]}
+    label={label}
+    active={activeTab === id}
+    badge={badge}
     onClick={() => onClick(id)}
-    className={`w-full flex items-center justify-between px-5 py-3.5 rounded-xl transition-all group sidebar-item-clinical ${activeTab === id ? 'bg-obsidian text-white shadow-lg shadow-clinical-dark/10' : 'text-muted hover:bg-cream'}`}
-  >
-    <div className="flex items-center gap-3">
-      <span className={`material-symbols-outlined text-[20px] transition-transform group-hover:scale-110 ${activeTab === id ? 'text-primary' : 'text-muted'}`}>{icon}</span>
-      <span className="text-2xs font-medium text-hint">{label}</span>
-    </div>
-    {badge !== undefined && badge > 0 && (
-      <span className="bg-primary text-clinical-dark text-[9px] font-medium px-1.5 py-0.5 rounded-full shadow-md shadow-primary/20">
-        {badge}
-      </span>
-    )}
-  </button>
+  />
 );
 
 import { AppNotification } from '../types';
@@ -66,8 +81,8 @@ const MessagesTab = memo(function MessagesTab({ userMessages, user, onSendMessag
   const [isSending, setIsSending] = useState(false);
 
   return (
-    <div className="animate-fade-up h-[calc(100dvh-12rem)] flex flex-col">
-      <div className="bg-white rounded-[2.5rem] border border-black/5 shadow-sm flex flex-col overflow-hidden flex-grow">
+    <div className="animate-fade-up h-[calc(100dvh-16rem)] sm:h-[calc(100dvh-12rem)] flex flex-col">
+      <div className="bg-white rounded-lg border border-black/5 shadow-sm flex flex-col overflow-hidden flex-grow">
         <div className="p-6 border-b border-black/5 flex justify-between items-center bg-white z-10">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
@@ -77,12 +92,12 @@ const MessagesTab = memo(function MessagesTab({ userMessages, user, onSendMessag
               <h3 className="text-xs font-medium text-obsidian">Novogenics Clinical Support</h3>
               <div className="flex items-center gap-2">
                 <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span>
-                <p className="text-[8px] font-medium uppercase text-muted">Direct Portal Access</p>
+                <p className="text-2xs font-medium text-muted">Direct Portal Access</p>
               </div>
             </div>
           </div>
           <div className="hidden md:flex items-center gap-4">
-            <span className="text-2xs font-medium text-hint text-muted">Response time: &lt; 24h</span>
+            <span className="text-xs text-muted">Response time: &lt; 24h</span>
           </div>
         </div>
 
@@ -104,17 +119,17 @@ const MessagesTab = memo(function MessagesTab({ userMessages, user, onSendMessag
                     <div className="space-y-3">
                       <div className="flex items-center gap-2 text-primary">
                         <FileText size={16} />
-                        <span className="text-2xs font-medium text-hint">Clinical Form</span>
+                        <span className="text-xs text-muted">Clinical Form</span>
                       </div>
-                      <p className="text-[11px] font-bold">{FORMS.find(f => f.id === msg.formId)?.title || msg.subject}</p>
+                      <p className="text-xs font-medium">{FORMS.find(f => f.id === msg.formId)?.title || msg.subject}</p>
                       <button
                         onClick={() => onOpenForm(msg)}
-                        className="block w-full bg-primary text-clinical-dark text-center py-2 rounded-xl text-2xs font-medium text-hint hover:scale-[1.02] transition-transform"
+                        className="block w-full bg-primary text-obsidian text-center py-2 rounded-xl text-xs text-muted transition-transform"
                       >
                         {msg.isSigned ? 'View Completed Form' : 'Open Interactive Form'}
                       </button>
                       {msg.isSigned && (
-                        <div className="flex items-center gap-1 text-green-500 text-[8px] font-medium uppercase">
+                        <div className="flex items-center gap-1 text-green-500 text-2xs font-medium">
                           <CheckCircle size={10} />
                           Signed
                         </div>
@@ -124,22 +139,22 @@ const MessagesTab = memo(function MessagesTab({ userMessages, user, onSendMessag
                     <div className="space-y-3">
                       <div className="flex items-center gap-2 text-primary">
                         <CreditCard size={16} />
-                        <span className="text-2xs font-medium text-hint">Payment Request</span>
+                        <span className="text-xs text-muted">Payment Request</span>
                       </div>
-                      <p className="text-[11px] font-bold">{msg.body.split(': ')[0]}</p>
+                      <p className="text-xs font-medium">{msg.body.split(': ')[0]}</p>
                       <a
                         href={msg.paymentUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="block w-full bg-primary text-clinical-dark text-center py-2 rounded-xl text-2xs font-medium text-hint hover:scale-[1.02] transition-transform"
+                        className="block w-full bg-primary text-obsidian text-center py-2 rounded-xl text-xs text-muted transition-transform"
                       >
                         Complete Payment
                       </a>
                     </div>
                   ) : (
-                    <p className="text-[11px] leading-relaxed mb-2">{msg.body}</p>
+                    <p className="text-xs leading-relaxed mb-2">{msg.body}</p>
                   )}
-                  <div className={`text-[8px] font-bold uppercase ${
+                  <div className={`text-2xs font-medium ${
                     msg.senderId === user?.id ? 'text-white/40 text-right' : 'text-muted'
                   }`}>
                     {new Date(msg.createdAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
@@ -149,10 +164,10 @@ const MessagesTab = memo(function MessagesTab({ userMessages, user, onSendMessag
             ))
           ) : (
             <div className="h-full flex flex-col items-center justify-center text-center p-12">
-              <div className="w-20 h-20 bg-white rounded-3xl flex items-center justify-center text-primary/20 mb-4 shadow-sm">
+              <div className="w-20 h-20 bg-white rounded-lg flex items-center justify-center text-primary/20 mb-4 shadow-sm">
                 <MessageCircle size={40} className="text-primary/20" />
               </div>
-              <p className="text-xs font-bold text-muted">No messages yet. Start a conversation with our clinical team.</p>
+              <p className="text-xs font-medium text-muted">No messages yet. Start a conversation with our clinical team.</p>
             </div>
           )}
         </div>
@@ -184,15 +199,15 @@ const MessagesTab = memo(function MessagesTab({ userMessages, user, onSendMessag
               placeholder="Type your message to the clinic..."
               value={messageInput}
               onChange={(e) => setMessageInput(e.target.value)}
-              className="flex-grow bg-cream border-transparent rounded-xl px-6 py-4 text-xs font-bold focus:ring-2 focus:ring-primary/20 transition-all"
+              className="flex-grow bg-cream border-transparent rounded-xl px-6 py-4 text-xs font-medium focus:ring-2 focus:ring-primary/20 transition-all"
             />
             <button
               type="submit"
               disabled={!messageInput.trim() || isSending}
-              className="w-12 h-12 bg-primary text-clinical-dark rounded-xl flex items-center justify-center shadow-lg shadow-primary/20 hover:scale-105 active:scale-95 transition-all disabled:opacity-50 disabled:scale-100"
+              className="w-12 h-12 bg-primary text-obsidian rounded-xl flex items-center justify-center transition-all disabled:opacity-50"
             >
               {isSending ? (
-                <div className="w-4 h-4 border-2 border-clinical-dark/20 border-t-clinical-dark rounded-full animate-spin" />
+                <div className="w-4 h-4 border-2 border-obsidian/20 border-t-clinical-dark rounded-full animate-spin" />
               ) : (
                 <Send size={18} />
               )}
@@ -254,13 +269,21 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
         return;
       }
       setGalleryUploadFile(file);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setGalleryUploadPreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
+      // Use object URL (lightweight pointer) instead of base64 (full file in memory).
+      // Previous object URL is revoked when state changes — see effect below.
+      setGalleryUploadPreview(URL.createObjectURL(file));
     }
   };
+
+  // Revoke object URLs when preview changes or component unmounts so the
+  // browser releases the underlying blob (prevents memory accumulation).
+  React.useEffect(() => {
+    return () => {
+      if (galleryUploadPreview && galleryUploadPreview.startsWith('blob:')) {
+        URL.revokeObjectURL(galleryUploadPreview);
+      }
+    };
+  }, [galleryUploadPreview]);
 
   const handleGalleryUpload = async (clientId: string, currentGallery: GalleryItem[] = []) => {
     if (!galleryUploadFile) return;
@@ -305,11 +328,13 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
       setGalleryUploadPreview(null);
       setUploadProgress(0);
       alert('Photo uploaded successfully.');
-    } catch (error: any) {
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : 'Failed to upload photo. Please try again.';
       console.error('Error uploading gallery photo:', error);
-      alert(error?.message || 'Failed to upload photo. Please try again.');
+      alert(msg);
     } finally {
       setIsUploading(false);
+      setUploadProgress(0);
     }
   };
 
@@ -445,67 +470,51 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
     switch (activeTab) {
       case 'overview':
         return (
-          <div className="animate-fade-up space-y-10">
-            <header className="mb-8 md:mb-10">
-              <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-                 <div>
-                    <h2 className="text-3xl md:text-5xl font-medium text-obsidian tracking-tight leading-tight">Welcome back, <br className="md:hidden" /><span className="text-primary italic font-serif">{firstName}.</span></h2>
-                    <p className="text-muted font-medium uppercase tracking-[0.2em] mt-2 text-[10px]">Registry Status: {currentClient?.status || 'Active'}</p>
-                 </div>
-                 <div className="flex items-center gap-2">
-                    <div className="bg-primary/5 px-4 py-2 rounded-xl border border-primary/10">
-                       <p className="text-[8px] font-medium text-primary uppercase mb-0.5">Clinical Protocol</p>
-                       <p className="text-[11px] font-medium text-clinical-dark uppercase">{currentClient?.packageStatus || 'Not Enrolled'}</p>
-                    </div>
-                 </div>
-              </div>
-            </header>
+          <div className="animate-fade-up flex flex-col gap-6">
+            <PageHeader
+              title={`Welcome back, ${firstName}`}
+              subtitle={`Account status: ${currentClient?.status || 'Active'}`}
+              actions={
+                <UIStatusBadge status={currentClient?.packageStatus || 'Active'} />
+              }
+            />
 
-            {/* Bento Stats Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
-              <div className="bg-white p-6 md:p-8 rounded-[2rem] border border-black/5 shadow-sm hover:translate-y-[-2px] transition-all">
-                <div className="flex items-center gap-3 mb-4">
-                   <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center text-primary">
-                      <CalendarDays size={18} />
-                   </div>
-                   <span className="text-muted font-medium uppercase text-[9px]">Schedule</span>
-                </div>
+            {/* Stats */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <UICard>
+                <CardHeader
+                  title="Next appointment"
+                  leadingIcon={<CalendarDays size={14} />}
+                />
                 {nextAppointment ? (
-                  <div className="space-y-1">
-                    <p className="text-lg md:text-xl font-medium text-obsidian">
+                  <div className="flex items-baseline justify-between">
+                    <p className="text-lg font-medium text-obsidian">
                       {new Date(nextAppointment.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
                     </p>
-                    <p className="text-xs font-medium text-primary uppercase">{nextAppointment.time}</p>
+                    <p className="text-sm text-muted">{nextAppointment.time}</p>
                   </div>
                 ) : (
-                  <p className="text-xs font-bold text-muted italic">No upcoming sessions</p>
+                  <p className="text-sm text-muted">No upcoming sessions</p>
                 )}
-              </div>
+              </UICard>
 
-              <div className="bg-white p-6 md:p-8 rounded-[2rem] border border-black/5 shadow-sm hover:translate-y-[-2px] transition-all">
-                <div className="flex items-center gap-3 mb-4">
-                   <div className="w-8 h-8 bg-obsidian/10 rounded-lg flex items-center justify-center text-clinical-dark">
-                      <FlaskConical size={18} />
-                   </div>
-                   <span className="text-muted font-medium uppercase text-[9px]">Enrolled Program</span>
+              <UICard>
+                <CardHeader
+                  title="Treatment plan"
+                  leadingIcon={<FlaskConical size={14} />}
+                />
+                <p className="text-base font-medium text-obsidian truncate">{currentClient?.package || 'Assessment only'}</p>
+                <div className="mt-2 flex items-center gap-2">
+                  <div className="progress-track flex-grow"><div className="progress-fill gold" style={{ width: `${progress}%` }} /></div>
+                  <span className="text-xs text-muted">{progress}%</span>
                 </div>
-                <p className="text-lg md:text-xl font-medium text-obsidian truncate">{currentClient?.package || 'Assessment Only'}</p>
-                <div className="mt-3 flex items-center gap-2">
-                   <div className="flex-grow h-1 bg-cream rounded-full overflow-hidden">
-                      <div className="bg-primary h-full rounded-full" style={{ width: `${progress}%` }} />
-                   </div>
-                   <span className="text-[9px] font-medium text-primary">{progress}%</span>
-                </div>
-              </div>
+              </UICard>
 
-              <div className="bg-obsidian text-white p-6 md:p-8 rounded-[2rem] shadow-xl shadow-clinical-dark/20 hover:translate-y-[-2px] transition-all relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-24 h-24 bg-primary/10 rounded-full -mr-12 -mt-12 blur-2xl" />
-                <div className="flex items-center gap-3 mb-4 relative z-10">
-                   <div className="w-8 h-8 bg-white/10 rounded-lg flex items-center justify-center text-primary">
-                      <Stethoscope size={18} />
-                   </div>
-                   <span className="text-gray-400 font-medium uppercase text-[9px]">Your Clinician</span>
-                </div>
+              <UICard tone="dark">
+                <CardHeader
+                  title={<span className="text-white">Your clinician</span>}
+                  leadingIcon={<Stethoscope size={14} className="text-primary" />}
+                />
                 {(() => {
                   const assigned = userAppointments
                     .filter(a => a.doctorName)
@@ -513,89 +522,75 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
                   if (assigned?.doctorName) {
                     return (
                       <>
-                        <p className="text-lg md:text-xl font-medium relative z-10">{assigned.doctorName}</p>
-                        <p className="text-[9px] font-medium text-primary uppercase relative z-10">Assigned via {assigned.type}</p>
+                        <p className="text-base font-medium text-white">{assigned.doctorName}</p>
+                        <p className="text-xs text-white/60 mt-0.5">Via {assigned.type}</p>
                       </>
                     );
                   }
                   return (
                     <>
-                      <p className="text-lg md:text-xl font-medium relative z-10">Pending Assignment</p>
-                      <p className="text-[9px] font-medium text-primary uppercase relative z-10">A clinician will be assigned at booking</p>
+                      <p className="text-base font-medium text-white">Pending assignment</p>
+                      <p className="text-xs text-white/60 mt-0.5">A clinician is assigned at booking</p>
                     </>
                   );
                 })()}
-              </div>
+              </UICard>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
-              <div className="bg-white p-8 md:p-12 rounded-[3rem] border border-black/5">
-                <h3 className="text-xl font-medium text-obsidian uppercase mb-8 flex items-center gap-3">
-                  <span className="material-symbols-outlined text-primary">bolt</span> Quick Actions
-                </h3>
-                <div className="grid grid-cols-2 gap-4">
-                  <button
-                    onClick={() => setActiveTab('messages')}
-                    className="p-6 bg-cream rounded-3xl text-center group hover:bg-primary transition-all"
-                  >
-                    <CalendarDays size={30} className="text-primary group-hover:text-white mb-2" />
-                    <p className="text-2xs font-medium text-hint group-hover:text-white">Request Visit</p>
-                  </button>
-                  <button onClick={() => setActiveTab('treatments')} className="p-6 bg-cream rounded-3xl text-center group hover:bg-primary transition-all">
-                    <BarChart2 size={30} className="text-primary group-hover:text-white mb-2" />
-                    <p className="text-2xs font-medium text-hint group-hover:text-white">View Progress</p>
-                  </button>
-                  <button onClick={() => setActiveTab('messages')} className="p-6 bg-cream rounded-3xl text-center group hover:bg-primary transition-all">
-                    <MessageCircle size={30} className="text-primary group-hover:text-white mb-2" />
-                    <p className="text-2xs font-medium text-hint group-hover:text-white">Message Clinic</p>
-                  </button>
-                  <button onClick={() => setActiveTab('assessments')} className="p-6 bg-cream rounded-3xl text-center group hover:bg-primary transition-all">
-                    <ClipboardList size={30} className="text-primary group-hover:text-white mb-2" />
-                    <p className="text-2xs font-medium text-hint group-hover:text-white">My Assessment</p>
-                  </button>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+              <UICard>
+                <CardHeader title="Quick actions" />
+                <div className="grid grid-cols-2 gap-2">
+                  <Button variant="ghost" fullWidth leadingIcon={<CalendarDays size={14} />} onClick={() => setActiveTab('messages')} className="!justify-start">
+                    Request visit
+                  </Button>
+                  <Button variant="ghost" fullWidth leadingIcon={<BarChart2 size={14} />} onClick={() => setActiveTab('treatments')} className="!justify-start">
+                    View progress
+                  </Button>
+                  <Button variant="ghost" fullWidth leadingIcon={<MessageCircle size={14} />} onClick={() => setActiveTab('messages')} className="!justify-start">
+                    Message clinic
+                  </Button>
+                  <Button variant="ghost" fullWidth leadingIcon={<ClipboardList size={14} />} onClick={() => setActiveTab('assessments')} className="!justify-start">
+                    My assessment
+                  </Button>
                 </div>
-              </div>
+              </UICard>
 
-              <div className="bg-obsidian text-white p-8 md:p-12 rounded-[3rem] relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-64 h-64 bg-primary/10 rounded-full blur-[80px] pointer-events-none" />
-                <h3 className="text-xl font-medium uppercase mb-8 relative z-10">Clinical Update</h3>
-                <div className="space-y-6 relative z-10">
-                  {currentClient?.assessmentData?.clinicalFeedback ? (
-                    <button
-                      onClick={() => setActiveTab('assessments')}
-                      className="w-full text-left p-6 bg-white/5 rounded-2xl border border-white/10 hover:bg-white/10 transition-colors group"
-                    >
-                      <div className="flex items-center gap-2 mb-3">
-                        <ClipboardList size={16} className="text-primary" />
-                        <p className="text-[9px] font-medium text-primary uppercase">Feedback Available</p>
-                        {currentClient.assessmentData.reviewDate && (
-                          <span className="text-[9px] text-gray-400 font-bold ml-auto">
-                            {new Date(currentClient.assessmentData.reviewDate).toLocaleDateString()}
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-sm leading-relaxed text-gray-200 line-clamp-3 italic font-serif">
-                        "{currentClient.assessmentData.clinicalFeedback}"
-                      </p>
-                      <p className="text-[9px] font-medium text-primary uppercase mt-3 group-hover:underline flex items-center gap-1">
-                        Read full review
-                        <ArrowRight size={14} />
-                      </p>
-                    </button>
-                  ) : currentClient?.status === 'Assessment Submitted' ? (
-                    <div className="p-6 bg-white/5 rounded-2xl border border-white/10">
-                      <p className="text-[9px] font-medium text-primary uppercase mb-2">Under Review</p>
-                      <p className="text-sm leading-relaxed text-gray-300 font-serif">
-                        Your clinical team is reviewing your assessment. You'll be notified when feedback is ready.
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="p-6 bg-white/5 rounded-2xl border border-white/10 text-center">
-                      <p className="text-sm italic leading-relaxed text-gray-300 font-serif">No clinical updates yet.</p>
-                    </div>
-                  )}
-                </div>
-              </div>
+              <UICard tone="dark">
+                <CardHeader
+                  title={<span className="text-white">Clinical update</span>}
+                  subtitle={
+                    currentClient?.assessmentData?.reviewDate ? (
+                      <span className="text-white/60">
+                        Reviewed {new Date(currentClient.assessmentData.reviewDate).toLocaleDateString()}
+                      </span>
+                    ) : undefined
+                  }
+                  leadingIcon={<ClipboardList size={14} className="text-primary" />}
+                />
+                {currentClient?.assessmentData?.clinicalFeedback ? (
+                  <button
+                    onClick={() => setActiveTab('assessments')}
+                    className="w-full text-left bg-white/5 rounded-md border border-white/10 hover:bg-white/10 transition-colors p-3"
+                  >
+                    <p className="text-sm leading-relaxed text-white/85 line-clamp-3">
+                      "{currentClient.assessmentData.clinicalFeedback}"
+                    </p>
+                    <p className="text-xs text-primary mt-2 flex items-center gap-1">
+                      Read full review <ArrowRight size={12} />
+                    </p>
+                  </button>
+                ) : currentClient?.status === 'Assessment Submitted' ? (
+                  <div className="bg-white/5 rounded-md border border-white/10 p-3">
+                    <p className="text-xs text-primary mb-1">Under review</p>
+                    <p className="text-sm leading-relaxed text-white/75">
+                      Your clinical team is reviewing your assessment. You'll be notified when feedback is ready.
+                    </p>
+                  </div>
+                ) : (
+                  <p className="text-sm text-white/60">No clinical updates yet.</p>
+                )}
+              </UICard>
             </div>
           </div>
         );
@@ -604,60 +599,57 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
           const rxList = currentClient?.prescriptions || [];
           const activeRx = rxList.filter(r => r.status === 'Active');
           return (
-          <div className="animate-fade-up space-y-10">
-            <header>
-               <h2 className="text-3xl font-medium text-obsidian">My Treatment Plan</h2>
-               <p className="text-[10px] font-medium text-muted uppercase mt-1">Your personalised clinical roadmap and progress</p>
-            </header>
+          <div className="animate-fade-up flex flex-col gap-6">
+            <PageHeader title="Treatment plan" subtitle="Your personalised clinical roadmap and progress" />
 
             {/* Treatment phases */}
             {plan?.phases?.length ? (
-              <div className="bg-white rounded-[2.5rem] p-6 md:p-10 border border-black/5 shadow-sm">
+              <div className="bg-white rounded-lg p-6 md:p-10 border border-black/5 shadow-sm">
                 <div className="flex items-center justify-between mb-8">
                   <div className="flex items-center gap-3">
                     <Navigation size={20} className="text-primary" />
                     <h3 className="text-xs font-medium text-obsidian">{plan.title || 'Treatment Plan'}</h3>
                   </div>
-                  <div className="px-4 py-1.5 bg-cream rounded-full text-[9px] font-medium text-muted uppercase">
+                  <div className="px-4 py-1.5 bg-cream rounded-full text-2xs text-muted">
                     {plan.phases.filter(p => p.status === 'Completed').length}/{plan.phases.length} Phases Complete
                   </div>
                 </div>
                 <div className="space-y-4">
                   {plan.phases.map((phase, i) => {
                     const pct = phase.sessionsPlanned > 0 ? Math.round((phase.sessionsCompleted / phase.sessionsPlanned) * 100) : 0;
-                    const statusColor: Record<string, string> = { Active: 'bg-primary text-clinical-dark', Completed: 'bg-green-100 text-green-700', Planned: 'bg-cream text-muted border border-black/5', 'On Hold': 'bg-yellow-100 text-yellow-700' };
+                    const statusColor: Record<string, string> = { Active: 'bg-primary text-obsidian', Completed: 'bg-green-100 text-green-700', Planned: 'bg-cream text-muted border border-black/5', 'On Hold': 'bg-yellow-100 text-yellow-700' };
                     return (
                       <div key={phase.id} className={`p-5 md:p-6 rounded-2xl border transition-all ${phase.status === 'Active' ? 'border-primary/30 bg-primary/5' : phase.status === 'Completed' ? 'border-black/5 bg-cream/30' : 'border-black/5 bg-white'}`}>
                         <div className="flex items-center justify-between mb-3">
                           <div className="flex items-center gap-3">
-                            <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-medium shrink-0 ${phase.status === 'Completed' ? 'bg-green-500 text-white' : phase.status === 'Active' ? 'bg-primary text-clinical-dark' : 'bg-cream text-muted border border-black/10'}`}>
+                            <div className={`w-7 h-7 rounded-full flex items-center justify-center text-2xs font-medium shrink-0 ${phase.status === 'Completed' ? 'bg-green-500 text-white' : phase.status === 'Active' ? 'bg-primary text-obsidian' : 'bg-cream text-muted border border-black/10'}`}>
                               {phase.status === 'Completed' ? '✓' : i + 1}
                             </div>
                             <div>
                               <p className="text-sm font-medium text-obsidian">{phase.name}</p>
-                              {phase.description && <p className="text-[10px] text-muted font-medium">{phase.description}</p>}
+                              {phase.description && <p className="text-2xs text-muted font-medium">{phase.description}</p>}
                             </div>
                           </div>
-                          <span className={`text-2xs font-medium text-hint px-2 py-1 rounded-full shrink-0 ${statusColor[phase.status]}`}>{phase.status}</span>
+                          <span className={`text-xs text-muted px-2 py-1 rounded-full shrink-0 ${statusColor[phase.status]}`}>{phase.status}</span>
                         </div>
                         {phase.status !== 'Planned' && (
                           <div className="flex items-center gap-3 mt-3">
                             <div className="flex-grow h-1 bg-black/5 rounded-full overflow-hidden">
                               <div className="bg-primary h-full rounded-full" style={{ width: `${pct}%` }} />
                             </div>
-                            <span className="text-[9px] font-medium text-primary shrink-0">{phase.sessionsCompleted}/{phase.sessionsPlanned} sessions</span>
+                            <span className="text-2xs font-medium text-primary shrink-0">{phase.sessionsCompleted}/{phase.sessionsPlanned} sessions</span>
                           </div>
                         )}
-                        {phase.notes && <p className="text-[10px] text-muted/80 font-medium mt-2 italic">"{phase.notes}"</p>}
+                        {phase.notes && <p className="text-2xs text-muted/80 font-medium mt-2 italic">"{phase.notes}"</p>}
                       </div>
                     );
                   })}
                 </div>
               </div>
             ) : (
-              <div className="bg-white rounded-[2.5rem] p-10 border border-black/5 shadow-sm text-center">
+              <div className="bg-white rounded-lg p-10 border border-black/5 shadow-sm text-center">
                 <Stethoscope size={40} className="text-primary/20 mb-3 mx-auto" />
-                <p className="text-[10px] font-medium text-muted uppercase">No treatment plan assigned yet</p>
+                <p className="text-2xs text-muted">No treatment plan assigned yet</p>
                 <p className="text-xs text-muted/60 mt-1 font-medium">Your clinician will create your personalised plan after your first session</p>
               </div>
             )}
@@ -665,13 +657,13 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 md:gap-10">
                {/* Left: Session Timeline */}
                <div className="lg:col-span-8 space-y-6">
-                  <div className="bg-white rounded-[2.5rem] p-6 md:p-10 border border-black/5 shadow-sm">
+                  <div className="bg-white rounded-lg p-6 md:p-10 border border-black/5 shadow-sm">
                      <div className="flex justify-between items-center mb-8">
                         <div className="flex items-center gap-3">
                            <History size={20} className="text-primary" />
                            <h3 className="text-xs font-medium text-obsidian">Session Timeline</h3>
                         </div>
-                        <div className="px-4 py-1.5 bg-cream rounded-full text-[9px] font-medium text-muted uppercase">
+                        <div className="px-4 py-1.5 bg-cream rounded-full text-2xs text-muted">
                            {userAppointments.filter(a => a.status === 'Completed').length} Completed
                         </div>
                      </div>
@@ -683,12 +675,12 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
                           <div key={session.id} className={`p-5 md:p-6 rounded-2xl border transition-all ${session.status === 'Completed' ? 'bg-cream/50 border-black/5' : 'bg-white border-dashed border-primary/20'}`}>
                              <div className="flex justify-between items-start mb-3">
                                 <div>
-                                   <p className="text-[9px] font-medium text-primary uppercase">Session {userAppointments.length - i}</p>
+                                   <p className="text-2xs text-muted">Session {userAppointments.length - i}</p>
                                    <h4 className="text-base font-medium text-obsidian mt-0.5">{session.type}</h4>
                                 </div>
-                                <span className={`text-[8px] font-medium uppercase px-3 py-1 rounded-full ${session.status === 'Completed' ? 'bg-obsidian text-white' : 'bg-primary/10 text-primary'}`}>{session.status}</span>
+                                <span className={`text-2xs font-medium px-3 py-1 rounded-full ${session.status === 'Completed' ? 'bg-obsidian text-white' : 'bg-primary/10 text-primary'}`}>{session.status}</span>
                              </div>
-                             <p className="text-[10px] font-bold text-muted uppercase mb-2 flex items-center gap-2">
+                             <p className="text-2xs text-muted mb-2 flex items-center gap-2">
                                 <CalendarDays size={16} />
                                 {new Date(session.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
                                 {session.time && <span>· {session.time}</span>}
@@ -703,7 +695,7 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
                         {userAppointments.length === 0 && (
                            <div className="py-20 text-center">
                               <ClipboardList size={40} className="text-primary/10 mb-3 mx-auto" />
-                              <p className="text-[10px] font-medium text-muted uppercase">No session history yet</p>
+                              <p className="text-2xs text-muted">No session history yet</p>
                            </div>
                         )}
                      </div>
@@ -712,21 +704,21 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
 
                {/* Right: Progress Summary, Prescriptions & Gallery */}
                <div className="lg:col-span-4 space-y-6">
-                  <Card className="p-8 bg-obsidian text-white border-none shadow-xl shadow-clinical-dark/20">
-                     <h3 className="text-2xs font-medium text-hint text-gray-400 mb-6">Program Overview</h3>
+                  <Card className="p-8 bg-obsidian text-white border-none shadow-xl shadow-obsidian/20">
+                     <h3 className="text-xs text-muted text-gray-400 mb-6">Program Overview</h3>
                      <div className="space-y-6">
                         <div>
-                           <p className="text-[8px] font-medium text-primary uppercase mb-1">Current Protocol</p>
+                           <p className="text-2xs text-muted mb-1">Current Protocol</p>
                            <p className="text-sm font-medium">{currentClient?.package || 'Assessment Underway'}</p>
                         </div>
                         <div>
-                           <p className="text-[8px] font-medium text-gray-400 uppercase mb-3">Session Progress</p>
+                           <p className="text-2xs font-medium text-gray-400 uppercase mb-3">Session Progress</p>
                            <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
                               <div className="bg-primary h-full rounded-full" style={{ width: `${progress}%` }} />
                            </div>
-                           <p className="text-[9px] font-bold text-right mt-1 text-primary">{progress}%</p>
+                           <p className="text-2xs font-medium text-right mt-1 text-primary">{progress}%</p>
                         </div>
-                        <button onClick={() => setActiveTab('messages')} className="w-full bg-white text-clinical-dark py-3 rounded-xl text-2xs font-medium text-hint shadow-lg shadow-white/5 hover:scale-105 transition-all">Request Next Session</button>
+                        <button onClick={() => setActiveTab('messages')} className="w-full bg-white text-obsidian py-3 rounded-xl text-xs text-muted shadow-lg shadow-white/5 transition-all">Request Next Session</button>
                      </div>
                   </Card>
 
@@ -735,15 +727,15 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
                     <Card className="p-6 md:p-8 border border-black/5 shadow-sm">
                       <div className="flex items-center gap-3 mb-4">
                         <Pill size={20} className="text-primary" />
-                        <h3 className="text-2xs font-medium text-hint text-muted">Active Prescriptions</h3>
+                        <h3 className="text-xs text-muted">Active Prescriptions</h3>
                       </div>
                       <div className="space-y-3">
                         {activeRx.map(rx => (
-                          <div key={rx.id} className="p-4 bg-cream rounded-xl">
+                          <div key={rx.id} className="p-4 bg-cream rounded-md">
                             <p className="text-sm font-medium text-obsidian">{rx.drugName}</p>
-                            <p className="text-[10px] font-bold text-muted mt-0.5">{rx.dosage}</p>
-                            <p className="text-[10px] font-medium text-muted/70 mt-1 leading-relaxed">{rx.instructions}</p>
-                            {rx.prescribedBy && <p className="text-[9px] font-medium text-primary uppercase mt-2">Prescribed by {rx.prescribedBy}</p>}
+                            <p className="text-2xs font-medium text-muted mt-0.5">{rx.dosage}</p>
+                            <p className="text-2xs font-medium text-muted/70 mt-1 leading-relaxed">{rx.instructions}</p>
+                            {rx.prescribedBy && <p className="text-2xs text-muted mt-2">Prescribed by {rx.prescribedBy}</p>}
                           </div>
                         ))}
                       </div>
@@ -752,28 +744,28 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
 
                   <Card className="p-6 md:p-8 border border-black/5 shadow-sm">
                      <div className="flex justify-between items-center mb-6">
-                        <h3 className="text-2xs font-medium text-hint text-muted">Progress Photos</h3>
+                        <h3 className="text-xs text-muted">Progress Photos</h3>
                         <button onClick={() => setShowGalleryUpload(true)} className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center hover:bg-primary hover:text-white transition-all">
                            <Camera size={16} />
                         </button>
                      </div>
                      <div className="grid grid-cols-2 gap-3">
                         {currentClient?.gallery?.slice(0, 4).map((item, i) => (
-                           <div key={i} className="aspect-square bg-cream rounded-xl overflow-hidden relative cursor-pointer" onClick={() => setLightboxImage(item)}>
+                           <div key={i} className="aspect-square bg-cream rounded-md overflow-hidden relative cursor-pointer" onClick={() => setLightboxImage(item)}>
                               <img src={item.url} alt={item.label} className="w-full h-full object-cover" />
                            </div>
                         ))}
                         {(!currentClient?.gallery || currentClient.gallery.length === 0) && (
                            <div className="col-span-2 aspect-video bg-cream border-2 border-dashed border-black/5 rounded-xl flex flex-col items-center justify-center text-center p-4">
                               <Camera size={24} className="text-muted/30 mb-1" />
-                              <p className="text-[8px] font-medium text-muted/60 uppercase">No photos yet</p>
+                              <p className="text-2xs font-medium text-muted/60 uppercase">No photos yet</p>
                            </div>
                         )}
                      </div>
                      {currentClient?.gallery && currentClient.gallery.length > 4 && (
                         <button
                           onClick={() => setShowGalleryUpload(true)}
-                          className="w-full text-center py-3 text-[9px] font-medium text-primary uppercase hover:underline mt-2"
+                          className="w-full text-center py-3 text-2xs text-muted hover:underline mt-2"
                         >
                           View All ({currentClient.gallery.length} photos)
                         </button>
@@ -786,31 +778,34 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
         }
       case 'appointments':
         return (
-          <div className="animate-fade-up space-y-10">
-            <div className="flex justify-between items-end">
-              <h2 className="text-3xl font-medium text-obsidian">My Appointments</h2>
-              <button
-                onClick={() => setActiveTab('messages')}
-                className="bg-primary text-clinical-dark px-8 py-3 rounded-full text-xs font-medium shadow-xl shadow-primary/10 hover:scale-105 transition-all active:scale-95"
-              >
-                Request New Visit
-              </button>
-            </div>
+          <div className="animate-fade-up flex flex-col gap-6">
+            <PageHeader
+              title="Appointments"
+              subtitle="Upcoming and past sessions"
+              actions={
+                <Button variant="primary" size="sm" leadingIcon={<CalendarDays size={13} />} onClick={() => setActiveTab('messages')}>
+                  Request visit
+                </Button>
+              }
+            />
 
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 md:gap-10">
                <div className="lg:col-span-8 space-y-4">
                   {userAppointments.length > 0 ? (
                     userAppointments
                       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
                       .map((apt) => {
-                        const isUpcoming = (apt.status === 'Confirmed' || apt.status === 'Pending') && new Date(apt.date) >= new Date(new Date().toDateString());
+                        // Compare full date+time, not just calendar day, so an
+                        // appointment at 09:00 isn't marked "upcoming" at 14:00 the same day.
+                        const aptDateTime = new Date(`${apt.date}T${apt.time || '00:00'}`);
+                        const isUpcoming = (apt.status === 'Confirmed' || apt.status === 'Pending') && aptDateTime.getTime() >= Date.now();
                         const isRequestingThis = requestingAptId === apt.id;
                         return (
-                          <div key={apt.id} className="bg-white rounded-[2.5rem] border border-black/5 shadow-sm overflow-hidden">
+                          <div key={apt.id} className="bg-white rounded-lg border border-black/5 shadow-sm overflow-hidden">
                             <div className="p-6 md:p-8 flex items-center justify-between gap-4">
                               <div className="flex items-center gap-4 md:gap-6 min-w-0">
-                                <div className="w-14 h-14 md:w-16 md:h-16 bg-cream rounded-3xl flex flex-col items-center justify-center text-center shrink-0">
-                                  <span className="text-[9px] font-medium text-primary uppercase">
+                                <div className="w-14 h-14 md:w-16 md:h-16 bg-cream rounded-lg flex flex-col items-center justify-center text-center shrink-0">
+                                  <span className="text-2xs text-muted">
                                     {new Date(apt.date).toLocaleString('default', { month: 'short' })}
                                   </span>
                                   <span className="text-xl font-medium text-obsidian leading-none">
@@ -820,11 +815,11 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
                                 <div className="min-w-0">
                                   <h4 className="text-base md:text-lg font-medium text-obsidian truncate">{apt.type}</h4>
                                   <p className="text-xs md:text-sm font-medium text-muted">{apt.time}</p>
-                                  {apt.doctorName && <p className="text-[9px] font-medium text-primary uppercase mt-1">{apt.doctorName}</p>}
+                                  {apt.doctorName && <p className="text-2xs text-muted mt-1">{apt.doctorName}</p>}
                                 </div>
                               </div>
                               <div className="flex items-center gap-2 shrink-0">
-                                <span className={`px-3 py-1.5 rounded-full text-2xs font-medium text-hint ${
+                                <span className={`px-3 py-1.5 rounded-full text-xs text-muted ${
                                   apt.status === 'Confirmed' ? 'bg-green-100 text-green-700' :
                                   apt.status === 'Completed' ? 'bg-blue-100 text-blue-700' :
                                   apt.status === 'Cancelled' ? 'bg-red-100 text-red-600' :
@@ -835,7 +830,7 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
                                     onClick={() => { setRequestingAptId(isRequestingThis ? null : apt.id); setAptAction(null); setReschedulePreference(''); }}
                                     className="w-8 h-8 rounded-full bg-cream border border-black/10 flex items-center justify-center text-muted hover:text-primary transition-colors"
                                   >
-                                    <span className="material-symbols-outlined text-[16px]">{isRequestingThis ? 'close' : 'more_horiz'}</span>
+                                    {isRequestingThis ? <X size={13} /> : <ArrowRight size={13} />}
                                   </button>
                                 )}
                               </div>
@@ -846,7 +841,7 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
                               <div className="px-6 md:px-8 pb-6 border-t border-black/5 pt-4">
                                 {!aptAction ? (
                                   <div className="flex gap-3">
-                                    <button onClick={() => setAptAction('reschedule')} className="flex-1 flex items-center justify-center gap-2 bg-cream hover:bg-primary/10 text-obsidian py-2.5 rounded-xl text-2xs font-medium text-hint transition-colors">
+                                    <button onClick={() => setAptAction('reschedule')} className="flex-1 flex items-center justify-center gap-2 bg-cream hover:bg-primary/10 text-obsidian py-2.5 rounded-xl text-xs text-muted transition-colors">
                                       <RefreshCw size={16} className="text-primary" /> Request Reschedule
                                     </button>
                                     <button onClick={async () => {
@@ -862,22 +857,22 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
                                       });
                                       setAptRequestSending(false);
                                       setRequestingAptId(null);
-                                    }} disabled={aptRequestSending} className="flex-1 flex items-center justify-center gap-2 bg-red-50 hover:bg-red-100 text-red-600 py-2.5 rounded-xl text-2xs font-medium text-hint transition-colors disabled:opacity-50">
+                                    }} disabled={aptRequestSending} className="flex-1 flex items-center justify-center gap-2 bg-red-50 hover:bg-red-100 text-red-600 py-2.5 rounded-xl text-xs text-muted transition-colors disabled:opacity-50">
                                       <X size={16} /> Request Cancel
                                     </button>
                                   </div>
                                 ) : (
                                   <div className="space-y-3">
-                                    <p className="text-2xs font-medium text-hint text-muted">Preferred new date/time</p>
+                                    <p className="text-xs text-muted">Preferred new date/time</p>
                                     <textarea
                                       value={reschedulePreference}
                                       onChange={e => setReschedulePreference(e.target.value)}
                                       placeholder="e.g. Any morning next week, preferably Tuesday or Thursday..."
                                       rows={2}
-                                      className="w-full bg-cream border-transparent rounded-xl px-4 py-3 text-xs font-bold focus:ring-2 focus:ring-primary/20 resize-none"
+                                      className="w-full bg-cream border-transparent rounded-xl px-4 py-3 text-xs font-medium focus:ring-2 focus:ring-primary/20 resize-none"
                                     />
                                     <div className="flex gap-2">
-                                      <button onClick={() => setAptAction(null)} className="px-4 py-2 text-2xs font-medium text-hint text-muted hover:text-obsidian">Back</button>
+                                      <button onClick={() => setAptAction(null)} className="px-4 py-2 text-xs text-muted hover:text-obsidian">Back</button>
                                       <button onClick={async () => {
                                         if (!user) return;
                                         setAptRequestSending(true);
@@ -892,7 +887,7 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
                                         setAptRequestSending(false);
                                         setRequestingAptId(null);
                                         setAptAction(null);
-                                      }} disabled={aptRequestSending} className="flex-1 bg-primary text-clinical-dark py-2 rounded-xl text-2xs font-medium text-hint disabled:opacity-50">
+                                      }} disabled={aptRequestSending} className="flex-1 bg-primary text-obsidian py-2 rounded-xl text-xs text-muted disabled:opacity-50">
                                         {aptRequestSending ? 'Sending…' : 'Send Reschedule Request'}
                                       </button>
                                     </div>
@@ -904,13 +899,13 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
                         );
                       })
                   ) : (
-                    <div className="bg-white p-12 rounded-[2.5rem] border border-black/5 text-center">
-                      <p className="text-muted font-bold">You have no appointment history.</p>
+                    <div className="bg-white p-12 rounded-lg border border-black/5 text-center">
+                      <p className="text-muted font-medium">You have no appointment history.</p>
                     </div>
                   )}
                </div>
                <div className="lg:col-span-4 space-y-6">
-                  <div className="bg-primary/5 rounded-[3rem] p-8 md:p-10 border border-primary/10">
+                  <div className="bg-primary/5 rounded-xl p-8 md:p-10 border border-primary/10">
                     <h4 className="text-lg font-medium text-obsidian uppercase mb-6">Booking Policy</h4>
                     <ul className="space-y-4">
                       {[
@@ -925,10 +920,10 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
                       ))}
                     </ul>
                   </div>
-                  <div className="bg-obsidian text-white rounded-[3rem] p-8 md:p-10">
-                    <p className="text-2xs font-medium text-hint text-gray-400 mb-2">Need to make a change?</p>
-                    <p className="text-sm font-bold text-gray-300 leading-relaxed mb-5">Use the menu on each upcoming appointment to request a reschedule or cancellation. Our team will confirm via message.</p>
-                    <p className="text-[9px] font-medium text-primary uppercase">48 hours notice required</p>
+                  <div className="bg-obsidian text-white rounded-xl p-8 md:p-10">
+                    <p className="text-xs text-muted text-gray-400 mb-2">Need to make a change?</p>
+                    <p className="text-sm font-medium text-gray-300 leading-relaxed mb-5">Use the menu on each upcoming appointment to request a reschedule or cancellation. Our team will confirm via message.</p>
+                    <p className="text-2xs text-muted">48 hours notice required</p>
                   </div>
                </div>
             </div>
@@ -936,8 +931,8 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
         );
       case 'assessments':
         return (
-          <div className="animate-fade-up space-y-10">
-            <h2 className="text-3xl font-medium text-obsidian">My Assessments</h2>
+          <div className="animate-fade-up flex flex-col gap-6">
+            <PageHeader title="Assessments" subtitle="Your clinical reviews and feedback" />
             
             {currentClient?.assessmentData?.clinicalFeedback ? (
               <div className="bg-obsidian text-white p-6 md:p-8 rounded-2xl shadow-xl relative overflow-hidden group">
@@ -947,21 +942,21 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
                     <div className="w-10 h-10 bg-primary/20 rounded-xl flex items-center justify-center text-primary">
                       <ClipboardList size={20} />
                     </div>
-                    <h4 className="text-lg font-medium uppercase">Clinical Feedback</h4>
+                    <h4 className="text-lg font-medium">Clinical Feedback</h4>
                   </div>
                   <div className="space-y-4">
-                    <p className="text-sm md:text-base leading-relaxed text-gray-200 font-medium italic font-serif">
+                    <p className="text-sm md:text-base leading-relaxed text-gray-200 font-medium italic">
                       "{currentClient.assessmentData.clinicalFeedback}"
                     </p>
                     <div className="pt-6 border-t border-white/10 flex items-center justify-between">
                       <div>
-                        <p className="text-[9px] font-medium text-primary uppercase mb-1">Reviewed By</p>
-                        <p className="text-xs font-bold">Novogenics Clinical Team</p>
+                        <p className="text-2xs text-muted mb-1">Reviewed By</p>
+                        <p className="text-xs font-medium">Novogenics Clinical Team</p>
                       </div>
                       {currentClient.assessmentData.reviewDate && (
                         <div className="text-right">
-                          <p className="text-[9px] font-medium text-primary uppercase mb-1">Review Date</p>
-                          <p className="text-xs font-bold">{new Date(currentClient.assessmentData.reviewDate).toLocaleDateString()}</p>
+                          <p className="text-2xs text-muted mb-1">Review Date</p>
+                          <p className="text-xs font-medium">{new Date(currentClient.assessmentData.reviewDate).toLocaleDateString()}</p>
                         </div>
                       )}
                     </div>
@@ -977,31 +972,31 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
                   <h4 className="text-lg font-medium text-obsidian mb-2">Assessment Status: Pending Review</h4>
                   <p className="text-muted font-medium leading-relaxed">
                     Thank you for submitting your comprehensive assessment. Our clinical team is currently reviewing your information. 
-                    <span className="text-primary font-bold"> You will receive a response regarding your assessment here in this tab within 48 hours.</span>
+                    <span className="text-primary font-medium"> You will receive a response regarding your assessment here in this tab within 48 hours.</span>
                   </p>
                 </div>
               </div>
             )}
 
             {currentClient?.assessmentData && (
-              <div className="card-clinical p-8 md:p-10">
+              <div className="bg-white border border-sand rounded-lg shadow-card p-8 md:p-10">
                 <h3 className="text-xl font-medium text-obsidian uppercase mb-8">Submitted Information</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-10">
                   <div className="space-y-6">
                     <div>
-                      <span className="text-[10px] font-medium text-primary uppercase block mb-2">Screening Conditions</span>
+                      <span className="text-2xs text-muted block mb-2">Screening Conditions</span>
                       <p className="text-sm font-medium text-obsidian">
                         {currentClient.assessmentData.screening?.conditions?.join(', ') || 'None reported'}
                       </p>
                     </div>
                     <div>
-                      <span className="text-[10px] font-medium text-primary uppercase block mb-2">Triggers</span>
+                      <span className="text-2xs text-muted block mb-2">Triggers</span>
                       <p className="text-sm font-medium text-obsidian">
                         {currentClient.assessmentData.consultation?.triggers || 'None reported'}
                       </p>
                     </div>
                     <div>
-                      <span className="text-[10px] font-medium text-primary uppercase block mb-2">Lifestyle</span>
+                      <span className="text-2xs text-muted block mb-2">Lifestyle</span>
                       <p className="text-sm font-medium text-obsidian">
                         {currentClient.assessmentData.consultation?.lifestyle || 'N/A'}
                       </p>
@@ -1009,19 +1004,19 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
                   </div>
                   <div className="space-y-6">
                     <div>
-                      <span className="text-[10px] font-medium text-primary uppercase block mb-2">Medical History</span>
+                      <span className="text-2xs text-muted block mb-2">Medical History</span>
                       <p className="text-sm font-medium text-obsidian">
                         {currentClient.assessmentData.consultation?.medicalHistory || 'None reported'}
                       </p>
                     </div>
                     <div>
-                      <span className="text-[10px] font-medium text-primary uppercase block mb-2">Medications</span>
+                      <span className="text-2xs text-muted block mb-2">Medications</span>
                       <p className="text-sm font-medium text-obsidian">
                         {currentClient.assessmentData.consultation?.medications || 'None reported'}
                       </p>
                     </div>
                     <div>
-                      <span className="text-[10px] font-medium text-primary uppercase block mb-2">Lifestyle & Hair Care</span>
+                      <span className="text-2xs text-muted block mb-2">Lifestyle & Hair Care</span>
                       <p className="text-sm font-medium text-obsidian">
                         {currentClient.assessmentData.consultation?.lifestyle || 'N/A'} • {currentClient.assessmentData.consultation?.hairCare || 'N/A'}
                       </p>
@@ -1039,8 +1034,8 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
                         
                         return (
                           <div key={key} className="border-b border-black/5 pb-4 last:border-0">
-                            <p className="text-[10px] font-medium text-muted uppercase mb-2">{answer.text}</p>
-                            <p className="text-sm font-bold text-obsidian">{displayValue}</p>
+                            <p className="text-2xs text-muted mb-2">{answer.text}</p>
+                            <p className="text-sm font-medium text-obsidian">{displayValue}</p>
                           </div>
                         );
                       })}
@@ -1062,80 +1057,80 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
         );
       case 'profile':
         return (
-          <div className="animate-fade-up space-y-10">
-            <h2 className="text-3xl font-medium text-obsidian">My Profile</h2>
+          <div className="animate-fade-up flex flex-col gap-6">
+            <PageHeader title="Profile" subtitle="Your account and contact details" />
             
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 md:gap-10">
               <div className="lg:col-span-4 space-y-6">
-                <div className="bg-white p-8 rounded-[2.5rem] border border-black/5 shadow-sm text-center">
+                <div className="bg-white p-8 rounded-lg border border-black/5 shadow-sm text-center">
                   <div className="w-24 h-24 bg-primary/10 rounded-full flex items-center justify-center text-primary mx-auto mb-6">
                     <UserIcon size={40} />
                   </div>
                   <h3 className="text-xl font-medium text-obsidian mb-1">{user?.fullName}</h3>
-                  <p className="text-2xs font-medium text-hint text-muted mb-6">Client ID: {currentClient?.id || 'N/A'}</p>
+                  <p className="text-xs text-muted mb-6">Client ID: {currentClient?.id || 'N/A'}</p>
                   <div className="flex justify-center gap-2">
-                    <span className="px-3 py-1 bg-primary/10 text-primary rounded-full text-2xs font-medium text-hint">
+                    <span className="px-3 py-1 bg-primary/10 text-primary rounded-full text-xs text-muted">
                       {currentClient?.status || 'Active'}
                     </span>
                   </div>
                 </div>
 
-                <div className="bg-white p-8 rounded-[2.5rem] border border-black/5 shadow-sm">
-                  <h4 className="text-2xs font-medium text-hint text-muted mb-6">Account Status</h4>
+                <div className="bg-white p-8 rounded-lg border border-black/5 shadow-sm">
+                  <h4 className="text-xs text-muted mb-6">Account Status</h4>
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-muted">Policies Accepted</span>
-                      <span className={`material-symbols-outlined text-sm ${currentClient?.policiesAccepted ? 'text-green-500' : 'text-red-500'}`}>
-                        {currentClient?.policiesAccepted ? 'check_circle' : 'cancel'}
-                      </span>
+                      <span className="text-xs font-medium text-muted">Policies Accepted</span>
+                      {currentClient?.policiesAccepted
+                        ? <CheckCircle size={14} className="text-success" />
+                        : <X size={14} className="text-danger" />}
                     </div>
                   </div>
                 </div>
               </div>
 
               <div className="lg:col-span-8 space-y-6">
-                <div className="bg-white p-8 md:p-12 rounded-[3rem] border border-black/5 shadow-sm">
+                <div className="bg-white p-8 md:p-12 rounded-xl border border-black/5 shadow-sm">
                   <h3 className="text-xl font-medium text-obsidian uppercase mb-8">Personal Information</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-8">
                     {isEditingProfile ? (
                       <form onSubmit={handleSaveProfile} className="md:col-span-2 space-y-6">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                           <div className="space-y-2">
-                            <label className="text-[10px] font-medium text-muted uppercase block">Phone Number</label>
+                            <label className="text-2xs text-muted block">Phone Number</label>
                             <input 
                               type="tel" 
                               value={profileForm.phone}
                               onChange={e => setProfileForm(p => ({ ...p, phone: e.target.value }))}
-                              className="w-full bg-cream border-transparent rounded-xl px-4 py-3 text-sm font-bold focus:ring-2 focus:ring-primary/20"
+                              className="w-full bg-cream border-transparent rounded-xl px-4 py-3 text-sm font-medium focus:ring-2 focus:ring-primary/20"
                             />
                           </div>
                           <div className="space-y-2">
-                            <label className="text-[10px] font-medium text-muted uppercase block">Date of Birth</label>
+                            <label className="text-2xs text-muted block">Date of Birth</label>
                             <input 
                               type="date" 
                               value={profileForm.dob}
                               onChange={e => setProfileForm(p => ({ ...p, dob: e.target.value }))}
-                              className="w-full bg-cream border-transparent rounded-xl px-4 py-3 text-sm font-bold focus:ring-2 focus:ring-primary/20"
+                              className="w-full bg-cream border-transparent rounded-xl px-4 py-3 text-sm font-medium focus:ring-2 focus:ring-primary/20"
                             />
                           </div>
                           <div className="space-y-2">
-                            <label className="text-[10px] font-medium text-muted uppercase block">Gender</label>
+                            <label className="text-2xs text-muted block">Gender</label>
                             <select 
                               value={profileForm.gender}
                               onChange={e => setProfileForm(p => ({ ...p, gender: e.target.value as 'male' | 'female' }))}
-                              className="w-full bg-cream border-transparent rounded-xl px-4 py-3 text-sm font-bold focus:ring-2 focus:ring-primary/20"
+                              className="w-full bg-cream border-transparent rounded-xl px-4 py-3 text-sm font-medium focus:ring-2 focus:ring-primary/20"
                             >
                               <option value="female">Female</option>
                               <option value="male">Male</option>
                             </select>
                           </div>
                           <div className="space-y-2">
-                            <label className="text-[10px] font-medium text-muted uppercase block">Address</label>
+                            <label className="text-2xs text-muted block">Address</label>
                             <input 
                               type="text" 
                               value={profileForm.address}
                               onChange={e => setProfileForm(p => ({ ...p, address: e.target.value }))}
-                              className="w-full bg-cream border-transparent rounded-xl px-4 py-3 text-sm font-bold focus:ring-2 focus:ring-primary/20"
+                              className="w-full bg-cream border-transparent rounded-xl px-4 py-3 text-sm font-medium focus:ring-2 focus:ring-primary/20"
                             />
                           </div>
                         </div>
@@ -1150,11 +1145,11 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
                           <button 
                             type="submit"
                             disabled={isSavingProfile}
-                            className="bg-primary text-clinical-dark px-8 py-3 rounded-full text-xs font-medium shadow-xl shadow-primary/20 hover:scale-105 transition-all disabled:opacity-50 disabled:scale-100 flex items-center gap-2"
+                            className="bg-primary text-obsidian px-8 py-3 rounded-full text-xs font-medium transition-all disabled:opacity-50 flex items-center gap-2"
                           >
                             {isSavingProfile ? (
                               <>
-                                <div className="w-4 h-4 border-2 border-clinical-dark/20 border-t-clinical-dark rounded-full animate-spin" />
+                                <div className="w-4 h-4 border-2 border-obsidian/20 border-t-clinical-dark rounded-full animate-spin" />
                                 Saving...
                               </>
                             ) : (
@@ -1167,30 +1162,30 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
                       <>
                         <div className="space-y-6">
                           <div>
-                            <span className="text-[10px] font-medium text-muted uppercase block mb-2">Full Name</span>
-                            <p className="text-sm font-bold text-obsidian">{user?.fullName}</p>
+                            <span className="text-2xs text-muted block mb-2">Full Name</span>
+                            <p className="text-sm font-medium text-obsidian">{user?.fullName}</p>
                           </div>
                           <div>
-                            <span className="text-[10px] font-medium text-muted uppercase block mb-2">Email Address</span>
-                            <p className="text-sm font-bold text-obsidian">{user?.email}</p>
+                            <span className="text-2xs text-muted block mb-2">Email Address</span>
+                            <p className="text-sm font-medium text-obsidian">{user?.email}</p>
                           </div>
                           <div>
-                            <span className="text-[10px] font-medium text-muted uppercase block mb-2">Phone Number</span>
-                            <p className="text-sm font-bold text-obsidian">{currentClient?.phone || 'Not provided'}</p>
+                            <span className="text-2xs text-muted block mb-2">Phone Number</span>
+                            <p className="text-sm font-medium text-obsidian">{currentClient?.phone || 'Not provided'}</p>
                           </div>
                         </div>
                         <div className="space-y-6">
                           <div>
-                            <span className="text-[10px] font-medium text-muted uppercase block mb-2">Date of Birth</span>
-                            <p className="text-sm font-bold text-obsidian">{formatDOB(currentClient?.dob)}{calculateAge(currentClient?.dob)}</p>
+                            <span className="text-2xs text-muted block mb-2">Date of Birth</span>
+                            <p className="text-sm font-medium text-obsidian">{formatDOB(currentClient?.dob)}{calculateAge(currentClient?.dob)}</p>
                           </div>
                           <div>
-                            <span className="text-[10px] font-medium text-muted uppercase block mb-2">Gender</span>
-                            <p className="text-sm font-bold text-obsidian capitalize">{currentClient?.gender || 'Not provided'}</p>
+                            <span className="text-2xs text-muted block mb-2">Gender</span>
+                            <p className="text-sm font-medium text-obsidian capitalize">{currentClient?.gender || 'Not provided'}</p>
                           </div>
                           <div>
-                            <span className="text-[10px] font-medium text-muted uppercase block mb-2">Address</span>
-                            <p className="text-sm font-bold text-obsidian">{currentClient?.address || 'Not provided'}</p>
+                            <span className="text-2xs text-muted block mb-2">Address</span>
+                            <p className="text-sm font-medium text-obsidian">{currentClient?.address || 'Not provided'}</p>
                           </div>
                         </div>
                       </>
@@ -1201,7 +1196,7 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
                     <div className="mt-12 pt-12 border-t border-black/5">
                       <button 
                         onClick={handleEditProfileClick}
-                        className="bg-obsidian text-white px-8 py-3 rounded-full text-xs font-medium shadow-xl shadow-black/10 hover:scale-105 transition-all"
+                        className="bg-obsidian text-white px-8 py-3 rounded-full text-xs font-medium shadow-xl shadow-black/10 transition-all"
                       >
                         Edit Profile
                       </button>
@@ -1213,7 +1208,7 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
           </div>
         );
       default:
-        return <div className="p-20 text-center font-medium uppercase text-muted/40">Section Under Development</div>;
+        return <div className="p-20 text-center font-medium text-muted/40">Section Under Development</div>;
     }
   };
 
@@ -1223,128 +1218,124 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
   };
 
   return (
-    <div className="min-h-screen bg-cream flex font-sans selection:bg-primary/20">
-      <PolicyConfirmationModal 
-        isOpen={showPolicyModal} 
+    <div className="portal-shell font-sans selection:bg-primary/20">
+      <PolicyConfirmationModal
+        isOpen={showPolicyModal}
         onConfirm={handleAcceptPolicies}
         onNavigate={onNavigate}
       />
       {/* Sidebar */}
-      <aside className={`w-[260px] h-screen fixed left-0 top-0 bg-white border-r border-black/[0.03] flex flex-col p-6 z-50 transition-transform duration-500 lg:translate-x-0 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-        <div className="flex items-center justify-between mb-8">
+      <aside className={`portal-sidebar ${isSidebarOpen ? 'open' : ''}`}>
+        <div className="flex items-center justify-between mb-4 px-2">
           <div className="cursor-pointer" onClick={() => onNavigate(Page.Home)}>
-            <Logo size="sm" className="!justify-start scale-90 origin-left" />
+            <Logo size="sm" className="!justify-start scale-75 -ml-3" />
           </div>
-          <button onClick={() => setIsSidebarOpen(false)} className="lg:hidden text-muted hover:text-primary">
-            <X size={20} />
+          <button onClick={() => setIsSidebarOpen(false)} className="lg:hidden w-7 h-7 inline-flex items-center justify-center text-muted hover:text-obsidian">
+            <X size={15} />
           </button>
         </div>
 
-        <nav className="flex-grow space-y-1">
-          <SidebarItem id="overview" label="Overview" icon="grid_view" activeTab={activeTab} onClick={handleSidebarClick} />
-          <SidebarItem id="treatments" label="My Treatments" icon="analytics" activeTab={activeTab} onClick={handleSidebarClick} />
-          <SidebarItem id="appointments" label="My Appointments" icon="calendar_month" activeTab={activeTab} onClick={handleSidebarClick} />
-          <SidebarItem id="assessments" label="My Assessments" icon="assignment" activeTab={activeTab} onClick={handleSidebarClick} />
-          <SidebarItem id="messages" label="Messages" icon="forum" activeTab={activeTab} onClick={handleSidebarClick} badge={unreadMessagesCount} />
-          <SidebarItem id="profile" label="My Profile" icon="person" activeTab={activeTab} onClick={handleSidebarClick} />
+        <p className="nav-section-label">My care</p>
+        <nav className="flex flex-col gap-0.5">
+          <SidebarItem id="overview"     label="Overview"     icon="overview"     activeTab={activeTab} onClick={handleSidebarClick} />
+          <SidebarItem id="treatments"   label="Treatments"   icon="treatments"   activeTab={activeTab} onClick={handleSidebarClick} />
+          <SidebarItem id="appointments" label="Appointments" icon="appointments" activeTab={activeTab} onClick={handleSidebarClick} />
+          <SidebarItem id="assessments"  label="Assessments"  icon="assessments"  activeTab={activeTab} onClick={handleSidebarClick} />
+          <SidebarItem id="messages"     label="Messages"     icon="messages"     activeTab={activeTab} onClick={handleSidebarClick} badge={unreadMessagesCount} />
+          <SidebarItem id="profile"      label="Profile"      icon="profile"      activeTab={activeTab} onClick={handleSidebarClick} />
         </nav>
 
-        <div className="mt-auto pt-6 border-t border-gray-100 space-y-3">
-           <div className="flex items-center gap-3 px-4 py-3 bg-cream rounded-xl">
-              <div className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center text-primary font-medium text-[10px]">{firstName[0]}</div>
-              <div className="flex flex-col min-w-0">
-                 <span className="text-[9px] font-medium text-obsidian truncate uppercase">{user?.fullName}</span>
-                 <span className="text-[8px] font-bold text-muted uppercase">Client Portal</span>
-              </div>
-           </div>
-           <button 
-            onClick={onLogout}
-            className="w-full flex items-center gap-4 px-5 py-3 rounded-xl text-muted hover:text-red-500 hover:bg-red-50 transition-all group"
-           >
-              <LogOut size={20} className="group-hover:rotate-180 transition-transform" />
-              <span className="text-2xs font-medium text-hint">Sign Out</span>
-           </button>
+        <div className="mt-auto pt-3 border-t border-sand">
+          <div className="flex items-center gap-2.5 p-2 rounded-md">
+            <div className="avatar avatar-sm">{firstName[0]}</div>
+            <div className="flex flex-col min-w-0 flex-grow">
+              <span className="text-sm font-medium text-obsidian truncate">{user?.fullName}</span>
+              <span className="text-xs text-muted truncate">Client portal</span>
+            </div>
+          </div>
         </div>
       </aside>
 
       {/* Main Content Area */}
-      <main className="flex-grow lg:pl-[260px] min-h-screen">
-        <header className="h-16 bg-white/90 backdrop-blur-lg border-b border-black/[0.03] px-6 md:px-10 flex items-center justify-between sticky top-0 z-40">
-          <div className="flex items-center gap-4">
-            <button onClick={() => setIsSidebarOpen(true)} className="lg:hidden text-muted hover:text-primary">
-              <Menu size={20} />
-            </button>
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted hidden sm:inline">CLIENT PORTAL</span>
-              <span className="text-muted/30 hidden sm:inline">/</span>
-              <span className="text-[10px] font-medium uppercase tracking-[0.2em] text-primary">{activeTab}</span>
-            </div>
+      <main className="portal-main">
+        <header className="portal-topbar">
+          <button onClick={() => setIsSidebarOpen(true)} className="lg:hidden text-muted hover:text-obsidian">
+            <Menu size={16} />
+          </button>
+          <div className="flex items-center gap-1.5 text-sm">
+            <span className="text-muted hidden sm:inline">Portal</span>
+            <span className="text-hint hidden sm:inline">/</span>
+            <span className="text-obsidian font-medium capitalize">{activeTab}</span>
           </div>
-          <div className="hidden md:flex flex-col items-center flex-grow mx-8 max-w-xs xl:max-w-md">
-             <div className="flex w-full justify-between text-[8px] font-medium uppercase text-muted mb-1.5">
-               <span>Journey Tracking</span><span>{progress}% Completed</span>
-             </div>
-             <div className="w-full h-1.5 bg-cream rounded-full overflow-hidden">
-               <div className="h-full bg-primary transition-all duration-1000" style={{width: `${progress}%`}} />
-             </div>
+
+          <div className="hidden md:flex items-center gap-3 ml-6 max-w-xs">
+            <span className="text-xs text-muted whitespace-nowrap">Treatment journey</span>
+            <div className="progress-track w-32"><div className="progress-fill gold" style={{ width: `${progress}%` }} /></div>
+            <span className="text-xs text-muted">{progress}%</span>
           </div>
-          <div className="flex items-center gap-4 shrink-0">
+
+          <div className="ml-auto flex items-center gap-1">
             <div className="relative">
-              <button 
+              <button
                 onClick={() => setShowNotifications(!showNotifications)}
-                className={`relative p-2 transition-colors rounded-full hover:bg-cream ${showNotifications ? 'text-primary bg-cream' : 'text-muted'}`}
+                className={`btn-icon relative ${showNotifications ? 'bg-cream text-obsidian' : ''}`}
+                aria-label="Notifications"
               >
-                <Bell size={20} />
+                <Bell size={15} />
                 {unreadNotifCount > 0 && (
-                  <span className="absolute top-1.5 right-1.5 w-4 h-4 bg-red-500 rounded-full border-2 border-white text-[8px] font-medium text-white flex items-center justify-center">
+                  <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-[16px] px-1 bg-danger rounded-full text-2xs font-medium text-white flex items-center justify-center">
                     {unreadNotifCount > 9 ? '9+' : unreadNotifCount}
                   </span>
                 )}
               </button>
 
-              {/* Notifications Dropdown */}
               {showNotifications && (
                 <>
-                  <div 
-                    className="fixed inset-0 z-40" 
-                    onClick={() => setShowNotifications(false)}
-                  />
-                  <div className="absolute right-0 mt-4 w-[320px] md:w-[380px] bg-white rounded-3xl shadow-2xl border border-black/5 z-50 overflow-hidden animate-fade-up origin-top-right">
-                    <div className="p-5 border-b border-gray-50">
-                      <div className="flex justify-between items-center mb-4">
-                        <h3 className="text-xs font-medium uppercase text-obsidian">Notifications</h3>
-                        <button 
-                          onClick={() => notifications.forEach(n => !n.read && onMarkNotificationRead(n.id))}
-                          className="text-2xs font-medium text-hint text-muted hover:text-primary transition-colors"
+                  <div className="fixed inset-0 z-40" onClick={() => setShowNotifications(false)} />
+                  <div className="fixed sm:absolute inset-x-3 sm:inset-x-auto sm:right-0 mt-2 w-auto sm:w-[320px] md:w-[380px] max-w-[calc(100vw-1.5rem)] bg-white rounded-lg shadow-modal border border-sand z-50 overflow-hidden animate-fade-up sm:origin-top-right">
+                    <div className="px-4 py-3 border-b border-sand">
+                      <div className="flex justify-between items-center mb-3">
+                        <h3 className="text-sm font-medium text-obsidian">Notifications</h3>
+                        <button
+                          onClick={async () => {
+                            try {
+                              await Promise.all(
+                                notifications
+                                  .filter(n => !n.read)
+                                  .map(n => onMarkNotificationRead(n.id))
+                              );
+                            } catch (err) {
+                              console.error('Failed to mark notifications read:', err);
+                            }
+                          }}
+                          className="text-xs text-muted hover:text-obsidian transition-colors"
                         >
-                          Mark All Read
+                          Mark all read
                         </button>
                       </div>
-                      <div className="flex gap-1 bg-cream p-1 rounded-full">
+                      <div className="flex gap-1">
                         {(['all', 'message', 'appointment', 'feedback'] as const).map(f => (
                           <button
                             key={f}
                             onClick={() => setNotifFilter(f)}
-                            className={`flex-1 py-1.5 rounded-full text-2xs font-medium text-hint transition-all ${notifFilter === f ? 'bg-white text-primary shadow-sm' : 'text-muted'}`}
+                            className={`px-2.5 py-1 rounded-sm text-xs transition-colors ${notifFilter === f ? 'bg-obsidian text-white' : 'text-muted hover:bg-cream'}`}
                           >
-                            {f === 'all' ? 'All' : f === 'message' ? 'Msgs' : f === 'appointment' ? 'Appts' : 'Feedbk'}
+                            {f === 'all' ? 'All' : f === 'message' ? 'Messages' : f === 'appointment' ? 'Appointments' : 'Feedback'}
                           </button>
                         ))}
                       </div>
                     </div>
-                    <div className="max-h-[380px] overflow-y-auto no-scrollbar">
+                    <div className="max-h-[380px] overflow-y-auto">
                       {filteredNotifications.length > 0 ? (
                         filteredNotifications.map((n) => {
-                          const iconMap: Record<string, string> = {
-                            new_message: 'forum', appointment_confirmed: 'event',
-                            appointment_reminder: 'notifications_active', feedback_received: 'rate_review',
-                            form_sent: 'description', payment_received: 'payments',
-                            welcome: 'waving_hand'
-                          };
-                          const colorMap: Record<string, string> = {
-                            new_message: 'bg-purple-100 text-purple-600',
-                            appointment_confirmed: 'bg-emerald-100 text-emerald-600',
-                            feedback_received: 'bg-amber-100 text-amber-600',
+                          const iconFor = (t: string) => {
+                            if (t.includes('message')) return <MessageSquare size={14} />;
+                            if (t.includes('appointment')) return <CalendarCheck size={14} />;
+                            if (t.includes('feedback')) return <Star size={14} />;
+                            if (t.includes('form_sent')) return <FileText size={14} />;
+                            if (t.includes('payment')) return <CreditCard size={14} />;
+                            if (t.includes('welcome')) return <BadgeCheck size={14} />;
+                            return <Bell size={14} />;
                           };
                           const timeAgo = n.createdAt ? (() => {
                             const diff = Date.now() - new Date(n.createdAt).getTime();
@@ -1355,56 +1346,54 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
                           })() : 'Recently';
 
                           return (
-                            <div 
-                              key={n.id} 
+                            <div
+                              key={n.id}
                               onClick={() => handleNotificationClick(n)}
-                              className={`p-5 border-b border-gray-50 flex gap-4 hover:bg-cream transition-colors cursor-pointer relative ${!n.read ? 'bg-primary/5' : ''}`}
+                              className={`px-4 py-3 border-b border-cream flex gap-3 hover:bg-cream/50 transition-colors cursor-pointer relative ${!n.read ? 'bg-primary/5' : ''}`}
                             >
-                              {!n.read && <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary rounded-r" />}
-                              <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${colorMap[n.type] || 'bg-gray-100 text-gray-600'}`}>
-                                <span className="material-symbols-outlined text-xl">{iconMap[n.type] || 'notifications'}</span>
+                              {!n.read && <div className="absolute left-0 top-0 bottom-0 w-[2px] bg-primary" />}
+                              <div className="w-7 h-7 rounded-md bg-cream flex items-center justify-center shrink-0 text-muted">
+                                {iconFor(n.type)}
                               </div>
                               <div className="min-w-0 flex-grow">
-                                <p className="text-[11px] font-medium text-obsidian mb-0.5">{n.title}</p>
-                                <p className="text-[10px] text-muted leading-relaxed mb-2 line-clamp-2">{n.body}</p>
-                                <p className="text-[8px] font-bold text-muted uppercase">{timeAgo}</p>
+                                <p className="text-sm font-medium text-obsidian">{n.title}</p>
+                                <p className="text-xs text-muted leading-relaxed mt-0.5 line-clamp-2">{n.body}</p>
+                                <p className="text-xs text-hint mt-1">{timeAgo}</p>
                               </div>
-                              {!n.read && (
-                                <div className="w-2 h-2 bg-primary rounded-full shrink-0 mt-1" />
-                              )}
                             </div>
                           );
                         })
                       ) : (
-                        <div className="p-12 text-center">
-                          <BellOff size={40} className="text-primary/20 mb-4 mx-auto block" />
-                          <p className="text-2xs font-medium text-hint text-muted">No notifications</p>
-                        </div>
+                        <EmptyState icon={<BellOff size={16} />} title="No notifications" compact />
                       )}
                     </div>
                   </div>
                 </>
               )}
             </div>
-
-            <div className="h-8 w-[1px] bg-gray-100 hidden sm:block" />
-
-            <button 
-              onClick={onLogout}
-              className="flex items-center gap-2 text-muted hover:text-red-500 transition-colors group"
-            >
-              <LogOut size={20} className="group-hover:rotate-180 transition-transform" />
-              <span className="text-2xs font-medium text-hint hidden sm:inline">Sign Out</span>
+            <button onClick={onLogout} className="btn-icon" aria-label="Sign out">
+              <LogOut size={15} />
             </button>
-            <div className="h-8 w-[1px] bg-gray-100 hidden sm:block" />
-            <Logo size="sm" className="scale-75 hidden sm:flex" />
           </div>
-
         </header>
-        <div className="max-w-[1200px] mx-auto p-6 md:p-12 lg:p-20">
-           {renderSection()}
+        <div className="portal-content mx-auto pb-20 lg:pb-4" data-scroll key={activeTab}>
+          {/* Per-section CSS fade-in is more reliable than AnimatePresence here
+              (which can leave opacity stuck at 0 on rapid tab changes). */}
+          {renderSection()}
         </div>
       </main>
+
+      {/* Mobile bottom tab bar — replaces hamburger nav on small screens */}
+      <BottomNav
+        active={activeTab}
+        onChange={(id) => handleSidebarClick(id as Tab)}
+        items={[
+          { id: 'overview',     label: 'Home',         icon: <LayoutDashboard size={18} /> },
+          { id: 'appointments', label: 'Appointments', icon: <CalendarIcon size={18} /> },
+          { id: 'messages',     label: 'Messages',     icon: <MessageSquare size={18} />, badge: unreadMessagesCount },
+          { id: 'profile',      label: 'Profile',      icon: <UserIcon size={18} /> },
+        ]}
+      />
       {isFormModalOpen && activeFormMessage && (
         <InteractiveForm 
           message={activeFormMessage}
@@ -1481,134 +1470,94 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
         />
       )}
 
-      {currentClient?.status === 'Assessment Submitted' && !hasSeenAssessmentAlert && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-obsidian/60 backdrop-blur-sm" onClick={() => setHasSeenAssessmentAlert(true)} />
-          <div className="bg-white p-8 rounded-3xl shadow-2xl relative z-10 max-w-md w-full text-center animate-fade-up">
-            <Info size={48} className="text-primary mb-4 mx-auto" />
-            <h3 className="text-xl font-medium text-obsidian mb-2">Assessment Received</h3>
-            <p className="text-muted mb-6 font-medium">Your assessment will be reviewed within 24 hours – our clinical team will be in touch via phone call.</p>
-            <button onClick={() => setHasSeenAssessmentAlert(true)} className="bg-primary text-white px-8 py-3 rounded-full font-medium uppercase text-xs w-full hover:scale-105 transition-all shadow-lg shadow-primary/20">Understood</button>
+      <Modal
+        open={currentClient?.status === 'Assessment Submitted' && !hasSeenAssessmentAlert}
+        onClose={() => setHasSeenAssessmentAlert(true)}
+        title="Assessment received"
+        size="sm"
+      >
+        <div className="flex flex-col items-center text-center gap-3 py-2">
+          <div className="w-10 h-10 rounded-md bg-cream flex items-center justify-center text-primary">
+            <Info size={18} />
           </div>
+          <p className="text-sm text-muted leading-relaxed">
+            Your assessment will be reviewed within 24 hours. Our clinical team will be in touch by phone.
+          </p>
+          <Button variant="primary" fullWidth onClick={() => setHasSeenAssessmentAlert(true)}>
+            Got it
+          </Button>
         </div>
-      )}
+      </Modal>
 
-      {showGalleryUpload && currentClient && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-obsidian/80 backdrop-blur-sm" onClick={() => !isUploading && setShowGalleryUpload(false)} />
-          <div className="relative w-full max-w-lg bg-white rounded-[32px] shadow-2xl overflow-hidden z-10 animate-fade-up">
-            <div className="p-6 md:p-8">
-              <div className="flex justify-between items-center mb-6 md:mb-8">
-                <div>
-                  <h3 className="text-xl md:text-2xl font-medium text-obsidian">Add Progress Photo</h3>
-                  <p className="text-[10px] md:text-xs font-bold text-muted uppercase mt-1">Upload to your gallery</p>
+      {currentClient && (
+        <Modal
+          open={showGalleryUpload}
+          onClose={() => !isUploading && setShowGalleryUpload(false)}
+          title="Add progress photo"
+          subtitle="Upload to your gallery"
+          size="md"
+          closeOnBackdrop={!isUploading}
+        >
+          <div className="flex flex-col gap-4">
+            <div className="aspect-video bg-cream rounded-md border border-dashed border-sand overflow-hidden relative flex items-center justify-center">
+              {galleryUploadPreview ? (
+                <>
+                  <img src={galleryUploadPreview} alt="Preview" className="w-full h-full object-cover" />
+                  <button
+                    onClick={() => { setGalleryUploadFile(null); setGalleryUploadPreview(null); }}
+                    className="absolute top-3 right-3 w-7 h-7 rounded-full bg-obsidian/70 text-white flex items-center justify-center hover:bg-obsidian transition-colors"
+                  >
+                    <X size={13} />
+                  </button>
+                </>
+              ) : (
+                <div className="flex flex-col items-center gap-3 p-6">
+                  <div className="flex gap-2">
+                    <Button variant="ghost" onClick={() => fileInputRef.current?.click()} leadingIcon={<Upload size={14} />}>From device</Button>
+                    <Button variant="ghost" onClick={() => cameraInputRef.current?.click()} leadingIcon={<Camera size={14} />}>Camera</Button>
+                  </div>
+                  <p className="text-xs text-muted">Select or take a photo</p>
                 </div>
-                <button 
-                  onClick={() => setShowGalleryUpload(false)}
-                  disabled={isUploading}
-                  className="w-10 h-10 rounded-full bg-cream flex items-center justify-center text-muted hover:text-obsidian transition-colors disabled:opacity-50"
-                >
-                  <X size={20} />
-                </button>
+              )}
+              <input ref={fileInputRef} type="file" accept={ACCEPTED_IMAGE_TYPES} className="hidden" onChange={handleFileSelect} />
+              <input ref={cameraInputRef} type="file" accept={ACCEPTED_IMAGE_TYPES} capture="environment" className="hidden" onChange={handleFileSelect} />
+            </div>
+            <Input
+              label="Photo label"
+              type="text"
+              value={galleryUploadLabel}
+              onChange={(e) => setGalleryUploadLabel(e.target.value)}
+              placeholder="e.g. Month 3 progress"
+            />
+            {isUploading && (
+              <div className="flex items-center gap-3">
+                <div className="progress-track flex-1"><div className="progress-fill gold" style={{ width: `${uploadProgress}%` }} /></div>
+                <span className="text-xs font-medium text-muted">{uploadProgress}%</span>
               </div>
-
-              <div className="space-y-6">
-                <div className="aspect-video bg-cream rounded-2xl border-2 border-dashed border-black/5 overflow-hidden relative flex flex-col items-center justify-center group">
-                  {galleryUploadPreview ? (
-                    <>
-                      <img src={galleryUploadPreview} alt="Preview" className="w-full h-full object-cover" />
-                      <button 
-                        onClick={() => {
-                          setGalleryUploadFile(null);
-                          setGalleryUploadPreview(null);
-                        }}
-                        className="absolute top-4 right-4 w-8 h-8 rounded-full bg-black/50 text-white flex items-center justify-center hover:bg-black/70 transition-colors"
-                      >
-                        <X size={16} />
-                      </button>
-                    </>
-                  ) : (
-                    <div className="flex flex-col items-center gap-4 p-8">
-                      <div className="flex gap-4">
-                        <button 
-                          onClick={() => fileInputRef.current?.click()}
-                          className="w-16 h-16 rounded-2xl bg-white shadow-sm border border-black/5 flex flex-col items-center justify-center gap-1 text-muted hover:text-primary hover:border-primary/20 transition-all"
-                        >
-                          <Upload size={20} />
-                          <span className="text-[8px] font-medium uppercase">Gallery</span>
-                        </button>
-                        <button 
-                          onClick={() => cameraInputRef.current?.click()}
-                          className="w-16 h-16 rounded-2xl bg-white shadow-sm border border-black/5 flex flex-col items-center justify-center gap-1 text-muted hover:text-primary hover:border-primary/20 transition-all"
-                        >
-                          <Camera size={20} />
-                          <span className="text-[8px] font-medium uppercase">Camera</span>
-                        </button>
-                      </div>
-                      <p className="text-[10px] font-bold text-muted uppercase">Select or take a photo</p>
-                    </div>
-                  )}
-                  <input 
-                    ref={fileInputRef}
-                    type="file" 
-                    accept={ACCEPTED_IMAGE_TYPES} 
-                    className="hidden" 
-                    onChange={handleFileSelect}
-                  />
-                  <input 
-                    ref={cameraInputRef}
-                    type="file" 
-                    accept={ACCEPTED_IMAGE_TYPES} 
-                    capture="environment"
-                    className="hidden" 
-                    onChange={handleFileSelect}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-[10px] font-medium text-muted uppercase ml-1">Photo Label</label>
-                  <input 
-                    type="text"
-                    value={galleryUploadLabel}
-                    onChange={(e) => setGalleryUploadLabel(e.target.value)}
-                    placeholder="e.g., Month 3 Progress"
-                    className="w-full px-6 py-4 bg-cream rounded-2xl border border-black/5 font-bold text-obsidian placeholder:text-muted/40 focus:outline-none focus:border-primary/30 transition-all"
-                  />
-                </div>
-
-                <button 
-                  onClick={() => handleGalleryUpload(currentClient.id, currentClient.gallery)}
-                  disabled={isUploading || !galleryUploadFile}
-                  className="w-full bg-primary text-clinical-dark py-5 rounded-2xl font-medium uppercase text-xs md:text-sm flex items-center justify-center gap-3 shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 disabled:scale-100 disabled:shadow-none"
-                >
-                  {isUploading ? (
-                    <div className="flex items-center gap-3 w-full">
-                      <div className="flex-grow h-2 bg-white/30 rounded-full overflow-hidden">
-                        <div className="h-full bg-white rounded-full transition-all duration-300" style={{width: `${uploadProgress}%`}} />
-                      </div>
-                      <span className="text-xs font-medium">{uploadProgress}%</span>
-                    </div>
-                  ) : (
-                    <>
-                      <Upload size={20} />
-                      Save to Gallery
-                    </>
-                  )}
-                </button>
-              </div>
+            )}
+            <div className="flex items-center justify-end gap-2 pt-1">
+              <Button variant="ghost" onClick={() => setShowGalleryUpload(false)} disabled={isUploading}>Cancel</Button>
+              <Button
+                variant="primary"
+                onClick={() => handleGalleryUpload(currentClient.id, currentClient.gallery)}
+                disabled={isUploading || !galleryUploadFile}
+                leadingIcon={<Upload size={14} />}
+              >
+                Save to gallery
+              </Button>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
 
       {lightboxImage && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/90 backdrop-blur-xl animate-fade-up" onClick={() => setLightboxImage(null)}>
-          <img src={lightboxImage.url} alt={lightboxImage.label} className="max-w-full max-h-[90dvh] object-contain rounded-xl" />
-          <button onClick={() => setLightboxImage(null)} className="absolute top-6 right-6 w-10 h-10 bg-white/10 rounded-full flex items-center justify-center text-white hover:bg-white/20 transition-all">
-            <X size={20} />
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-obsidian/95 animate-fade-in" onClick={() => setLightboxImage(null)}>
+          <img src={lightboxImage.url} alt={lightboxImage.label} className="max-w-full max-h-[90dvh] object-contain rounded-md" />
+          <button onClick={() => setLightboxImage(null)} className="absolute top-4 right-4 w-9 h-9 bg-white/10 rounded-md flex items-center justify-center text-white hover:bg-white/20 transition-all">
+            <X size={15} />
           </button>
-          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-black/50 text-white px-6 py-3 rounded-full text-xs font-medium uppercase text-center">
-            {lightboxImage.label} • {new Date(lightboxImage.uploadedAt).toLocaleDateString()}
+          <div className="absolute bottom-5 left-1/2 -translate-x-1/2 bg-white/10 text-white px-3 py-1.5 rounded-md text-xs text-center">
+            {lightboxImage.label} · {new Date(lightboxImage.uploadedAt).toLocaleDateString()}
           </div>
         </div>
       )}

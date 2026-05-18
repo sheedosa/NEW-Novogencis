@@ -1,7 +1,8 @@
 import React, { useState, useEffect, Suspense, lazy, Component, ErrorInfo, ReactNode } from 'react';
 import { onAuthStateChanged, createUserWithEmailAndPassword, signOut } from 'firebase/auth';
-import { collection, onSnapshot, doc, getDoc, setDoc, query, orderBy, limit, deleteDoc, updateDoc, where, or } from 'firebase/firestore';
-import { Page, User, Client, Appointment, Message, UserRole, AdminType, GalleryItem, AppNotification } from './types';
+import { collection, onSnapshot, doc, getDoc, getDocs, setDoc, query, orderBy, limit, deleteDoc, updateDoc, where, or } from 'firebase/firestore';
+import { Page, User, Client, Appointment, Message, GalleryItem, AppNotification, Task, Template } from './types';
+import { DUMMY_PATIENT, dummyPatientUser, buildDummyPatientSeed } from './utils/dummyPatient';
 import { auth, db, handleFirestoreError, OperationType, cleanData } from './firebase';
 import {
   notifyNewAssessment,
@@ -13,6 +14,11 @@ import {
   notifyPaymentSent,
   markNotificationRead,
 } from './utils/notificationService';
+import {
+  captureLeadSourceOnFirstVisit,
+  getCapturedLeadSource,
+  clearCapturedLeadSource,
+} from './utils/marketingService';
 import Header from './components/Header';
 import Footer from './components/Footer';
 import WhatsAppWidget from './components/WhatsAppWidget';
@@ -89,6 +95,63 @@ const App: React.FC = () => {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
+  const [tasks, setTasks] = useState<Task[]>([]);
+
+  /**
+   * Preview mode: admins (Rasheed, Aminah, Waqas) can toggle into the patient
+   * portal using the dummy clinic test account, without logging out. Persisted
+   * to localStorage so it survives reloads.
+   */
+  const [viewAsTestPatient, setViewAsTestPatient] = useState<boolean>(() => {
+    try { return localStorage.getItem('novogenics_view_as_test_patient') === '1'; }
+    catch { return false; }
+  });
+
+  // Persist the preview-mode toggle
+  useEffect(() => {
+    try {
+      if (viewAsTestPatient) localStorage.setItem('novogenics_view_as_test_patient', '1');
+      else localStorage.removeItem('novogenics_view_as_test_patient');
+    } catch { /* localStorage may be unavailable in some browsers */ }
+  }, [viewAsTestPatient]);
+
+  /**
+   * Tech admin only — seeds (or resets) the dummy patient's Firestore data
+   * so every preview session starts from a clean, realistic state.
+   * Wipes existing dummy-patient-owned appointments and messages first.
+   */
+  const handleSeedDummyPatient = async () => {
+    if (!currentUser || currentUser.adminType !== 'technical') {
+      throw new Error('Only the technical admin can reset the dummy patient.');
+    }
+    const { client, appointments: apts, messages: msgs } = buildDummyPatientSeed();
+
+    // 1. Upsert client record
+    await setDoc(doc(db, 'clients', DUMMY_PATIENT.id), cleanData(client));
+
+    // 2. Wipe existing dummy appointments + reseed with stable IDs
+    const existingApts = await getDocs(query(collection(db, 'appointments'), where('clientId', '==', DUMMY_PATIENT.id)));
+    await Promise.all(existingApts.docs.map(d => deleteDoc(doc(db, 'appointments', d.id))));
+    await Promise.all(apts.map(a => setDoc(doc(db, 'appointments', a.id), cleanData(a))));
+
+    // 3. Wipe existing dummy messages + reseed
+    const existingMsgs = await getDocs(query(
+      collection(db, 'messages'),
+      or(where('senderId', '==', DUMMY_PATIENT.id), where('recipientId', '==', DUMMY_PATIENT.id)),
+    ));
+    await Promise.all(existingMsgs.docs.map(d => deleteDoc(doc(db, 'messages', d.id))));
+    await Promise.all(msgs.map(m => {
+      const id = doc(collection(db, 'messages')).id;
+      return setDoc(doc(db, 'messages', id), cleanData({ ...m, id }));
+    }));
+  };
+  const [templates, setTemplates] = useState<Template[]>([]);
+
+  // Capture UTM / lead source on first visit so it survives the assessment
+  // flow and can be attached to the Client doc on account creation.
+  useEffect(() => {
+    captureLeadSourceOnFirstVisit();
+  }, []);
 
   // Firebase Auth Listener
   useEffect(() => {
@@ -202,15 +265,17 @@ const App: React.FC = () => {
     const path = 'messages';
     let q;
     if (currentUser.role === 'admin') {
-      q = query(collection(db, path), orderBy('createdAt', 'asc'), limit(150));
+      q = query(collection(db, path), orderBy('createdAt', 'desc'), limit(150));
     } else {
-      // Use a simpler query and sort in memory to avoid index requirements for OR + OrderBy
+      // OR queries can't combine with orderBy without a composite index;
+      // we cap the page and sort in memory. Clients rarely exceed this volume.
       q = query(
-        collection(db, path), 
+        collection(db, path),
         or(
-          where('senderId', '==', currentUser.id), 
+          where('senderId', '==', currentUser.id),
           where('recipientId', '==', currentUser.id)
-        )
+        ),
+        limit(100)
       );
     }
     
@@ -262,6 +327,100 @@ const App: React.FC = () => {
 
     return () => unsubscribe();
   }, [isAuthReady, currentUser]);
+
+  // Firestore Sync: Tasks (admin-only collection)
+  useEffect(() => {
+    if (!isAuthReady || !currentUser || currentUser.role !== 'admin') {
+      setTasks([]);
+      return;
+    }
+    const q = query(collection(db, 'tasks'), orderBy('createdAt', 'desc'), limit(200));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const data = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Task));
+      setTasks(data);
+    }, (error) => {
+      console.error('[Tasks] Subscription error:', error);
+    });
+    return () => unsubscribe();
+  }, [isAuthReady, currentUser]);
+
+  const handleAddTask = async (task: Omit<Task, 'id' | 'createdAt' | 'createdBy'>) => {
+    if (!currentUser) return;
+    const id = doc(collection(db, 'tasks')).id;
+    const newTask: Task = {
+      ...task,
+      id,
+      createdAt: new Date().toISOString(),
+      createdBy: currentUser.id,
+    };
+    try {
+      await setDoc(doc(db, 'tasks', id), cleanData(newTask));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.CREATE, `tasks/${id}`);
+    }
+  };
+
+  const handleUpdateTask = async (id: string, updates: Partial<Task>) => {
+    try {
+      await setDoc(doc(db, 'tasks', id), cleanData(updates), { merge: true });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `tasks/${id}`);
+    }
+  };
+
+  const handleDeleteTask = async (id: string) => {
+    try {
+      await deleteDoc(doc(db, 'tasks', id));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, `tasks/${id}`);
+    }
+  };
+
+  // Firestore Sync: Templates (admin-only)
+  useEffect(() => {
+    if (!isAuthReady || !currentUser || currentUser.role !== 'admin') {
+      setTemplates([]);
+      return;
+    }
+    const q = query(collection(db, 'templates'), orderBy('createdAt', 'desc'), limit(200));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      setTemplates(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Template)));
+    }, (error) => {
+      console.error('[Templates] Subscription error:', error);
+    });
+    return () => unsubscribe();
+  }, [isAuthReady, currentUser]);
+
+  const handleAddTemplate = async (tpl: Omit<Template, 'id' | 'createdAt' | 'createdBy'>) => {
+    if (!currentUser) return;
+    const id = doc(collection(db, 'templates')).id;
+    try {
+      await setDoc(doc(db, 'templates', id), cleanData({
+        ...tpl,
+        id,
+        createdAt: new Date().toISOString(),
+        createdBy: currentUser.id,
+      }));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.CREATE, `templates/${id}`);
+    }
+  };
+
+  const handleUpdateTemplate = async (id: string, updates: Partial<Template>) => {
+    try {
+      await setDoc(doc(db, 'templates', id), cleanData({ ...updates, updatedAt: new Date().toISOString() }), { merge: true });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `templates/${id}`);
+    }
+  };
+
+  const handleDeleteTemplate = async (id: string) => {
+    try {
+      await deleteDoc(doc(db, 'templates', id));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, `templates/${id}`);
+    }
+  };
 
   const handleAddAppointment = async (appointment: Appointment) => {
     const docId = appointment.id || doc(collection(db, 'appointments')).id;
@@ -592,33 +751,27 @@ const App: React.FC = () => {
   }, []);
 
   // Route Protection & Redirection Logic
+  // Navigation calls are deferred via queueMicrotask so they always run after
+  // the current React commit, avoiding setState-during-render warnings while
+  // staying off the macrotask queue (no UI flash like setTimeout(0) caused).
   useEffect(() => {
     if (!isAuthReady) return;
 
     const isAuthPage = currentPage === Page.SignIn || currentPage === Page.Register || currentPage === Page.Assessment;
+    const defer = (fn: () => void) => queueMicrotask(fn);
 
-    // Protection: Admin only
     if (currentPage === Page.Admin && (!currentUser || currentUser.role !== 'admin')) {
-      setTimeout(() => navigateTo(Page.SignIn), 0);
+      defer(() => navigateTo(Page.SignIn));
       return;
     }
 
-    // Protection: Client only
     if (currentPage === Page.ClientDashboard && (!currentUser || currentUser.role !== 'client')) {
-      setTimeout(() => navigateTo(Page.SignIn), 0);
+      defer(() => navigateTo(Page.SignIn));
       return;
     }
 
-    // Redirect logged in users away from Auth and Assessment pages
     if (isAuthPage && currentUser) {
-      setTimeout(() => {
-        if (currentUser.role === 'admin') {
-          navigateTo(Page.Admin);
-        } else {
-          navigateTo(Page.ClientDashboard);
-        }
-      }, 0);
-      return;
+      defer(() => navigateTo(currentUser.role === 'admin' ? Page.Admin : Page.ClientDashboard));
     }
   }, [currentUser, currentPage, isAuthReady, navigateTo]);
 
@@ -639,43 +792,16 @@ const App: React.FC = () => {
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, authEmail, password);
       const uid = userCredential.user.uid;
-      
-      // Admin Bootstrapping Logic based on Email
-      let role: UserRole = 'client';
-      let adminType: AdminType | undefined = undefined;
-
-      const adminEmails = [
-        'rasheedamer99@gmail.com', 
-        'aminah_amer@hotmail.com', 
-        'wfarid812@gmail.com',
-        'aminah_doctor@novogenics.internal',
-        'waqass_doctor@novogenics.internal'
-      ];
-      
-      if (adminEmails.includes(authEmail)) {
-        role = 'admin';
-        if (authEmail === 'rasheedamer99@gmail.com') {
-          adminType = 'technical';
-        } else if (authEmail === 'aminah_amer@hotmail.com' || authEmail === 'aminah_doctor@novogenics.internal') {
-          adminType = 'doctor-female';
-        } else if (authEmail === 'wfarid812@gmail.com' || authEmail === 'waqass_doctor@novogenics.internal') {
-          adminType = 'doctor-male';
-        }
-      }
 
       const newUser: User = {
         id: uid,
         fullName: normalizedFullName,
         email: authEmail,
         username: displayUsername,
-        role: role,
+        role: 'client',
         policiesAccepted: true,
         createdAt: new Date().toISOString()
       };
-
-      if (adminType) {
-        newUser.adminType = adminType;
-      }
       
       // Save to Firestore
       try {
@@ -686,8 +812,8 @@ const App: React.FC = () => {
         handleFirestoreError(error, OperationType.CREATE, `users/${uid}`);
       }
 
-      // If it's a client and we have assessment data, create the client record now
-      if (role === 'client' && intakeData && answers) {
+      // Create client record if assessment data is present
+      if (intakeData && answers) {
         let doctorPreference: 'female-only' | 'ok-with-male' | undefined = undefined;
         if (intakeData.gender === 'male') {
           doctorPreference = 'ok-with-male';
@@ -722,8 +848,17 @@ const App: React.FC = () => {
           newClient.doctorPreference = doctorPreference;
         }
 
+        // Attach first-touch attribution (UTM + referrer) captured when the
+        // visitor first landed. Drives the Marketing tab's funnel reporting.
+        const leadSource = getCapturedLeadSource();
+        if (leadSource) {
+          newClient.leadSource = leadSource;
+        }
+
         try {
           await setDoc(doc(db, 'clients', uid), cleanData(newClient));
+          // Clear so a future visit by the same browser starts a fresh capture.
+          clearCapturedLeadSource();
         } catch (error) {
           handleFirestoreError(error, OperationType.CREATE, `clients/${uid}`);
         }
@@ -735,43 +870,12 @@ const App: React.FC = () => {
       
       // Manually set current user to avoid race condition with Auth listener
       setCurrentUser(newUser);
-      
-      // Explicitly navigate to dashboard immediately after setting user
-      if (role === 'admin') {
-        navigateTo(Page.Admin);
-      } else {
-        navigateTo(Page.ClientDashboard);
-      }
+      navigateTo(Page.ClientDashboard);
     } catch (error: unknown) {
       console.error('Account creation error:', error);
       throw error;
     }
-  }, [navigateTo]);
-
-  const bootstrapAdmins = async () => {
-    const admins = [
-      {
-        username: 'aminah_amer',
-        email: 'aminah_amer@hotmail.com',
-        fullName: 'Dr Aminah Amer',
-        password: 'Novo.2025'
-      },
-      {
-        username: 'waqas_farid',
-        email: 'wfarid812@gmail.com',
-        fullName: 'Dr Waqas Farid',
-        password: 'Novo.2025'
-      }
-    ];
-
-    for (const admin of admins) {
-      try {
-        await handleCreateAccount(admin.password, admin.email, admin.fullName, admin.username);
-      } catch (error) {
-        console.error(`Failed to bootstrap ${admin.username}:`, error);
-      }
-    }
-  };
+  }, [navigateTo, mapAnswersToConsultation, getGalleryFromAnswers]);
 
   const handleAcceptPolicies = async () => {
     if (!currentUser) return;
@@ -818,11 +922,53 @@ const App: React.FC = () => {
           />
         );
       case Page.Admin:
+        // Preview mode: render ClientDashboard with the dummy patient,
+        // overlaid with a sticky "Exit preview" banner. Admin auth is
+        // unchanged — we just swap the rendered surface.
+        if (viewAsTestPatient && currentUser?.role === 'admin') {
+          return (
+            <div className="relative">
+              <div className="fixed top-0 left-0 right-0 z-[200] bg-obsidian text-white px-4 py-2 flex items-center justify-between text-sm shadow-panel">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-sm bg-primary/15 text-primary text-xs">
+                    Preview
+                  </span>
+                  <span className="text-white/80 truncate">
+                    Viewing as <span className="text-white font-medium">{DUMMY_PATIENT.fullName}</span> · signed in as {currentUser.fullName}
+                  </span>
+                </div>
+                <button
+                  onClick={() => setViewAsTestPatient(false)}
+                  className="text-xs text-white/80 hover:text-white border border-white/20 hover:border-white/40 rounded-sm px-2.5 py-1 transition-colors shrink-0"
+                >
+                  Exit preview
+                </button>
+              </div>
+              <div className="pt-10">
+                <ClientDashboard
+                  user={dummyPatientUser}
+                  onLogout={() => setViewAsTestPatient(false)}
+                  onNavigate={navigateTo}
+                  appointments={appointments}
+                  clients={clients}
+                  messages={messages}
+                  notifications={notifications}
+                  onMarkNotificationRead={markNotificationRead}
+                  onSendMessage={handleSendMessage}
+                  onMarkMessageRead={handleMarkMessageRead}
+                  onUpdateMessage={handleUpdateMessage}
+                  onUpdateClient={handleUpdateClient}
+                  onAcceptPolicies={handleAcceptPolicies}
+                />
+              </div>
+            </div>
+          );
+        }
         return (
-          <AdminPage 
-            user={currentUser} 
-            onLogout={handleLogout} 
-            onNavigate={navigateTo} 
+          <AdminPage
+            user={currentUser}
+            onLogout={handleLogout}
+            onNavigate={navigateTo}
             clients={clients}
             appointments={appointments}
             messages={messages}
@@ -835,7 +981,17 @@ const App: React.FC = () => {
             onMarkMessageRead={handleMarkMessageRead}
             onUpdateMessage={handleUpdateMessage}
             onUpdateClient={handleUpdateClient}
-            onBootstrapAdmins={bootstrapAdmins}
+            tasks={tasks}
+            onAddTask={handleAddTask}
+            onUpdateTask={handleUpdateTask}
+            onDeleteTask={handleDeleteTask}
+            templates={templates}
+            onAddTemplate={handleAddTemplate}
+            onUpdateTemplate={handleUpdateTemplate}
+            onDeleteTemplate={handleDeleteTemplate}
+            viewAsTestPatient={viewAsTestPatient}
+            onSetViewAsTestPatient={setViewAsTestPatient}
+            onSeedDummyPatient={handleSeedDummyPatient}
           />
         );
       case Page.SignIn:
