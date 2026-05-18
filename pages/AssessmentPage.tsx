@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Page } from '../types';
 import { ShieldCheck, X, User, FileUp, Camera, Eye, EyeOff, ArrowLeft, Check } from 'lucide-react';
 import { storage, auth } from '../firebase';
@@ -281,25 +281,83 @@ const AssessmentPage: React.FC<AssessmentPageProps> = ({ onNavigate, onIntakeCom
     }
   };
 
+  // The stream is attached in an effect once the <video> element is in the DOM
+  // (it only renders when cameraActive=true, so we can't attach it inline).
+  const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
+
   const startCamera = async () => {
+    setError('');
+    // Hard fail early if the browser can't do camera (file:// origin, ancient browser, etc.)
+    if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
+      setError('Your browser does not support camera access. Please use "Upload from device" instead.');
+      return;
+    }
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        setCameraActive(true);
-      }
+      // Prefer rear camera ('environment') for clinical photos — it's higher
+      // resolution and the patient can self-photograph their scalp easily.
+      // Falls back to any camera if the rear isn't available (desktops, etc.).
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: 'environment' } },
+        audio: false,
+      });
+      setCameraStream(stream);
+      setCameraActive(true);
     } catch (err) {
+      const name = (err as { name?: string })?.name;
       console.error('Camera error:', err);
-      setError('Could not access camera. Please ensure you have granted permission.');
+      if (name === 'NotAllowedError' || name === 'PermissionDeniedError') {
+        setError(
+          'Camera access denied. Please allow camera permission in your browser ' +
+          'settings (tap the camera/lock icon in the address bar) and try again, ' +
+          'or use "Upload from device" instead.',
+        );
+      } else if (name === 'NotFoundError' || name === 'DevicesNotFoundError') {
+        setError('No camera detected on this device. Please use "Upload from device" instead.');
+      } else if (name === 'NotReadableError' || name === 'TrackStartError') {
+        setError('Camera is being used by another app. Close other apps using the camera and try again.');
+      } else if (name === 'OverconstrainedError') {
+        // Fall back to ANY video device if the rear-camera preference isn't supported.
+        try {
+          const fallback = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+          setCameraStream(fallback);
+          setCameraActive(true);
+          return;
+        } catch {
+          setError('Camera could not be started. Please use "Upload from device" instead.');
+        }
+      } else {
+        setError('Could not start camera: ' + ((err as Error)?.message ?? 'unknown error') + '. Please use "Upload from device" instead.');
+      }
     }
   };
 
+  // Attach stream to the video element once it's mounted. Also call play()
+  // explicitly — iOS Safari sometimes doesn't auto-play even with autoPlay set.
+  useEffect(() => {
+    if (cameraActive && cameraStream && videoRef.current) {
+      const video = videoRef.current;
+      video.srcObject = cameraStream;
+      video.play().catch(err => console.warn('Video autoplay blocked:', err));
+    }
+  }, [cameraActive, cameraStream]);
+
+  // Ensure camera tracks stop if the component unmounts mid-session.
+  useEffect(() => {
+    return () => {
+      if (cameraStream) {
+        cameraStream.getTracks().forEach(t => t.stop());
+      }
+    };
+  }, [cameraStream]);
+
   const stopCamera = () => {
-    if (videoRef.current && videoRef.current.srcObject) {
-      const stream = videoRef.current.srcObject as MediaStream;
-      stream.getTracks().forEach(track => track.stop());
+    if (cameraStream) {
+      cameraStream.getTracks().forEach(t => t.stop());
+    }
+    if (videoRef.current) {
       videoRef.current.srcObject = null;
     }
+    setCameraStream(null);
     setCameraActive(false);
   };
 
