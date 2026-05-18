@@ -61,19 +61,17 @@ service firebase.storage {
     }
 
     // Intake-assessment photos — used during the initial application flow.
+    // Path key is ALWAYS the authenticated user's UID (anonymous or real).
+    // After the user creates an account, the photo URLs persist in the
+    // patient's Client.gallery as signed download URLs, so the doctor sees
+    // them in the client profile regardless of which UID owned the upload.
     match /assessments/{clientId}/{fileName} {
       allow read: if isAdmin() || isOwner(clientId);
-
-      // Three legitimate write paths:
-      //   1. Admin uploading on the client's behalf.
-      //   2. The signed-in client themselves writing to their UID-keyed folder.
-      //   3. An authenticated intake (incl. Firebase anonymous auth) writing
-      //      to a temporary `C-*` folder. The temp folder is later relinked
-      //      to the real client document by a server function/admin action.
+      // Two legitimate write paths:
+      //   1. Admin uploading on the client's behalf
+      //   2. The signed-in user (anon or real) writing to their UID-keyed folder
       allow write: if isAdmin() ||
-                    (isOwner(clientId) && isValidImage()) ||
-                    (isAuthenticated() && clientId.matches('^C-[A-Z0-9]+$') && isValidImage());
-
+                    (isOwner(clientId) && isValidImage());
       allow delete: if isAdmin();
     }
 

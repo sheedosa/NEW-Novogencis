@@ -211,15 +211,37 @@ const AssessmentPage: React.FC<AssessmentPageProps> = ({ onNavigate, onIntakeCom
     }
 
     setUploading(true);
+    setError('');
     try {
-      // Ensure the user is signed in (anonymously if not already) so storage
-      // rules can verify request.auth != null before allowing the write.
+      // Ensure the user is signed in (anonymously if not already) so the
+      // storage rule's `isAuthenticated()` + `isOwner(uid)` check passes.
+      // If anonymous auth is disabled on the project we surface a clear
+      // message rather than the cryptic Firebase security popup.
       if (!auth.currentUser) {
-        await signInAnonymously(auth);
+        try {
+          await signInAnonymously(auth);
+        } catch (authErr) {
+          const code = (authErr as { code?: string })?.code;
+          if (code === 'auth/operation-not-allowed' || code === 'auth/admin-restricted-operation') {
+            throw new Error(
+              "We couldn't start a secure upload session. " +
+              'Please complete the rest of the assessment, create your account, ' +
+              'and upload your photos from your patient portal.',
+            );
+          }
+          throw authErr;
+        }
+      }
+
+      const uid = auth.currentUser?.uid;
+      if (!uid) {
+        throw new Error('Sign-in did not complete. Please try again.');
       }
 
       const { blob, fileName } = await processImageForUpload(file);
-      const storagePath = `assessments/${clientId || 'anonymous'}/${fileName}`;
+      // Path uses the actual authenticated UID so the storage rule's
+      // isOwner(clientId) branch matches deterministically — no regex needed.
+      const storagePath = `assessments/${uid}/${fileName}`;
       const storageRef = ref(storage, storagePath);
 
       const uploadTask = uploadBytesResumable(storageRef, blob, { contentType: 'image/jpeg' });
@@ -233,7 +255,7 @@ const AssessmentPage: React.FC<AssessmentPageProps> = ({ onNavigate, onIntakeCom
       });
 
       const url = await getDownloadURL(storageRef);
-      
+
       setAnswers(prev => {
         const currentQuestionId = currentQuestions[step].id;
         const currentUrls = (prev[currentQuestionId]?.value as string[]) || [];
@@ -246,10 +268,14 @@ const AssessmentPage: React.FC<AssessmentPageProps> = ({ onNavigate, onIntakeCom
         };
       });
       alert('Photo uploaded successfully.');
-    } catch (err: any) {
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message :
+        (err as { message?: string })?.message ||
+        'Failed to upload image. Please try again.';
       console.error('Upload error:', err);
-      alert(err?.message || 'Failed to upload image. Please try again.');
-      setError(err?.message || 'Failed to upload image. Please try again.');
+      alert(message);
+      setError(message);
     } finally {
       setUploading(false);
     }
