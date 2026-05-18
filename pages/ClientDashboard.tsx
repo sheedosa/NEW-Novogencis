@@ -479,6 +479,50 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
               }
             />
 
+            {/* Banner: assessment awaiting review — only renders if relevant */}
+            {currentClient?.status === 'Assessment Submitted' && !currentClient?.assessmentData?.clinicalFeedback && (
+              <button
+                onClick={() => setActiveTab('assessments')}
+                className="w-full text-left bg-primary/5 hover:bg-primary/10 border border-primary/20 rounded-2xl p-5 md:p-6 flex items-center justify-between gap-4 transition-colors group"
+              >
+                <div className="flex items-center gap-4 min-w-0">
+                  <div className="w-11 h-11 rounded-full bg-primary/20 flex items-center justify-center text-primary shrink-0">
+                    <ClipboardList size={18} />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-2xs uppercase tracking-wider text-primary font-medium mb-0.5">Awaiting clinical review</p>
+                    <h4 className="text-base md:text-lg font-medium text-obsidian leading-snug">
+                      Your assessment is with the clinical team
+                    </h4>
+                    <p className="text-xs md:text-sm text-muted mt-0.5">Typically reviewed within 48 hours · Tap to view what you submitted</p>
+                  </div>
+                </div>
+                <ArrowRight size={18} className="text-primary shrink-0 group-hover:translate-x-1 transition-transform" />
+              </button>
+            )}
+
+            {/* Banner: feedback ready — promotes the assessment tab */}
+            {currentClient?.assessmentData?.clinicalFeedback && currentClient?.status === 'Reviewed' && (
+              <button
+                onClick={() => setActiveTab('assessments')}
+                className="w-full text-left bg-success-light hover:bg-success-light/80 border border-success/30 rounded-2xl p-5 md:p-6 flex items-center justify-between gap-4 transition-colors group"
+              >
+                <div className="flex items-center gap-4 min-w-0">
+                  <div className="w-11 h-11 rounded-full bg-success/20 flex items-center justify-center text-success-text shrink-0">
+                    <CheckCircle size={18} />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-2xs uppercase tracking-wider text-success-text font-medium mb-0.5">Feedback ready</p>
+                    <h4 className="text-base md:text-lg font-medium text-obsidian leading-snug">
+                      Your clinical team has reviewed your assessment
+                    </h4>
+                    <p className="text-xs md:text-sm text-muted mt-0.5">Tap to read your personalised feedback</p>
+                  </div>
+                </div>
+                <ArrowRight size={18} className="text-success-text shrink-0 group-hover:translate-x-1 transition-transform" />
+              </button>
+            )}
+
             {/* Stats */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <UICard>
@@ -964,15 +1008,39 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
                 </div>
               </div>
             ) : (
-              <div className="bg-primary/5 border border-primary/20 p-6 rounded-2xl flex items-start gap-6">
-                <div className="w-12 h-12 bg-primary/20 rounded-full flex items-center justify-center text-primary shrink-0">
-                  <Info size={20} />
+              <div className="bg-white border border-primary/20 rounded-2xl overflow-hidden shadow-card">
+                <div className="bg-primary/5 px-6 md:px-8 py-6 flex items-start gap-4 md:gap-6">
+                  <div className="w-12 h-12 bg-primary/20 rounded-full flex items-center justify-center text-primary shrink-0">
+                    <ClipboardList size={20} />
+                  </div>
+                  <div className="flex-grow min-w-0">
+                    <p className="text-2xs uppercase tracking-wider text-primary font-medium mb-1">Assessment received</p>
+                    <h4 className="text-lg font-medium text-obsidian mb-2">
+                      Thanks {firstName}, your clinical team has it.
+                    </h4>
+                    <p className="text-sm text-muted leading-relaxed">
+                      A doctor will personally review your responses and photos.
+                      You'll receive a notification here and by email when your feedback is ready —{' '}
+                      <span className="text-obsidian font-medium">usually within 48 hours.</span>
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <h4 className="text-lg font-medium text-obsidian mb-2">Assessment Status: Pending Review</h4>
-                  <p className="text-muted font-medium leading-relaxed">
-                    Thank you for submitting your comprehensive assessment. Our clinical team is currently reviewing your information. 
-                    <span className="text-primary font-medium"> You will receive a response regarding your assessment here in this tab within 48 hours.</span>
+
+                {/* Visual progress timeline so patients can see exactly where they are */}
+                <div className="px-6 md:px-8 py-6 border-t border-sand">
+                  <div className="flex items-center gap-3 md:gap-4">
+                    <TimelineStep label="Submitted" state="complete" />
+                    <TimelineConnector state="complete" />
+                    <TimelineStep label="Under review" state="active" />
+                    <TimelineConnector state="pending" />
+                    <TimelineStep label="Feedback ready" state="pending" />
+                    <TimelineConnector state="pending" />
+                    <TimelineStep label="Book consultation" state="pending" />
+                  </div>
+                  <p className="text-2xs text-hint mt-4 text-center">
+                    Submitted {currentClient?.createdAt
+                      ? new Date(currentClient.createdAt).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+                      : 'just now'}
                   </p>
                 </div>
               </div>
@@ -1024,24 +1092,60 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
                   </div>
                 </div>
 
-                {currentClient.assessmentData.answers && (
-                  <div className="mt-12 pt-12 border-t border-black/5">
-                    <h3 className="text-xl font-medium text-obsidian uppercase mb-8">Detailed Responses</h3>
-                    <div className="space-y-6">
-                      {Object.entries(currentClient.assessmentData.answers).map(([key, answer]) => {
-                        const displayValue = Array.isArray(answer.value) ? answer.value.join(', ') : answer.value;
-                        if (key === 'f26' || key === 'm22') return null; // Skip photo upload for now
-                        
-                        return (
-                          <div key={key} className="border-b border-black/5 pb-4 last:border-0">
-                            <p className="text-2xs text-muted mb-2">{answer.text}</p>
-                            <p className="text-sm font-medium text-obsidian">{displayValue}</p>
+                {currentClient.assessmentData.answers && (() => {
+                  // Pull out photo URLs (from f26 female / m22 male photo questions)
+                  // and render them as a gallery above the text responses so
+                  // patients see what they submitted.
+                  const photoAnswers = ['f26', 'm22']
+                    .map(k => currentClient.assessmentData!.answers?.[k])
+                    .filter(Boolean);
+                  const photoUrls: string[] = photoAnswers.flatMap(a =>
+                    Array.isArray(a!.value) ? (a!.value as string[]) : []
+                  );
+
+                  return (
+                    <div className="mt-12 pt-12 border-t border-black/5">
+                      {photoUrls.length > 0 && (
+                        <div className="mb-10">
+                          <h3 className="text-xl font-medium text-obsidian uppercase mb-2">Photos You Uploaded</h3>
+                          <p className="text-sm text-muted mb-4">Your clinical team uses these to assess your hair and scalp.</p>
+                          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                            {photoUrls.map((url, i) => (
+                              <a
+                                key={i}
+                                href={url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="block aspect-square rounded-lg overflow-hidden bg-cream border border-sand hover:border-primary/40 transition-colors group"
+                              >
+                                <img
+                                  src={url}
+                                  alt={`Assessment photo ${i + 1}`}
+                                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                  loading="lazy"
+                                />
+                              </a>
+                            ))}
                           </div>
-                        );
-                      })}
+                        </div>
+                      )}
+
+                      <h3 className="text-xl font-medium text-obsidian uppercase mb-8">Detailed Responses</h3>
+                      <div className="space-y-6">
+                        {Object.entries(currentClient.assessmentData.answers).map(([key, answer]) => {
+                          if (key === 'f26' || key === 'm22') return null; // Photos rendered above
+                          const displayValue = Array.isArray(answer.value) ? answer.value.join(', ') : answer.value;
+                          return (
+                            <div key={key} className="border-b border-black/5 pb-4 last:border-0">
+                              <p className="text-2xs text-muted mb-2">{answer.text}</p>
+                              <p className="text-sm font-medium text-obsidian">{displayValue}</p>
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  );
+                })()}
               </div>
             )}
           </div>
@@ -1566,3 +1670,33 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
 };
 
 export default memo(ClientDashboard);
+
+// ─── Timeline sub-components ──────────────────────────────────────────────────
+// Used in the assessment "pending review" card to show patient progress.
+
+type TimelineState = 'complete' | 'active' | 'pending';
+
+const TimelineStep: React.FC<{ label: string; state: TimelineState }> = ({ label, state }) => {
+  const dotClass =
+    state === 'complete' ? 'bg-primary text-white border-primary' :
+    state === 'active'   ? 'bg-white text-primary border-primary animate-pulse' :
+                           'bg-cream text-hint border-sand';
+  const labelClass =
+    state === 'pending' ? 'text-hint' :
+    state === 'active'  ? 'text-obsidian font-medium' :
+                          'text-muted';
+  return (
+    <div className="flex flex-col items-center gap-1.5 min-w-0">
+      <div className={`w-7 h-7 rounded-full border flex items-center justify-center text-[10px] font-medium shrink-0 ${dotClass}`}>
+        {state === 'complete' ? '✓' : state === 'active' ? '●' : '○'}
+      </div>
+      <span className={`text-[10px] uppercase tracking-wider text-center ${labelClass}`}>{label}</span>
+    </div>
+  );
+};
+
+const TimelineConnector: React.FC<{ state: TimelineState }> = ({ state }) => (
+  <div className={`flex-grow h-[2px] rounded-full ${
+    state === 'complete' ? 'bg-primary' : 'bg-sand'
+  }`} />
+);
