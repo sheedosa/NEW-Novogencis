@@ -207,6 +207,98 @@ async function revokeClaims(email) {
   }
 }
 
+/**
+ * Seed the treatments catalogue. Idempotent — uses doc IDs so re-running
+ * updates existing treatments rather than duplicating them. Prices in pence.
+ */
+const DEFAULT_TREATMENTS = [
+  {
+    id: 'initial-consultation',
+    name: 'Initial Consultation',
+    description: 'In-clinic clinical review of your assessment + treatment recommendation.',
+    durationMin: 30,
+    fullPricePence: 7500,        // £75
+    depositPct: 100,             // paid in full at booking
+    refundPolicy: 'consult',
+    category: 'consultation',
+    isActive: true,
+  },
+  {
+    id: 'follow-up-consultation',
+    name: 'Follow-up Consultation',
+    description: 'Progress review for existing patients between treatment phases.',
+    durationMin: 30,
+    fullPricePence: 5000,        // £50
+    depositPct: 100,
+    refundPolicy: 'consult',
+    category: 'consultation',
+    isActive: true,
+  },
+  {
+    id: 'hair-assessment',
+    name: 'Hair Assessment',
+    description: 'Detailed in-clinic scalp + trichoscopy review.',
+    durationMin: 45,
+    fullPricePence: 0,           // free
+    depositPct: 0,
+    refundPolicy: 'consult',
+    category: 'consultation',
+    isActive: true,
+  },
+  {
+    id: 'prp-session',
+    name: 'PRP Session',
+    description: 'Platelet-rich plasma scalp injection using T-Lab system.',
+    durationMin: 60,
+    fullPricePence: 58000,       // £580
+    depositPct: 30,              // £174 deposit
+    refundPolicy: 'prp',
+    category: 'prp',
+    isActive: true,
+  },
+  {
+    id: 'ev-plasma-session',
+    name: 'EV-Enriched Plasma Session',
+    description: 'Autologous exosome scalp therapy.',
+    durationMin: 60,
+    fullPricePence: 72000,       // £720
+    depositPct: 35,              // £252 — non-refundable preparation cost
+    refundPolicy: 'exosome',
+    category: 'exosome',
+    isActive: true,
+  },
+  {
+    id: 'microneedling-session',
+    name: 'Microneedling Session',
+    description: 'Scalp microneedling, typically combined with PRP or exosomes.',
+    durationMin: 30,
+    fullPricePence: 22000,       // £220
+    depositPct: 30,
+    refundPolicy: 'prp',
+    category: 'microneedling',
+    isActive: true,
+  },
+];
+
+async function seedTreatments() {
+  console.log('Seeding treatments catalogue...\n');
+  const now = new Date().toISOString();
+  let upsertCount = 0;
+  for (const t of DEFAULT_TREATMENTS) {
+    const ref = db.collection('treatments').doc(t.id);
+    const existing = await ref.get();
+    if (existing.exists) {
+      // Don't overwrite admin edits — only set updatedAt
+      console.log(`  •  ${t.name} — already exists, skipped`);
+      continue;
+    }
+    await ref.set({ ...t, createdAt: now });
+    console.log(`  ✅  ${t.name} (£${(t.fullPricePence / 100).toFixed(0)}, ${t.depositPct}% deposit)`);
+    upsertCount++;
+  }
+  console.log(`\nDone — ${upsertCount} new treatment(s) added.\n`);
+}
+
 // ── Router ───────────────────────────────────────────────────────────────────
 
 const command = process.argv[2];
@@ -224,13 +316,17 @@ switch (command) {
   case 'revoke-claims':
     await revokeClaims(process.argv[3]);
     break;
+  case 'seed-treatments':
+    await seedTreatments();
+    break;
   default:
     console.log('Novogenics Firebase Admin CLI\n');
     console.log('Commands:');
     console.log('  node scripts/admin.mjs set-claims              Set admin custom claims');
     console.log('  node scripts/admin.mjs verify                  Run production checks');
     console.log('  node scripts/admin.mjs list-users              List all Auth users');
-    console.log('  node scripts/admin.mjs revoke-claims <email>   Remove admin claims\n');
+    console.log('  node scripts/admin.mjs revoke-claims <email>   Remove admin claims');
+    console.log('  node scripts/admin.mjs seed-treatments         Seed treatment catalogue\n');
     break;
 }
 

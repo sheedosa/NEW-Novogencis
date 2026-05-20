@@ -213,6 +213,20 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // ── Treatments catalogue ──────────────────────────────────────────
+    // Drives the booking flow. Admin-managed. Clients read so the future
+    // self-serve booking page can list options without an extra lookup.
+    match /treatments/{treatmentId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if isAdmin();
+    }
+
+    // ── Settings (working hours, clinic config) ───────────────────────
+    match /settings/{settingId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
     // ── System logs (immutable audit trail) ───────────────────────────
     match /system_logs/{logId} {
       allow read: if isAdmin();

@@ -1,11 +1,12 @@
 import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { User, Client, Appointment, Message, GalleryItem, AdminType, AppNotification, TreatmentPlan, Prescription, Payment } from '../types';
+import { User, Client, Appointment, Message, GalleryItem, AdminType, AppNotification, TreatmentPlan, Prescription, Payment, Treatment } from '../types';
 import { FORMS } from '../constants';
 import { InteractiveForm } from '../components/InteractiveForm';
 import Logo from '../components/Logo';
-import { storage } from '../firebase';
+import { storage, db } from '../firebase';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
+import { collection, onSnapshot, query, where } from 'firebase/firestore';
 import {
   Camera, Upload, X, PanelLeftClose, PanelLeftOpen, Menu, Search, Bell, BellOff,
   LogOut, Sun, CalendarDays, Settings, ChevronsUpDown, Eye,
@@ -67,6 +68,15 @@ const AdminPage: React.FC<AdminPageProps> = ({
     date: new Date().toISOString().split('T')[0],
     time: '10:00 AM',
   });
+  // Treatments catalogue — drives BookingModal price/duration/deposit
+  const [treatments, setTreatments] = useState<Treatment[]>([]);
+  useEffect(() => {
+    const q = query(collection(db, 'treatments'), where('isActive', '==', true));
+    return onSnapshot(q, snap => {
+      setTreatments(snap.docs.map(d => ({ id: d.id, ...d.data() } as Treatment))
+        .sort((a, b) => (a.fullPricePence || 0) - (b.fullPricePence || 0)));
+    });
+  }, []);
   const [threadSearch, setThreadSearch]         = useState('');
   const [showQuickActions, setShowQuickActions] = useState(false);
   const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null);
@@ -281,6 +291,60 @@ const AdminPage: React.FC<AdminPageProps> = ({
     setIsSidebarOpen(false);
   };
 
+  // ── Booking helpers ────────────────────────────────────────────────────────
+  // Clinicians available for appointment delivery. Hardcoded for now (2-doctor
+  // clinic); could be derived from /users where role=admin && adminType≠technical
+  // when the clinic grows.
+  const CLINICIANS = useMemo(() => [
+    { id: 'aminah', name: 'Dr Aminah Amer',  adminType: 'doctor-female' as const },
+    { id: 'waqas',  name: 'Dr Waqas Farid',  adminType: 'doctor-male'   as const },
+  ], []);
+
+  /**
+   * Parse "10:30 AM" / "02:00 PM" into minutes since midnight.
+   * Returns null if the string can't be parsed.
+   */
+  const parseTime12h = (t: string | undefined): number | null => {
+    if (!t) return null;
+    const m = t.trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+    if (!m) return null;
+    let h = parseInt(m[1], 10);
+    const min = parseInt(m[2], 10);
+    const ampm = m[3].toUpperCase();
+    if (ampm === 'PM' && h !== 12) h += 12;
+    if (ampm === 'AM' && h === 12) h = 0;
+    return h * 60 + min;
+  };
+
+  /**
+   * Returns the conflicting appointment (if any) for a proposed booking.
+   * Two appointments conflict when they share clinician + date and their
+   * [start, end) windows overlap. We exclude cancelled/no-show appointments
+   * and the appointment being rescheduled (excludeId).
+   */
+  const findConflict = useCallback((proposed: {
+    clinicianId?: string;
+    date?: string;
+    time?: string;
+    durationMin?: number;
+  }, excludeId?: string): Appointment | null => {
+    if (!proposed.clinicianId || !proposed.date || !proposed.time) return null;
+    const start = parseTime12h(proposed.time);
+    if (start === null) return null;
+    const end = start + (proposed.durationMin ?? 30);
+    for (const apt of appointments) {
+      if (apt.id === excludeId) continue;
+      if (apt.clinicianId !== proposed.clinicianId) continue;
+      if (apt.date !== proposed.date) continue;
+      if (apt.status === 'Cancelled' || apt.status === 'No-Show') continue;
+      const aStart = parseTime12h(apt.time);
+      if (aStart === null) continue;
+      const aEnd = aStart + (apt.durationMin ?? 30);
+      if (start < aEnd && end > aStart) return apt;
+    }
+    return null;
+  }, [appointments]);
+
   const openBookingModal = (clientId?: string, prefill?: { date?: string; time?: string }) => {
     setBookingForm(prev => {
       const next = { ...prev };
@@ -298,25 +362,45 @@ const AdminPage: React.FC<AdminPageProps> = ({
 
   const handleBookingSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (bookingForm.clientId && bookingForm.date && bookingForm.time && bookingForm.type) {
-      const client = filteredClients.find(c => c.id === bookingForm.clientId);
-      const newAppointment: Appointment = {
-        id: '',
-        clientId: bookingForm.clientId,
-        clientName: client?.name || 'Unknown',
-        doctorId: user?.id,
-        doctorName: user?.fullName,
-        type: bookingForm.type as Appointment['type'],
-        date: bookingForm.date,
-        time: bookingForm.time,
-        status: (bookingForm.status as Appointment['status']) || 'Confirmed',
-        notes: bookingForm.notes || '',
-        createdAt: new Date().toISOString(),
-      };
-      onAddAppointment(newAppointment);
-      setShowBookingModal(false);
-      setBookingForm({ type: 'Initial Consultation', status: 'Confirmed', date: new Date().toISOString().split('T')[0], time: '10:00 AM' });
+    if (!(bookingForm.clientId && bookingForm.date && bookingForm.time && bookingForm.type)) return;
+
+    // Conflict check — refuse silently overlapping bookings.
+    const conflict = findConflict({
+      clinicianId: bookingForm.clinicianId,
+      date: bookingForm.date,
+      time: bookingForm.time,
+      durationMin: bookingForm.durationMin,
+    });
+    if (conflict) {
+      const clinicianName = CLINICIANS.find(c => c.id === bookingForm.clinicianId)?.name ?? 'this clinician';
+      alert(
+        `Booking conflict: ${clinicianName} already has "${conflict.type}" with ${conflict.clientName} ` +
+        `at ${conflict.time} on ${conflict.date}. Pick a different time or clinician.`,
+      );
+      return;
     }
+
+    const client = filteredClients.find(c => c.id === bookingForm.clientId);
+    const clinician = CLINICIANS.find(c => c.id === bookingForm.clinicianId);
+    const newAppointment: Appointment = {
+      id: '',
+      clientId: bookingForm.clientId,
+      clientName: client?.name || 'Unknown',
+      doctorId: clinician ? bookingForm.clinicianId : user?.id,
+      doctorName: clinician?.name ?? user?.fullName,
+      type: bookingForm.type as Appointment['type'],
+      date: bookingForm.date,
+      time: bookingForm.time,
+      status: (bookingForm.status as Appointment['status']) || 'Confirmed',
+      notes: bookingForm.notes || '',
+      createdAt: new Date().toISOString(),
+      durationMin: bookingForm.durationMin,
+      treatmentId: bookingForm.treatmentId,
+      clinicianId: bookingForm.clinicianId,
+    };
+    onAddAppointment(newAppointment);
+    setShowBookingModal(false);
+    setBookingForm({ type: 'Initial Consultation', status: 'Confirmed', date: new Date().toISOString().split('T')[0], time: '10:00 AM' });
   };
 
   // ── Treatment plan / prescriptions / payments ──────────────────────────────
@@ -858,66 +942,136 @@ const AdminPage: React.FC<AdminPageProps> = ({
             {renderPanel()}
           </div>
 
-          {/* Booking Modal */}
+          {/* Booking Modal — treatment-first flow with live conflict warning. */}
           <Modal
             open={showBookingModal}
             onClose={() => setShowBookingModal(false)}
             title="Book appointment"
-            subtitle="Schedule a clinical session for a client"
+            subtitle="Schedule a clinical session"
             size="md"
           >
-            <form id="booking-form" onSubmit={handleBookingSubmit} className="flex flex-col gap-4">
-              <Select
-                label="Client"
-                required
-                value={bookingForm.clientId || ''}
-                onChange={(e) => setBookingForm(prev => ({ ...prev, clientId: e.target.value }))}
-              >
-                <option value="" disabled>Choose a client…</option>
-                {clients.map(c => <option key={c.id} value={c.id}>{c.name} ({c.id})</option>)}
-              </Select>
-              <div className="grid grid-cols-2 gap-3">
-                <Input
-                  label="Date"
-                  type="date"
-                  required
-                  value={bookingForm.date || ''}
-                  onChange={(e) => setBookingForm(prev => ({ ...prev, date: e.target.value }))}
-                />
-                <Select
-                  label="Time"
-                  required
-                  value={bookingForm.time || ''}
-                  onChange={(e) => setBookingForm(prev => ({ ...prev, time: e.target.value }))}
-                >
-                  {['09:00 AM','09:30 AM','10:00 AM','10:30 AM','11:00 AM','11:30 AM','01:00 PM','01:30 PM','02:00 PM','02:30 PM','03:00 PM','03:30 PM','04:00 PM'].map(t => <option key={t} value={t}>{t}</option>)}
-                </Select>
-              </div>
-              <Select
-                label="Treatment type"
-                required
-                value={bookingForm.type || ''}
-                onChange={(e) => setBookingForm(prev => ({ ...prev, type: e.target.value as Appointment['type'] }))}
-              >
-                <option value="Initial Consultation">Initial Consultation</option>
-                <option value="Follow-up Consultation">Follow-up Consultation</option>
-                <option value="PRP Session">PRP Session</option>
-                <option value="EV-Enriched Plasma Session">EV-Enriched Plasma Session</option>
-                <option value="Hair Assessment">Hair Assessment</option>
-                <option value="Microneedling Session">Microneedling Session</option>
-              </Select>
-              <Textarea
-                label="Clinical notes (optional)"
-                rows={3}
-                value={bookingForm.notes || ''}
-                onChange={(e) => setBookingForm(prev => ({ ...prev, notes: e.target.value }))}
-                placeholder="Add any specific instructions or prep notes…"
-              />
-              <div className="flex items-center justify-end gap-2 pt-2">
-                <Button variant="ghost" onClick={() => setShowBookingModal(false)}>Cancel</Button>
-                <Button type="submit" variant="primary">Confirm appointment</Button>
-              </div>
-            </form>
+            {(() => {
+              // Live derivations used by the form body
+              const selectedTreatment = treatments.find(t => t.id === bookingForm.treatmentId);
+              const liveConflict = findConflict({
+                clinicianId: bookingForm.clinicianId,
+                date: bookingForm.date,
+                time: bookingForm.time,
+                durationMin: bookingForm.durationMin,
+              });
+              const depositPence = selectedTreatment
+                ? Math.round((selectedTreatment.fullPricePence * selectedTreatment.depositPct) / 100)
+                : 0;
+              return (
+                <form id="booking-form" onSubmit={handleBookingSubmit} className="flex flex-col gap-4">
+                  {/* Treatment first — drives duration + price + deposit */}
+                  <Select
+                    label="Treatment"
+                    required
+                    value={bookingForm.treatmentId || ''}
+                    onChange={(e) => {
+                      const t = treatments.find(tr => tr.id === e.target.value);
+                      setBookingForm(prev => ({
+                        ...prev,
+                        treatmentId: e.target.value,
+                        type: (t?.name as Appointment['type']) ?? prev.type,
+                        durationMin: t?.durationMin ?? prev.durationMin,
+                      }));
+                    }}
+                  >
+                    <option value="" disabled>Choose a treatment…</option>
+                    {treatments.map(t => (
+                      <option key={t.id} value={t.id}>
+                        {t.name} · {t.durationMin}min · {t.fullPricePence === 0 ? 'Free' : `£${(t.fullPricePence / 100).toFixed(0)}`}
+                      </option>
+                    ))}
+                  </Select>
+
+                  {/* Treatment summary — small confirmation strip */}
+                  {selectedTreatment && (
+                    <div className="rounded-md bg-cream/60 px-3 py-2.5 flex items-center justify-between text-xs">
+                      <span className="text-muted">
+                        Duration <span className="text-obsidian font-medium">{selectedTreatment.durationMin} min</span>
+                      </span>
+                      <span className="text-muted">
+                        Full price <span className="text-obsidian font-medium">£{(selectedTreatment.fullPricePence / 100).toFixed(0)}</span>
+                      </span>
+                      <span className="text-muted">
+                        Deposit <span className="text-obsidian font-medium">
+                          {selectedTreatment.depositPct === 0 ? '—' : `£${(depositPence / 100).toFixed(0)} (${selectedTreatment.depositPct}%)`}
+                        </span>
+                      </span>
+                    </div>
+                  )}
+
+                  <Select
+                    label="Client"
+                    required
+                    value={bookingForm.clientId || ''}
+                    onChange={(e) => setBookingForm(prev => ({ ...prev, clientId: e.target.value }))}
+                  >
+                    <option value="" disabled>Choose a client…</option>
+                    {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </Select>
+
+                  <Select
+                    label="Clinician"
+                    required
+                    value={bookingForm.clinicianId || ''}
+                    onChange={(e) => setBookingForm(prev => ({ ...prev, clinicianId: e.target.value }))}
+                  >
+                    <option value="" disabled>Choose a clinician…</option>
+                    {CLINICIANS.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </Select>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <Input
+                      label="Date"
+                      type="date"
+                      required
+                      value={bookingForm.date || ''}
+                      onChange={(e) => setBookingForm(prev => ({ ...prev, date: e.target.value }))}
+                    />
+                    <Select
+                      label="Time"
+                      required
+                      value={bookingForm.time || ''}
+                      onChange={(e) => setBookingForm(prev => ({ ...prev, time: e.target.value }))}
+                    >
+                      {['09:00 AM','09:30 AM','10:00 AM','10:30 AM','11:00 AM','11:30 AM','12:00 PM','12:30 PM','01:00 PM','01:30 PM','02:00 PM','02:30 PM','03:00 PM','03:30 PM','04:00 PM','04:30 PM','05:00 PM','05:30 PM'].map(t => <option key={t} value={t}>{t}</option>)}
+                    </Select>
+                  </div>
+
+                  {/* Live conflict warning — appears when clinician+date+time picked overlaps an existing booking */}
+                  {liveConflict && (
+                    <div className="rounded-md bg-danger-bg border border-danger/20 px-3 py-2.5 text-xs text-danger-text">
+                      <div className="font-medium mb-0.5">Booking conflict</div>
+                      {CLINICIANS.find(c => c.id === bookingForm.clinicianId)?.name ?? 'This clinician'} already has{' '}
+                      <span className="font-medium">{liveConflict.type}</span> with{' '}
+                      <span className="font-medium">{liveConflict.clientName}</span> at {liveConflict.time}.
+                      Pick a different time or clinician.
+                    </div>
+                  )}
+
+                  <Textarea
+                    label="Clinical notes (optional)"
+                    rows={3}
+                    value={bookingForm.notes || ''}
+                    onChange={(e) => setBookingForm(prev => ({ ...prev, notes: e.target.value }))}
+                    placeholder="Add any specific instructions or prep notes…"
+                  />
+
+                  <div className="flex items-center justify-end gap-2 pt-2">
+                    <Button variant="ghost" onClick={() => setShowBookingModal(false)}>Cancel</Button>
+                    <Button type="submit" variant="primary" disabled={!!liveConflict}>
+                      {selectedTreatment && selectedTreatment.depositPct > 0
+                        ? `Confirm · £${(depositPence / 100).toFixed(0)} deposit`
+                        : 'Confirm appointment'}
+                    </Button>
+                  </div>
+                </form>
+              );
+            })()}
           </Modal>
         </main>
 

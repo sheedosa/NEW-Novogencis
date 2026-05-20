@@ -12,6 +12,7 @@
     "admin:set-claims": "node scripts/admin.mjs set-claims",
     "admin:verify": "node scripts/admin.mjs verify",
     "admin:list-users": "node scripts/admin.mjs list-users",
+    "admin:seed-treatments": "node scripts/admin.mjs seed-treatments",
     "deploy:rules": "bash scripts/deploy.sh rules",
     "deploy:indexes": "bash scripts/deploy.sh indexes",
     "deploy:hosting": "bash scripts/deploy.sh hosting",

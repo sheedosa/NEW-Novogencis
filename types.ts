@@ -115,6 +115,9 @@ export interface Client {
   payments?: Payment[];
   aiTriage?: AITriage;
   leadSource?: LeadSource;
+  /** Sprint 2: lifetime consent-form-sent flag. Once true, never re-send. */
+  consentSent?: boolean;
+  consentSentAt?: string;
   createdAt: string;
   assessmentData?: {
     answers?: Record<string, { text: string; value: string | string[] }>;
@@ -150,7 +153,13 @@ export interface Appointment {
   type: 'Initial Consultation' | 'Follow-up Consultation' | 'PRP Session' | 'EV-Enriched Plasma Session' | 'Hair Assessment' | 'Microneedling Session';
   date: string;
   time: string;
-  status: 'Confirmed' | 'Pending' | 'Completed' | 'Cancelled' | 'No-Show';
+  status: 'Confirmed' | 'Pending' | 'Awaiting deposit' | 'Completed' | 'Cancelled' | 'No-Show';
+  /** Slot length in minutes — drives calendar layout + conflict checks */
+  durationMin?: number;
+  /** Reference to a Treatment doc — drives default duration, price, deposit */
+  treatmentId?: string;
+  /** Which clinician is assigned to deliver this appointment */
+  clinicianId?: string;
   notes: string;
   createdAt: string;
 }
@@ -302,4 +311,43 @@ export interface Task {
   createdAt: string;
   completedAt?: string;
   snoozedUntil?: string;
+}
+
+// ── Treatment catalogue ─────────────────────────────────────────────────────
+// Drives the booking flow: picking a treatment auto-fills duration, price,
+// and deposit. Stored in Firestore `treatments/` so admins can edit without
+// a deploy. Refund policy maps to the clinic's cancellation policy doc:
+//   - 'prp'     → 48h+: full refund, <48h: non-refundable, reschedule x2
+//   - 'exosome' → 48h+: 65% refund (35% non-refundable cost), <48h: non-refundable
+//   - 'consult' → 48h+: full refund of deposit
+export interface Treatment {
+  id: string;
+  name: string;
+  description?: string;
+  /** Slot length in minutes */
+  durationMin: number;
+  /** Full price in pence (avoids floating point — £580 → 58000) */
+  fullPricePence: number;
+  /** Percentage of fullPricePence collected as deposit at booking (0–100) */
+  depositPct: number;
+  refundPolicy: 'prp' | 'exosome' | 'consult';
+  /** Optional default clinician — admin can override per booking */
+  defaultClinicianId?: string;
+  /** Treatment-mix category for analytics + AI recommendations */
+  category?: 'consultation' | 'prp' | 'exosome' | 'microneedling' | 'combo';
+  isActive: boolean;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+// ── Working hours config ────────────────────────────────────────────────────
+// Stored at `settings/working_hours`. Drives the "outside hours" warning in
+// the booking modal and the calendar's available-slot rendering.
+export interface WorkingHoursConfig {
+  // Days are 0 (Sun) – 6 (Sat). null/missing means closed that day.
+  hours: Partial<Record<0|1|2|3|4|5|6, { open: string; close: string } | null>>;
+  /** Default slot duration in minutes (for free slots in the calendar) */
+  defaultSlotMin: number;
+  /** Buffer between back-to-back appointments in minutes */
+  bufferMin: number;
 }
