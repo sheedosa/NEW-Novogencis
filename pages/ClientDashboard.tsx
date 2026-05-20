@@ -684,7 +684,7 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
                             <span className="text-2xs font-medium text-primary shrink-0">{phase.sessionsCompleted}/{phase.sessionsPlanned} sessions</span>
                           </div>
                         )}
-                        {phase.notes && <p className="text-2xs text-muted/80 font-medium mt-2 italic">"{phase.notes}"</p>}
+                        {phase.notes && <p className="text-2xs text-muted/80 font-medium mt-2">"{phase.notes}"</p>}
                       </div>
                     );
                   })}
@@ -730,7 +730,7 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
                                 {session.time && <span>· {session.time}</span>}
                              </p>
                              {session.notes && (
-                                <p className="text-xs leading-relaxed text-muted font-medium pt-3 border-t border-black/5 italic">
+                                <p className="text-xs leading-relaxed text-muted font-medium pt-3 border-t border-black/5">
                                    "{session.notes}"
                                 </p>
                              )}
@@ -989,7 +989,7 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
                     <h4 className="text-lg font-medium">Clinical Feedback</h4>
                   </div>
                   <div className="space-y-4">
-                    <p className="text-sm md:text-base leading-relaxed text-gray-200 font-medium italic">
+                    <p className="text-sm md:text-base leading-relaxed text-gray-200 font-medium">
                       "{currentClient.assessmentData.clinicalFeedback}"
                     </p>
                     <div className="pt-6 border-t border-white/10 flex items-center justify-between">
