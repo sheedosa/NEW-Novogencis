@@ -12,3 +12,6 @@ export type { BottomNavItem } from './BottomNav';
 export { Skeleton, SkeletonRows } from './Skeleton';
 export { CommandPalette } from './CommandPalette';
 export type { CommandItem } from './CommandPalette';
+export { Avatar, getAvatarTone } from './Avatar';
+export { AISurface } from './AISurface';
+export { BrandMark } from './BrandMark';

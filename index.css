@@ -34,6 +34,19 @@
   --color-info-bg:     #E5ECF5;
   --color-info-text:   #2B5285;
 
+  /* Chart / avatar tone palette — organic, color-blind safe */
+  --color-sage:        #7FA288;
+  --color-terracotta:  #C49072;
+  --color-indigo:      #6B7FB8;
+  --color-slate:       #94A3B8;
+
+  /* Avatar tone backgrounds (soft) + foregrounds (deep) */
+  --avatar-gold-bg:    #F4EDD9;  --avatar-gold-fg:    #A8894F;
+  --avatar-sage-bg:    #E8F0EB;  --avatar-sage-fg:    #2D6E47;
+  --avatar-info-bg:    #E5ECF5;  --avatar-info-fg:    #2B5285;
+  --avatar-terra-bg:   #F5E6DC;  --avatar-terra-fg:   #8B5A3B;
+  --avatar-indigo-bg:  #E4E7F2;  --avatar-indigo-fg:  #4A5689;
+
   /* Layout */
   --sidebar-width:    240px;
   --header-height:    52px;
@@ -48,10 +61,11 @@
   --radius-pill:9999px;
 
   /* Shadows (minimal) */
-  --shadow-card:  0 1px 2px 0 rgba(15,15,16,0.04), 0 0 0 0.5px rgba(15,15,16,0.04);
-  --shadow-panel: 0 4px 16px -4px rgba(15,15,16,0.08);
-  --shadow-modal: 0 20px 48px -12px rgba(15,15,16,0.18);
-  --shadow-focus: 0 0 0 3px rgba(201,168,106,0.25);
+  --shadow-card:    0 1px 2px 0 rgba(15,15,16,0.04), 0 0 0 0.5px rgba(15,15,16,0.06);
+  --shadow-elevated:0 1px 2px 0 rgba(15,15,16,0.04), 0 0 0 0.5px rgba(15,15,16,0.06), 0 8px 24px -8px rgba(15,15,16,0.10);
+  --shadow-panel:   0 4px 16px -4px rgba(15,15,16,0.08);
+  --shadow-modal:   0 20px 48px -12px rgba(15,15,16,0.18);
+  --shadow-focus:   0 0 0 3px rgba(201,168,106,0.25);
 }
 
 /* ── Base reset ─────────────────────────────────────────────── */
@@ -323,6 +337,51 @@ input:focus, textarea:focus  {
     0 0 0 0.5px rgba(15, 15, 16, 0.06);
 }
 
+/* Subtle cream-bg card — used for low-priority surfaces (tomorrow preview, etc.) */
+.card-subtle {
+  background: var(--color-cream);
+  border: 0.5px solid transparent;
+  border-radius: var(--radius-lg);
+  padding: 16px 18px;
+  position: relative;
+}
+
+/* AI surface — premium gradient hairline + faint gold glow. Signature pattern
+   for AI-generated content (daily briefing, follow-up suggestions, etc.). */
+.ai-surface {
+  position: relative;
+  background: linear-gradient(180deg, #fff 0%, #FBFAF5 100%);
+  border-radius: var(--radius-lg);
+  padding: 16px 18px;
+  isolation: isolate;
+}
+.ai-surface::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 0.5px;
+  background: linear-gradient(135deg, rgba(201,168,106,0.55) 0%, rgba(201,168,106,0.08) 35%, rgba(26,25,22,0.06) 65%, rgba(201,168,106,0.35) 100%);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+          mask-composite: exclude;
+  pointer-events: none;
+  z-index: 1;
+}
+.ai-surface::after {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  box-shadow: 0 0 24px -4px rgba(201,168,106,0.22), 0 1px 2px rgba(15,15,16,0.04);
+  pointer-events: none;
+  z-index: -1;
+}
+.ai-surface.ai-strong::after {
+  box-shadow: 0 0 40px -8px rgba(201,168,106,0.38), 0 8px 24px -10px rgba(15,15,16,0.1);
+}
+.ai-surface > * { position: relative; z-index: 2; }
+
 .card-dark {
   background: linear-gradient(135deg, #1A1916 0%, #2A2724 100%);
   border: none;
@@ -446,6 +505,15 @@ input:focus, textarea:focus  {
 .btn-danger:hover:not(:disabled) { background: #FEE2E2; }
 
 /* AI — obsidian + gold text */
+.btn-accent {
+  background: var(--color-gold);
+  color: var(--color-obsidian);
+}
+.btn-accent:hover:not(:disabled) {
+  background: var(--color-gold-dim);
+  color: #fff;
+}
+
 .btn-ai {
   background: var(--color-obsidian);
   color: var(--color-gold);
@@ -531,13 +599,92 @@ input:focus, textarea:focus  {
   border-radius: 9999px;
   font-weight: 500;
   flex-shrink: 0;
-  background: var(--color-obsidian);
-  color: var(--color-gold);
+  background: var(--color-cream);
+  color: var(--color-muted);
   font-size: 11px;
+  letter-spacing: 0.02em;
 }
 .avatar-sm  { width: 28px; height: 28px; font-size: 10px; }
 .avatar-md  { width: 36px; height: 36px; font-size: 13px; }
 .avatar-lg  { width: 44px; height: 44px; font-size: 15px; }
+/* Tone variants — each patient renders in their tone everywhere in the app
+   so visual identity is consistent. */
+.avatar-gold   { background: var(--avatar-gold-bg);   color: var(--avatar-gold-fg); }
+.avatar-sage   { background: var(--avatar-sage-bg);   color: var(--avatar-sage-fg); }
+.avatar-info   { background: var(--avatar-info-bg);   color: var(--avatar-info-fg); }
+.avatar-terra  { background: var(--avatar-terra-bg);  color: var(--avatar-terra-fg); }
+.avatar-indigo { background: var(--avatar-indigo-bg); color: var(--avatar-indigo-fg); }
+
+/* ── Eyebrow utility — small uppercase line above headings ── */
+.eyebrow {
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--color-gold);
+  white-space: nowrap;
+}
+
+/* ── Filter chip — used in inbox / segments / patient filters ── */
+.filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 11px;
+  font-size: 12.5px;
+  font-weight: 500;
+  border-radius: var(--radius-md);
+  background: #fff;
+  color: var(--color-obsidian);
+  border: 0.5px solid var(--color-sand);
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
+}
+.filter-chip:hover { background: var(--color-cream); }
+.filter-chip.is-active {
+  background: var(--color-obsidian);
+  color: var(--color-ivory);
+  border-color: var(--color-obsidian);
+}
+.filter-chip .filter-count {
+  font-size: 10.5px;
+  font-weight: 600;
+  background: var(--color-cream);
+  color: var(--color-muted);
+  padding: 1px 6px;
+  border-radius: 100px;
+  min-width: 16px;
+  text-align: center;
+}
+.filter-chip.is-active .filter-count {
+  background: rgba(255,255,255,0.18);
+  color: var(--color-ivory);
+}
+
+/* ── Segmented control — like the Day/Week/List toggle ── */
+.segmented {
+  display: inline-flex;
+  background: var(--color-cream);
+  border-radius: var(--radius-md);
+  padding: 3px;
+  gap: 2px;
+}
+.segmented-item {
+  padding: 5px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--color-muted);
+  border: none;
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease;
+}
+.segmented-item.is-active {
+  background: #fff;
+  color: var(--color-obsidian);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.06), 0 0 0 0.5px rgba(0,0,0,0.04);
+}
 
 /* ── Search input ───────────────────────────────────────────── */
 .search-input {
@@ -595,6 +742,34 @@ input:focus, textarea:focus  {
 @keyframes fadeUp  { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes slideIn { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: translateX(0); } }
 @keyframes slideUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes scaleIn { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: scale(1); } }
+
+/* Premium AI-surface animations */
+@keyframes pulseRing {
+  0%   { box-shadow: 0 0 0 0   rgba(201,168,106,0.45); }
+  70%  { box-shadow: 0 0 0 10px rgba(201,168,106,0); }
+  100% { box-shadow: 0 0 0 0   rgba(201,168,106,0); }
+}
+@keyframes pulseDot {
+  0%, 100% { transform: scale(1);    opacity: 1; }
+  50%      { transform: scale(1.15); opacity: 0.85; }
+}
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position:  200% 0; }
+}
+
+.animate-pulse-ring { animation: pulseRing 2.4s ease-in-out infinite; }
+.animate-pulse-dot  { animation: pulseDot 0.8s ease-in-out infinite; }
+.animate-shimmer {
+  background: linear-gradient(90deg, var(--color-hint) 0%, var(--color-obsidian) 50%, var(--color-hint) 100%);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+          background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+.animate-scale-in { animation: scaleIn 180ms ease-out both; }
 
 .delay-100 { animation-delay: 0.1s; }
 .delay-200 { animation-delay: 0.2s; }

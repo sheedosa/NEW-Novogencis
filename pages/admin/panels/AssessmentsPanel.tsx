@@ -9,7 +9,7 @@ import {
   Siren, ArrowRight, Sparkles, RefreshCw, Brain, FileText,
 } from 'lucide-react';
 import {
-  PageHeader, Card, CardHeader, Badge, StatusBadge, Button, EmptyState,
+  PageHeader, Card, CardHeader, Badge, StatusBadge, Button, EmptyState, AISurface,
 } from '../../../components/ui';
 
 const SUITABILITY_VARIANT: Record<AITriage['suitability'], 'active' | 'pending' | 'danger'> = {
@@ -336,7 +336,7 @@ const AITriageCard: React.FC<AITriageCardProps> = ({ client, onUseDraft }) => {
   }
 
   return (
-    <Card className="!border-primary/20">
+    <AISurface strong>
       <div className="flex items-start justify-between gap-3 mb-3">
         <div className="flex items-center gap-2">
           <div className="w-7 h-7 rounded-md bg-primary/10 flex items-center justify-center text-primary">
@@ -422,6 +422,6 @@ const AITriageCard: React.FC<AITriageCardProps> = ({ client, onUseDraft }) => {
           </p>
         </div>
       )}
-    </Card>
+    </AISurface>
   );
 };

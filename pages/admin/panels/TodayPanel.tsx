@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import {
   PageHeader, Stat, Card, CardHeader, Button, StatusBadge, EmptyState, Badge,
-  Skeleton,
+  Skeleton, AISurface,
 } from '../../../components/ui';
 import { Appointment } from '../../../types';
 import { doc, onSnapshot, collection, query, where, updateDoc } from 'firebase/firestore';
@@ -403,35 +403,55 @@ function TodayPanel() {
 
       {/* ── AI: Today's briefing (Claude-generated each morning at 07:00) ── */}
       {briefing && (briefing.summary || briefing.bullets.length > 0) && (
-        <Card tone="elevated" accent="gold">
+        <AISurface strong className="p-5 md:p-6">
           <div className="flex items-start gap-3">
-            <div className="w-9 h-9 rounded-md bg-primary/10 text-primary flex items-center justify-center shrink-0">
+            {/* Stronger AI mark — gold-on-obsidian with a soft drop-shadow,
+                matches the designer's signature icon treatment. */}
+            <div
+              className="w-9 h-9 rounded-md text-primary flex items-center justify-center shrink-0"
+              style={{
+                background: 'linear-gradient(135deg, #1A1916 0%, #2a261d 100%)',
+                boxShadow: '0 4px 12px -4px rgba(201,168,106,0.4)',
+              }}
+            >
               <Sparkles size={16} />
             </div>
             <div className="flex-grow min-w-0">
-              <div className="flex items-center gap-2 mb-1.5">
-                <p className="text-[10px] font-medium uppercase tracking-wider text-primary">Today's briefing</p>
+              <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                <p className="eyebrow">Today's briefing</p>
                 <Badge variant="ai" icon={<Sparkles size={9} />}>AI</Badge>
               </div>
               {briefing.summary && (
-                <p className="text-sm text-obsidian leading-relaxed">{briefing.summary}</p>
+                <p className="font-serif text-[20px] md:text-[22px] font-normal text-obsidian leading-snug tracking-[-0.01em]">
+                  {briefing.summary}
+                </p>
               )}
               {briefing.bullets.length > 0 && (
-                <ul className="mt-3 space-y-1.5">
+                <ul className="mt-3 space-y-2.5">
                   {briefing.bullets.map((b, i) => (
-                    <li key={i} className="text-xs text-muted flex items-start gap-2 leading-relaxed">
-                      <span className="text-primary mt-1">·</span>
-                      <span>{b}</span>
+                    <li key={i} className="flex items-start gap-3 leading-relaxed">
+                      <span
+                        className="shrink-0 mt-0.5 inline-flex items-center justify-center"
+                        style={{
+                          width: 18, height: 18, borderRadius: 5,
+                          background: 'var(--color-gold-soft)',
+                          color: 'var(--color-gold-dim)',
+                          fontSize: 10, fontWeight: 600,
+                        }}
+                      >
+                        {i + 1}
+                      </span>
+                      <span className="text-[13px] text-obsidian leading-[1.55]">{b}</span>
                     </li>
                   ))}
                 </ul>
               )}
-              <p className="text-[10px] text-hint mt-2.5">
+              <p className="text-[10px] text-hint mt-3 pt-3 border-t border-sand">
                 Generated {new Date(briefing.generatedAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })} · {briefing.model}
               </p>
             </div>
           </div>
-        </Card>
+        </AISurface>
       )}
 
       {/* ── AI: Follow-up suggestions for cold leads ── */}

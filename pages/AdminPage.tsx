@@ -14,7 +14,7 @@ import {
   StickyNote, CreditCard, Star, ChevronDown, UserCheck,
   Receipt, BarChart3, ListChecks, TrendingUp,
 } from 'lucide-react';
-import { Button, Modal, Input, Select, Textarea, SidebarItem as UISidebarItem, EmptyState, CommandPalette } from '../components/ui';
+import { Button, Modal, Input, Select, Textarea, SidebarItem as UISidebarItem, EmptyState, CommandPalette, BrandMark } from '../components/ui';
 import type { CommandItem } from '../components/ui';
 import { processImageForUpload, validateImageFile, ACCEPTED_IMAGE_TYPES } from '../imageUtils';
 import { logClinicalAction } from '../utils/auditLogger';
@@ -549,11 +549,7 @@ const AdminPage: React.FC<AdminPageProps> = ({
         {/* Sidebar */}
         <aside className={`portal-sidebar ${isSidebarOpen ? 'open' : ''} ${isSidebarCollapsed ? 'collapsed' : ''}`}>
           <div className="flex items-center justify-between mb-4 px-2">
-            {!isSidebarCollapsed ? (
-              <Logo size="sm" className="!justify-start scale-75 -ml-3" />
-            ) : (
-              <div className="w-8 h-8 rounded-md bg-obsidian text-primary flex items-center justify-center text-xs font-medium">N</div>
-            )}
+            <BrandMark collapsed={isSidebarCollapsed} tagline="Clinic OS" />
             <div className="flex items-center">
               <button
                 onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}

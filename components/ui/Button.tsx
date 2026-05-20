@@ -1,6 +1,8 @@
 import React from 'react';
 
-type Variant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'ai' | 'icon';
+// 'accent' = gold CTA used sparingly (book appointment, approve AI). 'primary'
+// is the everyday obsidian button. 'ai' is reserved for AI-suggested actions.
+type Variant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'accent' | 'ai' | 'icon';
 type Size = 'sm' | 'md' | 'lg';
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
