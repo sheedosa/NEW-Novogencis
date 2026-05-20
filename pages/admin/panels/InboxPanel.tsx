@@ -290,24 +290,18 @@ function InboxPanel() {
         }
       />
 
-      {/* Filter chips */}
-      <div className="flex gap-1 overflow-x-auto no-scrollbar">
+      {/* Filter chips — use shared .filter-chip CSS so styling stays consistent. */}
+      <div className="flex gap-2 overflow-x-auto no-scrollbar pb-0.5">
         {filterChips.map(chip => (
           <button
             key={chip.id}
             onClick={() => setFilter(chip.id)}
-            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm transition-colors whitespace-nowrap ${
-              filter === chip.id
-                ? 'bg-obsidian text-white font-medium'
-                : 'text-muted hover:bg-cream hover:text-obsidian'
-            }`}
+            className={`filter-chip whitespace-nowrap ${filter === chip.id ? 'is-active' : ''}`}
           >
             {chip.icon}
             <span>{chip.label}</span>
             {counts[chip.id] > 0 && (
-              <span className={`ml-0.5 text-xs ${filter === chip.id ? 'text-primary' : 'text-hint'}`}>
-                {counts[chip.id]}
-              </span>
+              <span className="filter-count">{counts[chip.id]}</span>
             )}
           </button>
         ))}

@@ -287,12 +287,23 @@ input:focus, textarea:focus  {
   color: var(--color-obsidian);
 }
 
+/* Active nav item — cream bg + gold left accent stripe (not solid obsidian).
+   Matches the new design's quieter, less-bossy active state. */
 .nav-item.active {
-  background: var(--color-obsidian);
-  color: #fff;
+  background: var(--color-cream);
+  color: var(--color-obsidian);
   font-weight: 500;
 }
-
+.nav-item.active::before {
+  content: '';
+  position: absolute;
+  left: -8px;
+  top: 7px;
+  bottom: 7px;
+  width: 2px;
+  border-radius: 2px;
+  background: var(--color-gold);
+}
 .nav-item.active .nav-icon { color: var(--color-gold); }
 
 .nav-section-label {

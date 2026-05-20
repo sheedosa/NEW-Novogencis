@@ -479,45 +479,80 @@ function TodayPanel() {
 
       {/* ── Clinic Radar — forward-thinking signals (only renders if there's anything to flag) ── */}
       {radar.length > 0 && (
-        <Card className="!bg-gradient-to-br !from-obsidian !to-[#27272A] !text-white !border-obsidian">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-md bg-primary/15 flex items-center justify-center text-primary">
-                <Sparkles size={14} />
+        <Card
+          className="!text-white !border-obsidian relative overflow-hidden"
+          style={{
+            // Premium dark gradient + radial accent overlays (gold top-right,
+            // sage bottom-left). Matches the new design's signature feel.
+            background: 'linear-gradient(135deg, #1A1916 0%, #28251f 100%)',
+          }}
+        >
+          <div
+            aria-hidden
+            className="absolute inset-0 pointer-events-none"
+            style={{
+              backgroundImage:
+                'radial-gradient(circle at 100% 0%, rgba(201,168,106,0.15) 0%, transparent 50%), radial-gradient(circle at 0% 100%, rgba(127,162,136,0.08) 0%, transparent 40%)',
+            }}
+          />
+          <div className="relative flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div
+                className="relative w-8 h-8 rounded-md flex items-center justify-center"
+                style={{ background: 'rgba(255,255,255,0.06)', color: 'var(--color-gold)' }}
+              >
+                <Sparkles size={15} />
+                <span
+                  aria-hidden
+                  className="absolute inset-0 rounded-md animate-pulse-ring"
+                />
               </div>
               <div>
-                <h3 className="text-sm font-medium text-white">Clinic radar</h3>
-                <p className="text-xs text-white/60">{radar.length} signal{radar.length !== 1 ? 's' : ''} worth your attention</p>
+                <p className="eyebrow" style={{ color: 'var(--color-gold)' }}>Clinic radar</p>
+                <p className="text-sm font-medium text-white mt-0.5">
+                  {radar.length} signal{radar.length !== 1 ? 's' : ''} worth your attention
+                </p>
               </div>
             </div>
             <Badge variant="ai" icon={<Lightbulb size={11} />}>Auto-detected</Badge>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+          <div className="relative grid grid-cols-1 md:grid-cols-2 gap-2.5">
             {radar.map(item => (
               <button
                 key={item.id}
                 onClick={item.action?.onClick}
-                className="text-left bg-white/5 hover:bg-white/10 transition-colors rounded-md p-3 border border-white/10 group"
+                className="text-left transition-colors rounded-[10px] p-3 border group"
+                style={{
+                  background: 'rgba(255,255,255,0.04)',
+                  borderColor: 'rgba(255,255,255,0.06)',
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.07)')}
+                onMouseLeave={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.04)')}
               >
-                <div className="flex items-start gap-2.5">
-                  <div className={`w-7 h-7 rounded-md flex items-center justify-center shrink-0 ${
-                    item.tone === 'danger'   ? 'bg-danger/20 text-danger'   :
-                    item.tone === 'warning'  ? 'bg-warning/20 text-warning' :
-                    item.tone === 'positive' ? 'bg-success/20 text-success' :
-                                               'bg-primary/20 text-primary'
-                  }`}>
-                    {item.icon}
-                  </div>
-                  <div className="min-w-0 flex-grow">
-                    <p className="text-sm font-medium text-white leading-snug">{item.title}</p>
-                    <p className="text-xs text-white/60 mt-1 leading-relaxed">{item.detail}</p>
-                    {item.action && (
-                      <p className="text-xs text-primary mt-2 inline-flex items-center gap-1 group-hover:gap-1.5 transition-all">
-                        {item.action.label} <ArrowRight size={11} />
-                      </p>
-                    )}
-                  </div>
+                <div className="flex items-center gap-2 mb-1.5">
+                  <span
+                    className="w-1.5 h-1.5 rounded-full shrink-0"
+                    style={{
+                      background:
+                        item.tone === 'danger'   ? 'var(--color-danger)' :
+                        item.tone === 'warning'  ? 'var(--color-warning)' :
+                        item.tone === 'positive' ? 'var(--color-success)' :
+                                                    'var(--color-gold)',
+                    }}
+                  />
+                  <span className="text-[10px] uppercase tracking-[0.06em] text-white/55 font-medium">
+                    {item.tone === 'positive' ? 'Opportunity' : item.tone === 'danger' ? 'Attention' : item.tone === 'warning' ? 'Lapsed' : 'Signal'}
+                  </span>
                 </div>
+                <p className="text-[13px] text-white leading-snug">{item.title}</p>
+                {item.detail && (
+                  <p className="text-xs text-white/55 mt-1 leading-relaxed">{item.detail}</p>
+                )}
+                {item.action && (
+                  <p className="text-xs text-primary mt-2 inline-flex items-center gap-1 group-hover:gap-1.5 transition-all">
+                    {item.action.label} <ArrowRight size={11} />
+                  </p>
+                )}
               </button>
             ))}
           </div>
