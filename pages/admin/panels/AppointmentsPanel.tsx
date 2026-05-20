@@ -193,7 +193,10 @@ const AppointmentsPanel: React.FC = () => {
           )
         ) : (
           <div className="p-2 overflow-x-auto">
-            <div className="min-w-[600px] grid grid-cols-7 gap-px bg-sand border border-sand rounded-md overflow-hidden">
+            {/* 7-col calendar grid. Set a smaller min-width on mobile so it
+                still fits a 375px viewport without horizontal scroll, then
+                expand for tablets/desktop. */}
+            <div className="min-w-[320px] sm:min-w-[600px] grid grid-cols-7 gap-px bg-sand border border-sand rounded-md overflow-hidden">
               {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
                 <div key={day} className="bg-cream py-2 text-center">
                   <span className="text-xs font-medium text-muted">{day}</span>

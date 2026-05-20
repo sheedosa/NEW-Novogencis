@@ -194,32 +194,52 @@ function MarketingPanel() {
             />
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="bg-cream/60">
-                  <th className="text-left px-4 py-2 text-xs text-hint uppercase tracking-wider font-medium">Campaign</th>
-                  <th className="text-right px-4 py-2 text-xs text-hint uppercase tracking-wider font-medium">Leads</th>
-                  <th className="text-right px-4 py-2 text-xs text-hint uppercase tracking-wider font-medium">Converted</th>
-                  <th className="text-right px-4 py-2 text-xs text-hint uppercase tracking-wider font-medium">Rate</th>
-                </tr>
-              </thead>
-              <tbody>
-                {campaignBreakdown.map(row => (
-                  <tr key={row.campaign} className="border-t border-cream hover:bg-cream/40">
-                    <td className="px-4 py-3 text-obsidian font-medium">{row.campaign}</td>
-                    <td className="px-4 py-3 text-right text-obsidian">{row.leads}</td>
-                    <td className="px-4 py-3 text-right text-obsidian">{row.converted}</td>
-                    <td className="px-4 py-3 text-right">
-                      <Badge variant={row.conversionRate >= 25 ? 'active' : row.conversionRate >= 10 ? 'pending' : 'inactive'}>
-                        {row.conversionRate}%
-                      </Badge>
-                    </td>
+          <>
+            {/* Desktop: proper table */}
+            <div className="hidden md:block">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-cream/60">
+                    <th className="text-left px-4 py-2 text-xs text-hint uppercase tracking-wider font-medium">Campaign</th>
+                    <th className="text-right px-4 py-2 text-xs text-hint uppercase tracking-wider font-medium">Leads</th>
+                    <th className="text-right px-4 py-2 text-xs text-hint uppercase tracking-wider font-medium">Converted</th>
+                    <th className="text-right px-4 py-2 text-xs text-hint uppercase tracking-wider font-medium">Rate</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {campaignBreakdown.map(row => (
+                    <tr key={row.campaign} className="border-t border-cream hover:bg-cream/40">
+                      <td className="px-4 py-3 text-obsidian font-medium">{row.campaign}</td>
+                      <td className="px-4 py-3 text-right text-obsidian">{row.leads}</td>
+                      <td className="px-4 py-3 text-right text-obsidian">{row.converted}</td>
+                      <td className="px-4 py-3 text-right">
+                        <Badge variant={row.conversionRate >= 25 ? 'active' : row.conversionRate >= 10 ? 'pending' : 'inactive'}>
+                          {row.conversionRate}%
+                        </Badge>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {/* Mobile: stacked card rows so 4 columns don't require horizontal scroll */}
+            <div className="md:hidden flex flex-col">
+              {campaignBreakdown.map(row => (
+                <div key={row.campaign} className="px-4 py-3 border-t border-cream first:border-t-0">
+                  <div className="flex items-start justify-between gap-3 mb-2">
+                    <p className="text-sm font-medium text-obsidian min-w-0 truncate">{row.campaign}</p>
+                    <Badge variant={row.conversionRate >= 25 ? 'active' : row.conversionRate >= 10 ? 'pending' : 'inactive'}>
+                      {row.conversionRate}%
+                    </Badge>
+                  </div>
+                  <div className="flex items-center gap-4 text-xs text-muted">
+                    <span><span className="text-obsidian font-medium">{row.leads}</span> leads</span>
+                    <span><span className="text-obsidian font-medium">{row.converted}</span> converted</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
         )}
       </Card>
 
@@ -230,31 +250,53 @@ function MarketingPanel() {
             <h3 className="text-sm font-medium text-obsidian">Source detail</h3>
             <p className="text-xs text-muted mt-0.5">Where every traced lead came from</p>
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="bg-cream/60">
-                  <th className="text-left px-4 py-2 text-xs text-hint uppercase tracking-wider font-medium">Source</th>
-                  <th className="text-left px-4 py-2 text-xs text-hint uppercase tracking-wider font-medium">Medium</th>
-                  <th className="text-right px-4 py-2 text-xs text-hint uppercase tracking-wider font-medium">Leads</th>
-                  <th className="text-right px-4 py-2 text-xs text-hint uppercase tracking-wider font-medium">Share</th>
-                </tr>
-              </thead>
-              <tbody>
-                {sourceBreakdown.map(row => {
-                  const share = Math.round((row.count / totalLeads) * 100);
-                  return (
-                    <tr key={`${row.source}-${row.medium}`} className="border-t border-cream hover:bg-cream/40">
-                      <td className="px-4 py-3 text-obsidian font-medium capitalize">{row.source}</td>
-                      <td className="px-4 py-3 text-muted capitalize">{row.medium}</td>
-                      <td className="px-4 py-3 text-right text-obsidian">{row.count}</td>
-                      <td className="px-4 py-3 text-right text-muted">{share}%</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+          <>
+            {/* Desktop: proper 4-column table */}
+            <div className="hidden md:block">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-cream/60">
+                    <th className="text-left px-4 py-2 text-xs text-hint uppercase tracking-wider font-medium">Source</th>
+                    <th className="text-left px-4 py-2 text-xs text-hint uppercase tracking-wider font-medium">Medium</th>
+                    <th className="text-right px-4 py-2 text-xs text-hint uppercase tracking-wider font-medium">Leads</th>
+                    <th className="text-right px-4 py-2 text-xs text-hint uppercase tracking-wider font-medium">Share</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {sourceBreakdown.map(row => {
+                    const share = Math.round((row.count / totalLeads) * 100);
+                    return (
+                      <tr key={`${row.source}-${row.medium}`} className="border-t border-cream hover:bg-cream/40">
+                        <td className="px-4 py-3 text-obsidian font-medium capitalize">{row.source}</td>
+                        <td className="px-4 py-3 text-muted capitalize">{row.medium}</td>
+                        <td className="px-4 py-3 text-right text-obsidian">{row.count}</td>
+                        <td className="px-4 py-3 text-right text-muted">{share}%</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            {/* Mobile: card rows */}
+            <div className="md:hidden flex flex-col">
+              {sourceBreakdown.map(row => {
+                const share = Math.round((row.count / totalLeads) * 100);
+                return (
+                  <div key={`${row.source}-${row.medium}`} className="px-4 py-3 border-t border-cream first:border-t-0">
+                    <div className="flex items-baseline justify-between gap-3">
+                      <p className="text-sm font-medium text-obsidian capitalize">{row.source}</p>
+                      <span className="text-xs text-muted">{share}% share</span>
+                    </div>
+                    <div className="flex items-center gap-3 text-xs text-muted mt-1">
+                      <span className="capitalize">{row.medium}</span>
+                      <span className="text-hint">·</span>
+                      <span><span className="text-obsidian font-medium">{row.count}</span> leads</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </>
         </Card>
       )}
 
