@@ -11,7 +11,7 @@ import {
 import {
   Button, Input, Modal, PageHeader, EmptyState, StatusBadge as UIStatusBadge,
   Stat, Card as UICard, CardHeader, SidebarItem as UISidebarItem,
-  BottomNav, BrandMark,
+  BottomNav,
 } from '../components/ui';
 import { Page, User, Appointment, Client, Message, GalleryItem } from '../types';
 import { FORMS } from '../constants';
@@ -1332,7 +1332,7 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
       <aside className={`portal-sidebar ${isSidebarOpen ? 'open' : ''}`}>
         <div className="flex items-center justify-between mb-4 px-2">
           <div className="cursor-pointer" onClick={() => onNavigate(Page.Home)}>
-            <BrandMark tagline="Patient portal" />
+            <Logo size="sm" className="!justify-start scale-75 -ml-3" />
           </div>
           <button onClick={() => setIsSidebarOpen(false)} className="lg:hidden w-7 h-7 inline-flex items-center justify-center text-muted hover:text-obsidian">
             <X size={15} />
