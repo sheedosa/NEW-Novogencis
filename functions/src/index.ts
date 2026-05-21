@@ -2,18 +2,22 @@
  * Novogencis Cloud Functions — entry point
  *
  * Functions deployed from this module:
- *   - onAssessmentSubmitted    Firestore trigger, AI triage (Sonnet 4.6)
- *   - draftReply               HTTPS callable, AI reply drafts (Haiku 4.5)
- *   - dailyBriefing            Scheduled, AI morning briefing (Haiku 4.5)
- *   - generateFollowUpSuggestions  Scheduled, AI follow-ups (Sonnet 4.6)
- *   - createCheckoutSession    HTTPS callable, Stripe Checkout session
- *   - stripeWebhook            HTTPS endpoint, Stripe event reconciliation
- *   - createRefund             HTTPS callable, admin-initiated refunds
+ *   - onAssessmentSubmitted       Firestore trigger, AI triage (Sonnet 4.6)
+ *   - draftReply                  HTTPS callable, AI reply drafts (Haiku 4.5)
+ *   - dailyBriefing               Scheduled, AI morning briefing (Haiku 4.5)
+ *   - generateFollowUpSuggestions Scheduled, AI follow-ups (Sonnet 4.6)
+ *   - createCheckoutSession       HTTPS callable, Stripe Checkout session
+ *   - stripeWebhook               HTTPS endpoint, Stripe event reconciliation
+ *   - createRefund                HTTPS callable, admin-initiated refunds
+ *   - sendConsentForm             Firestore trigger, consent PDF on Confirmed
+ *   - sendAppointmentReminders    Scheduled daily 10:00, pre-treatment PDF
+ *   - sendAftercareEmail          Firestore trigger, aftercare PDF on Completed
  *
  * Secrets used (set via `firebase functions:secrets:set NAME`):
  *   - ANTHROPIC_API_KEY       (AI functions)
  *   - STRIPE_SECRET_KEY       (Stripe checkout + refunds)
  *   - STRIPE_WEBHOOK_SECRET   (signature verification on webhook)
+ *   - MAILERLITE_API_KEY      (email automations)
  */
 
 import { initializeApp } from 'firebase-admin/app';
@@ -35,3 +39,8 @@ export { generateFollowUpSuggestions } from './followUp.js';
 export { createCheckoutSession } from './createCheckoutSession.js';
 export { stripeWebhook } from './stripeWebhook.js';
 export { createRefund } from './createRefund.js';
+
+// Email automations — requires MAILERLITE_API_KEY secret
+export { sendConsentForm } from './sendConsentForm.js';
+export { sendAppointmentReminders } from './sendAppointmentReminders.js';
+export { sendAftercareEmail } from './sendAftercareEmail.js';

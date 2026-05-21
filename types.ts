@@ -160,6 +160,15 @@ export interface Appointment {
   treatmentId?: string;
   /** Which clinician is assigned to deliver this appointment */
   clinicianId?: string;
+  /** Reminder email queued/sent at this ISO timestamp — used to dedup the
+   *  day-before reminder Cloud Function so the same appointment never gets
+   *  two reminders even if the cron runs twice. */
+  reminderSentAt?: string;
+  /** Aftercare email queued/sent at this ISO timestamp — set by the
+   *  sendAftercareEmail Cloud Function when appointment marked Completed. */
+  aftercareSentAt?: string;
+  /** Marks which appointment triggered the once-per-lifetime consent send. */
+  consentTriggered?: boolean;
   notes: string;
   createdAt: string;
 }
