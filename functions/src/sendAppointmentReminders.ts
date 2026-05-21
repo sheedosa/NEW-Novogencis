@@ -31,6 +31,7 @@ import {
   buildEmailHtml,
   buildEmailText,
   MAILERLITE_API_KEY,
+  FROM_NOREPLY,
 } from './emailService.js';
 import { buildPreTreatmentPdf, DEFAULT_CLINIC } from './pdfGenerator.js';
 
@@ -196,6 +197,7 @@ export const sendAppointmentReminders = onSchedule(
       try {
         await sendEmail({
           to: { email: patientEmail, name: client.name },
+          from: FROM_NOREPLY,
           subject: `Reminder: your ${apptType} is tomorrow — ${apptDate}`,
           html,
           text,

@@ -253,6 +253,15 @@ service cloud.firestore {
       allow create, delete: if false;
     }
 
+    // ── Email outbox (failed / queued sends) ──────────────────────────
+    // Written by Cloud Functions (Admin SDK). Admins can read to review
+    // failed sends; no client access. Docs are append-only from functions
+    // so update/delete are locked down.
+    match /outbox/{docId} {
+      allow read: if isAdmin();
+      allow create, update, delete: if false; // Cloud Functions only
+    }
+
     // ── Default deny ──────────────────────────────────────────────────
     // Any path not explicitly granted above is rejected.
     match /{document=**} {

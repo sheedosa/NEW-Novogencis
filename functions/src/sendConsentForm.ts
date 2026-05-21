@@ -31,6 +31,7 @@ import {
   buildEmailHtml,
   buildEmailText,
   MAILERLITE_API_KEY,
+  FROM_NOREPLY,
 } from './emailService.js';
 import { buildConsentPdf, DEFAULT_CLINIC } from './pdfGenerator.js';
 
@@ -171,6 +172,7 @@ export const sendConsentForm = onDocumentWritten(
     try {
       await sendEmail({
         to: { email: patientEmail, name: client.name },
+        from: FROM_NOREPLY,
         subject: `Your consent form — Novogenics appointment ${apptDate}`,
         html,
         text,

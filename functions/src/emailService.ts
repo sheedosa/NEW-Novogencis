@@ -48,15 +48,29 @@ export interface EmailMessage {
   /** Optional PDF / image attachments */
   attachments?: EmailAttachment[];
   /**
+   * Override the sender address. Defaults to FROM_NOREPLY.
+   * Use FROM_MESSAGES for doctor-to-patient inbox messages.
+   * Use FROM_HELLO for general clinic comms.
+   */
+  from?: string;
+  /**
    * Free-form key/value pairs stored in the outbox record for traceability.
    * E.g. { patientId: '...', appointmentId: '...', type: 'consent' }
    */
   metadata?: Record<string, string>;
 }
 
-// ── Clinic sender identity ────────────────────────────────────────────────────
+// ── Clinic sender identities ──────────────────────────────────────────────────
+// All addresses share the verified novogenics.co.uk domain.
+// Once MailerLite verifies the domain, all @novogenics.co.uk addresses work.
 
-const FROM_EMAIL = 'hello@novogenics.co.uk';
+/** Automated system emails — consent forms, reminders, aftercare */
+export const FROM_NOREPLY = 'noreply@novogenics.co.uk';
+/** Doctor-to-patient messages sent from the platform inbox */
+export const FROM_MESSAGES = 'messages@novogenics.co.uk';
+/** General clinic contact address */
+export const FROM_HELLO = 'hello@novogenics.co.uk';
+
 const FROM_NAME = 'Novogenics';
 
 // ── MailerLite transport ──────────────────────────────────────────────────────
@@ -73,7 +87,7 @@ async function sendViaMailerLite(message: EmailMessage): Promise<void> {
 
   // Build request body
   const body: Record<string, unknown> = {
-    from: FROM_EMAIL,
+    from: message.from ?? FROM_NOREPLY,
     from_name: FROM_NAME,
     to: [
       {

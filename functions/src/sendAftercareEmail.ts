@@ -29,6 +29,7 @@ import {
   buildEmailHtml,
   buildEmailText,
   MAILERLITE_API_KEY,
+  FROM_NOREPLY,
 } from './emailService.js';
 import { buildAftercarePdf, DEFAULT_CLINIC } from './pdfGenerator.js';
 
@@ -169,6 +170,7 @@ export const sendAftercareEmail = onDocumentWritten(
     try {
       await sendEmail({
         to: { email: patientEmail, name: client.name },
+        from: FROM_NOREPLY,
         subject: `Your aftercare instructions — Novogenics ${apptDate}`,
         html,
         text,
