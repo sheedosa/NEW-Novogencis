@@ -849,7 +849,7 @@ const ClientRecord: React.FC = () => {
                               <>
                                 <img src={selectedImg.url} alt={selectedImg.label} className="w-full h-full object-cover" />
                                 <div className="absolute inset-0 bg-black/0 hover:bg-black/20 transition-colors" />
-                                <button onClick={() => idx === 0 ? setCompareA(null) : setCompareB(null)} className="absolute top-2 right-2 w-6 h-6 bg-black/50 rounded-full flex items-center justify-center text-white hover:bg-black/80">
+                                <button onClick={() => idx === 0 ? setCompareA(null) : setCompareB(null)} className="absolute top-2 right-2 w-9 h-9 bg-black/50 rounded-full flex items-center justify-center text-white hover:bg-black/80">
                                   <X className="w-3 h-3" />
                                 </button>
                                 <p className="absolute bottom-2 left-0 right-0 text-center text-2xs font-medium text-white px-2 truncate">{selectedImg.label}</p>
@@ -1264,7 +1264,7 @@ const ClientRecord: React.FC = () => {
                           <input required={required} type="text" value={(rxForm as Record<string, string>)[field]} onChange={e => setRxForm(p => ({ ...p, [field]: e.target.value }))} placeholder={placeholder} className="w-full bg-cream border-transparent rounded-xl px-4 py-3 text-sm font-medium focus:ring-2 focus:ring-primary/20" />
                         </div>
                       ))}
-                      <div className="grid grid-cols-2 gap-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div>
                           <label className="text-xs text-muted block mb-1">Start Date *</label>
                           <input required type="date" value={rxForm.startDate} onChange={e => setRxForm(p => ({ ...p, startDate: e.target.value }))} className="w-full bg-cream border-transparent rounded-xl px-4 py-3 text-sm font-medium focus:ring-2 focus:ring-primary/20" />
@@ -1386,7 +1386,7 @@ const ClientRecord: React.FC = () => {
                         <label className="text-xs text-muted block mb-1">Description *</label>
                         <input required type="text" value={paymentForm.description} onChange={e => setPaymentForm(p => ({ ...p, description: e.target.value }))} placeholder="e.g. Initial PRP Session — Session 1" className="w-full bg-cream border-transparent rounded-xl px-4 py-3 text-sm font-medium focus:ring-2 focus:ring-primary/20" />
                       </div>
-                      <div className="grid grid-cols-2 gap-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div>
                           <label className="text-xs text-muted block mb-1">Amount (£) *</label>
                           <input required type="number" min="0" step="0.01" value={paymentForm.amount} onChange={e => setPaymentForm(p => ({ ...p, amount: e.target.value }))} placeholder="0.00" className="w-full bg-cream border-transparent rounded-xl px-4 py-3 text-sm font-medium focus:ring-2 focus:ring-primary/20" />
@@ -1398,7 +1398,7 @@ const ClientRecord: React.FC = () => {
                           </select>
                         </div>
                       </div>
-                      <div className="grid grid-cols-2 gap-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div>
                           <label className="text-xs text-muted block mb-1">Due Date</label>
                           <input type="date" value={paymentForm.dueDate} onChange={e => setPaymentForm(p => ({ ...p, dueDate: e.target.value }))} className="w-full bg-cream border-transparent rounded-xl px-4 py-3 text-sm font-medium focus:ring-2 focus:ring-primary/20" />

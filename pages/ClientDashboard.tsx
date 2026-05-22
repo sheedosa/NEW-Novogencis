@@ -83,7 +83,7 @@ const MessagesTab = memo(function MessagesTab({ userMessages, user, onSendMessag
   return (
     <div className="animate-fade-up h-[calc(100dvh-16rem)] sm:h-[calc(100dvh-12rem)] flex flex-col">
       <div className="bg-white rounded-lg border border-black/5 shadow-sm flex flex-col overflow-hidden flex-grow">
-        <div className="p-6 border-b border-black/5 flex justify-between items-center bg-white z-10">
+        <div className="p-4 md:p-6 border-b border-black/5 flex justify-between items-center bg-white z-10">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
               <Stethoscope size={20} />
@@ -101,7 +101,7 @@ const MessagesTab = memo(function MessagesTab({ userMessages, user, onSendMessag
           </div>
         </div>
 
-        <div className="flex-grow overflow-y-auto p-6 md:p-8 space-y-4 no-scrollbar bg-cream/30">
+        <div className="flex-grow overflow-y-auto p-4 md:p-6 lg:p-8 space-y-4 no-scrollbar bg-cream/30">
           {userMessages.length > 0 ? (
             userMessages.map((msg) => (
               <div key={msg.id} className={`flex items-end gap-2 ${msg.senderId === user?.id ? 'flex-row-reverse' : 'flex-row'}`}>
@@ -163,7 +163,7 @@ const MessagesTab = memo(function MessagesTab({ userMessages, user, onSendMessag
               </div>
             ))
           ) : (
-            <div className="h-full flex flex-col items-center justify-center text-center p-12">
+            <div className="h-full flex flex-col items-center justify-center text-center p-6 md:p-12">
               <div className="w-20 h-20 bg-white rounded-lg flex items-center justify-center text-primary/20 mb-4 shadow-sm">
                 <MessageCircle size={40} className="text-primary/20" />
               </div>
@@ -691,7 +691,7 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
                 </div>
               </div>
             ) : (
-              <div className="bg-white rounded-lg p-10 border border-black/5 shadow-sm text-center">
+              <div className="bg-white rounded-lg p-6 md:p-10 border border-black/5 shadow-sm text-center">
                 <Stethoscope size={40} className="text-primary/20 mb-3 mx-auto" />
                 <p className="text-2xs text-muted">No treatment plan assigned yet</p>
                 <p className="text-xs text-muted/60 mt-1 font-medium">Your clinician will create your personalised plan after your first session</p>
@@ -748,7 +748,7 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
 
                {/* Right: Progress Summary, Prescriptions & Gallery */}
                <div className="lg:col-span-4 space-y-6">
-                  <Card className="p-8 bg-obsidian text-white border-none shadow-xl shadow-obsidian/20">
+                  <Card className="p-5 md:p-8 bg-obsidian text-white border-none shadow-xl shadow-obsidian/20">
                      <h3 className="text-xs text-muted text-gray-400 mb-6">Program Overview</h3>
                      <div className="space-y-6">
                         <div>
@@ -872,7 +872,7 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
                                 {isUpcoming && (
                                   <button
                                     onClick={() => { setRequestingAptId(isRequestingThis ? null : apt.id); setAptAction(null); setReschedulePreference(''); }}
-                                    className="w-8 h-8 rounded-full bg-cream border border-black/10 flex items-center justify-center text-muted hover:text-primary transition-colors"
+                                    className="w-10 h-10 rounded-full bg-cream border border-black/10 flex items-center justify-center text-muted hover:text-primary transition-colors"
                                   >
                                     {isRequestingThis ? <X size={13} /> : <ArrowRight size={13} />}
                                   </button>
@@ -884,8 +884,8 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
                             {isRequestingThis && (
                               <div className="px-6 md:px-8 pb-6 border-t border-black/5 pt-4">
                                 {!aptAction ? (
-                                  <div className="flex gap-3">
-                                    <button onClick={() => setAptAction('reschedule')} className="flex-1 flex items-center justify-center gap-2 bg-cream hover:bg-primary/10 text-obsidian py-2.5 rounded-xl text-xs text-muted transition-colors">
+                                  <div className="flex flex-col sm:flex-row gap-3">
+                                    <button onClick={() => setAptAction('reschedule')} className="flex-1 flex items-center justify-center gap-2 bg-cream hover:bg-primary/10 text-obsidian py-3 rounded-xl text-xs transition-colors">
                                       <RefreshCw size={16} className="text-primary" /> Request Reschedule
                                     </button>
                                     <button onClick={async () => {
@@ -901,7 +901,7 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
                                       });
                                       setAptRequestSending(false);
                                       setRequestingAptId(null);
-                                    }} disabled={aptRequestSending} className="flex-1 flex items-center justify-center gap-2 bg-red-50 hover:bg-red-100 text-red-600 py-2.5 rounded-xl text-xs text-muted transition-colors disabled:opacity-50">
+                                    }} disabled={aptRequestSending} className="flex-1 flex items-center justify-center gap-2 bg-red-50 hover:bg-red-100 text-red-600 py-3 rounded-xl text-xs transition-colors disabled:opacity-50">
                                       <X size={16} /> Request Cancel
                                     </button>
                                   </div>
@@ -943,13 +943,13 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
                         );
                       })
                   ) : (
-                    <div className="bg-white p-12 rounded-lg border border-black/5 text-center">
+                    <div className="bg-white p-6 md:p-12 rounded-lg border border-black/5 text-center">
                       <p className="text-muted font-medium">You have no appointment history.</p>
                     </div>
                   )}
                </div>
                <div className="lg:col-span-4 space-y-6">
-                  <div className="bg-primary/5 rounded-xl p-8 md:p-10 border border-primary/10">
+                  <div className="bg-primary/5 rounded-xl p-5 md:p-8 lg:p-10 border border-primary/10">
                     <h4 className="text-lg font-medium text-obsidian uppercase mb-6">Booking Policy</h4>
                     <ul className="space-y-4">
                       {[
@@ -964,7 +964,7 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
                       ))}
                     </ul>
                   </div>
-                  <div className="bg-obsidian text-white rounded-xl p-8 md:p-10">
+                  <div className="bg-obsidian text-white rounded-xl p-5 md:p-8 lg:p-10">
                     <p className="text-xs text-muted text-gray-400 mb-2">Need to make a change?</p>
                     <p className="text-sm font-medium text-gray-300 leading-relaxed mb-5">Use the menu on each upcoming appointment to request a reschedule or cancellation. Our team will confirm via message.</p>
                     <p className="text-2xs text-muted">48 hours notice required</p>
@@ -1047,7 +1047,7 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
             )}
 
             {currentClient?.assessmentData && (
-              <div className="bg-white border border-sand rounded-lg shadow-card p-8 md:p-10">
+              <div className="bg-white border border-sand rounded-lg shadow-card p-5 md:p-8 lg:p-10">
                 <h3 className="text-xl font-medium text-obsidian uppercase mb-8">Submitted Information</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-10">
                   <div className="space-y-6">
@@ -1166,7 +1166,7 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
             
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 md:gap-10">
               <div className="lg:col-span-4 space-y-6">
-                <div className="bg-white p-8 rounded-lg border border-black/5 shadow-sm text-center">
+                <div className="bg-white p-5 md:p-8 rounded-lg border border-black/5 shadow-sm text-center">
                   <div className="w-24 h-24 bg-primary/10 rounded-full flex items-center justify-center text-primary mx-auto mb-6">
                     <UserIcon size={40} />
                   </div>
@@ -1179,7 +1179,7 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
                   </div>
                 </div>
 
-                <div className="bg-white p-8 rounded-lg border border-black/5 shadow-sm">
+                <div className="bg-white p-5 md:p-8 rounded-lg border border-black/5 shadow-sm">
                   <h4 className="text-xs text-muted mb-6">Account Status</h4>
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
@@ -1193,7 +1193,7 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
               </div>
 
               <div className="lg:col-span-8 space-y-6">
-                <div className="bg-white p-8 md:p-12 rounded-xl border border-black/5 shadow-sm">
+                <div className="bg-white p-5 md:p-8 lg:p-12 rounded-xl border border-black/5 shadow-sm">
                   <h3 className="text-xl font-medium text-obsidian uppercase mb-8">Personal Information</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-8">
                     {isEditingProfile ? (
@@ -1334,8 +1334,8 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
           <div className="cursor-pointer" onClick={() => onNavigate(Page.Home)}>
             <Logo size="sm" className="!justify-start scale-75 -ml-3" />
           </div>
-          <button onClick={() => setIsSidebarOpen(false)} className="lg:hidden w-7 h-7 inline-flex items-center justify-center text-muted hover:text-obsidian">
-            <X size={15} />
+          <button onClick={() => setIsSidebarOpen(false)} className="lg:hidden w-10 h-10 inline-flex items-center justify-center text-muted hover:text-obsidian rounded-md">
+            <X size={18} />
           </button>
         </div>
 
@@ -1363,8 +1363,8 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
       {/* Main Content Area */}
       <main className="portal-main">
         <header className="portal-topbar">
-          <button onClick={() => setIsSidebarOpen(true)} className="lg:hidden text-muted hover:text-obsidian">
-            <Menu size={16} />
+          <button onClick={() => setIsSidebarOpen(true)} className="lg:hidden w-10 h-10 inline-flex items-center justify-center text-muted hover:text-obsidian rounded-md -ml-2">
+            <Menu size={20} />
           </button>
           <div className="flex items-center gap-1.5 text-sm">
             <span className="text-muted hidden sm:inline">Portal</span>
@@ -1417,12 +1417,12 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
                           Mark all read
                         </button>
                       </div>
-                      <div className="flex gap-1">
+                      <div className="flex flex-wrap gap-1">
                         {(['all', 'message', 'appointment', 'feedback'] as const).map(f => (
                           <button
                             key={f}
                             onClick={() => setNotifFilter(f)}
-                            className={`px-2.5 py-1 rounded-sm text-xs transition-colors ${notifFilter === f ? 'bg-obsidian text-white' : 'text-muted hover:bg-cream'}`}
+                            className={`px-2.5 py-1.5 rounded-sm text-xs transition-colors ${notifFilter === f ? 'bg-obsidian text-white' : 'text-muted hover:bg-cream'}`}
                           >
                             {f === 'all' ? 'All' : f === 'message' ? 'Messages' : f === 'appointment' ? 'Appointments' : 'Feedback'}
                           </button>
@@ -1609,7 +1609,7 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
                   <img src={galleryUploadPreview} alt="Preview" className="w-full h-full object-cover" />
                   <button
                     onClick={() => { setGalleryUploadFile(null); setGalleryUploadPreview(null); }}
-                    className="absolute top-3 right-3 w-7 h-7 rounded-full bg-obsidian/70 text-white flex items-center justify-center hover:bg-obsidian transition-colors"
+                    className="absolute top-3 right-3 w-9 h-9 rounded-full bg-obsidian/70 text-white flex items-center justify-center hover:bg-obsidian transition-colors"
                   >
                     <X size={13} />
                   </button>
@@ -1657,10 +1657,10 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
       {lightboxImage && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-obsidian/95 animate-fade-in" onClick={() => setLightboxImage(null)}>
           <img src={lightboxImage.url} alt={lightboxImage.label} className="max-w-full max-h-[90dvh] object-contain rounded-md" />
-          <button onClick={() => setLightboxImage(null)} className="absolute top-4 right-4 w-9 h-9 bg-white/10 rounded-md flex items-center justify-center text-white hover:bg-white/20 transition-all">
-            <X size={15} />
+          <button onClick={() => setLightboxImage(null)} className="absolute top-4 right-4 w-11 h-11 bg-white/10 rounded-md flex items-center justify-center text-white hover:bg-white/20 transition-all">
+            <X size={18} />
           </button>
-          <div className="absolute bottom-5 left-1/2 -translate-x-1/2 bg-white/10 text-white px-3 py-1.5 rounded-md text-xs text-center">
+          <div className="absolute bottom-5 left-1/2 -translate-x-1/2 max-w-[calc(100vw-3rem)] bg-white/10 text-white px-3 py-1.5 rounded-md text-xs text-center">
             {lightboxImage.label} · {new Date(lightboxImage.uploadedAt).toLocaleDateString()}
           </div>
         </div>

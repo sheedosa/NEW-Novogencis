@@ -52,7 +52,7 @@ function AssessmentsPanel() {
   };
 
   return (
-    <div className="animate-fade-up flex flex-col gap-4 h-[calc(100vh-9rem)]">
+    <div className="animate-fade-up flex flex-col gap-4 lg:h-[calc(100dvh-9rem)]">
       <PageHeader
         title="Assessments"
         subtitle="Review intake forms and submit clinical feedback"
@@ -64,7 +64,7 @@ function AssessmentsPanel() {
         }
       />
 
-      <div className="flex-grow grid grid-cols-1 lg:grid-cols-12 gap-3 min-h-0 overflow-hidden">
+      <div className="flex-grow grid grid-cols-1 lg:grid-cols-12 gap-3 min-h-0 lg:overflow-hidden">
         {/* Queue list */}
         <Card padded={false} className="lg:col-span-4 flex flex-col overflow-hidden">
           <div className="px-4 py-3 border-b border-sand shrink-0">

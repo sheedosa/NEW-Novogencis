@@ -649,8 +649,8 @@ const AdminPage: React.FC<AdminPageProps> = ({
               >
                 {isSidebarCollapsed ? <PanelLeftOpen size={15} /> : <PanelLeftClose size={15} />}
               </button>
-              <button onClick={() => setIsSidebarOpen(false)} className="lg:hidden w-7 h-7 inline-flex items-center justify-center text-muted hover:text-obsidian">
-                <X size={15} />
+              <button onClick={() => setIsSidebarOpen(false)} className="lg:hidden w-10 h-10 inline-flex items-center justify-center text-muted hover:text-obsidian rounded-md">
+                <X size={18} />
               </button>
             </div>
           </div>
@@ -811,7 +811,7 @@ const AdminPage: React.FC<AdminPageProps> = ({
           {showMorningBriefing && (() => {
             const todayAppts = filteredAppointments.filter(a => a.date === new Date().toISOString().split('T')[0] && a.status !== 'Cancelled');
             return (
-              <div className="fixed bottom-5 right-5 z-[100] w-[340px] bg-obsidian text-white rounded-lg shadow-modal overflow-hidden animate-fade-up">
+              <div className="fixed bottom-5 right-3 sm:right-5 z-[100] w-[calc(100vw-1.5rem)] sm:w-[340px] bg-obsidian text-white rounded-lg shadow-modal overflow-hidden animate-fade-up">
                 <div className="px-4 py-3 border-b border-white/10 flex items-center justify-between">
                   <div className="flex items-center gap-2.5">
                     <Sun size={15} className="text-primary" />
@@ -843,8 +843,8 @@ const AdminPage: React.FC<AdminPageProps> = ({
 
           {/* Top bar */}
           <header className="portal-topbar">
-            <button onClick={() => setIsSidebarOpen(true)} className="lg:hidden text-muted hover:text-obsidian">
-              <Menu size={16} />
+            <button onClick={() => setIsSidebarOpen(true)} className="lg:hidden w-10 h-10 inline-flex items-center justify-center text-muted hover:text-obsidian rounded-md -ml-2">
+              <Menu size={20} />
             </button>
             <div className="flex items-center gap-1.5 text-sm">
               <span className="text-muted hidden sm:inline">Admin</span>
@@ -881,7 +881,7 @@ const AdminPage: React.FC<AdminPageProps> = ({
                 {showNotifications && (
                   <>
                     <div className="fixed inset-0 z-40" onClick={() => setShowNotifications(false)} />
-                    <div className="absolute right-0 mt-2 w-[340px] md:w-[400px] bg-white rounded-lg shadow-modal border border-sand z-50 overflow-hidden animate-fade-up origin-top-right">
+                    <div className="fixed inset-x-3 top-14 sm:absolute sm:inset-x-auto sm:top-auto sm:right-0 mt-2 w-auto sm:w-[340px] md:w-[400px] bg-white rounded-lg shadow-modal border border-sand z-50 overflow-hidden animate-fade-up origin-top-right">
                       <div className="px-4 py-3 border-b border-sand">
                         <div className="flex justify-between items-center mb-3">
                           <h3 className="text-sm font-medium text-obsidian">Notifications</h3>
@@ -1017,7 +1017,7 @@ const AdminPage: React.FC<AdminPageProps> = ({
                     {CLINICIANS.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                   </Select>
 
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <Input
                       label="Date"
                       type="date"
@@ -1086,7 +1086,7 @@ const AdminPage: React.FC<AdminPageProps> = ({
                 {galleryUploadPreview ? (
                   <>
                     <img src={galleryUploadPreview} alt="Preview" className="w-full h-full object-cover" />
-                    <button onClick={() => { setGalleryUploadFile(null); setGalleryUploadPreview(null); }} className="absolute top-3 right-3 w-7 h-7 rounded-full bg-obsidian/70 text-white flex items-center justify-center hover:bg-obsidian transition-colors">
+                    <button onClick={() => { setGalleryUploadFile(null); setGalleryUploadPreview(null); }} className="absolute top-3 right-3 w-9 h-9 rounded-full bg-obsidian/70 text-white flex items-center justify-center hover:bg-obsidian transition-colors">
                       <X size={13} />
                     </button>
                   </>

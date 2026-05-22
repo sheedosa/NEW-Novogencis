@@ -425,7 +425,7 @@ const StaffTab: React.FC = () => {
             </div>
             <div className="text-right shrink-0">
               <p className="text-xs text-muted">Hours</p>
-              <p className="text-xs text-obsidian whitespace-nowrap">{s.hours}</p>
+              <p className="text-xs text-obsidian">{s.hours}</p>
             </div>
           </div>
         ))}

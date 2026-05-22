@@ -369,7 +369,7 @@ function InsightsPanel() {
               <BarChart data={funnelData} layout="vertical" margin={{ top: 4, right: 16, bottom: 4, left: 4 }}>
                 <CartesianGrid strokeDasharray="2 3" stroke={COLORS.sand} horizontal={false} />
                 <XAxis type="number" tick={{ fill: COLORS.muted, fontSize: 12 }} axisLine={false} tickLine={false} />
-                <YAxis type="category" dataKey="stage" tick={{ fill: COLORS.obsidian, fontSize: 12 }} axisLine={false} tickLine={false} width={100} />
+                <YAxis type="category" dataKey="stage" tick={{ fill: COLORS.obsidian, fontSize: 11 }} axisLine={false} tickLine={false} width={80} />
                 <Tooltip
                   cursor={{ fill: 'rgba(28,25,23,0.04)' }}
                   contentStyle={{ background: '#fff', border: `1px solid ${COLORS.sand}`, borderRadius: 8, fontSize: 12 }}

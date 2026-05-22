@@ -128,7 +128,7 @@ function MarketingPanel() {
               <BarChart data={funnel} layout="vertical" margin={{ left: 16, right: 32, top: 8, bottom: 8 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#E8E6E1" horizontal={false} />
                 <XAxis type="number" tick={{ fill: COLORS.muted, fontSize: 12 }} axisLine={false} tickLine={false} />
-                <YAxis dataKey="stage" type="category" tick={{ fill: COLORS.obsidian, fontSize: 12 }} axisLine={false} tickLine={false} width={120} />
+                <YAxis dataKey="stage" type="category" tick={{ fill: COLORS.obsidian, fontSize: 11 }} axisLine={false} tickLine={false} width={85} />
                 <Tooltip
                   cursor={{ fill: 'rgba(201, 168, 106, 0.08)' }}
                   contentStyle={{ background: '#fff', border: `1px solid ${COLORS.slate}`, borderRadius: 8, fontSize: 12 }}

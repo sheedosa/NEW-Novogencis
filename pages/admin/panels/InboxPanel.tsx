@@ -312,7 +312,7 @@ function InboxPanel() {
         const taskItems = filtered.filter(i => i.type === 'task' && i.task);
         if (taskItems.length === 0) return null;
         return (
-          <div className="flex items-center justify-between gap-2 bg-cream/60 border border-sand rounded-md px-3 py-2">
+          <div className="flex flex-wrap items-center justify-between gap-2 bg-cream/60 border border-sand rounded-md px-3 py-2">
             <span className="text-xs text-muted">
               {taskItems.length} task{taskItems.length !== 1 ? 's' : ''} in view
             </span>

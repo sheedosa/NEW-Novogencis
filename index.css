@@ -536,6 +536,8 @@ input:focus, textarea:focus  {
 .btn-lg { padding: 12px 24px; font-size: 14px; }
 .btn-icon {
   padding: 8px;
+  min-width: 44px;
+  min-height: 44px;
   border-radius: var(--radius-md);
   background: transparent;
   border: 0.5px solid var(--color-sand);
@@ -544,6 +546,9 @@ input:focus, textarea:focus  {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+}
+@media (min-width: 768px) {
+  .btn-icon { min-width: unset; min-height: unset; }
 }
 .btn-icon:hover { background: var(--color-cream); color: var(--color-obsidian); }
 

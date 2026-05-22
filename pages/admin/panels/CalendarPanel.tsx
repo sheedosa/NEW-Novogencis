@@ -498,7 +498,7 @@ function CalendarPanel() {
       )}
 
       {/* Legend */}
-      <div className="flex items-center justify-center gap-4 text-xs text-muted pt-1">
+      <div className="flex items-center justify-center gap-2 sm:gap-4 text-xs text-muted pt-1">
         <span className="inline-flex items-center gap-1.5">
           <span className="w-3 h-3 rounded-sm bg-chart-sage/15 border border-chart-sage/35" />
           Dr Aminah
