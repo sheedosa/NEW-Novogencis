@@ -24,6 +24,15 @@ import { db } from './index.js';
 
 export const MAILERLITE_API_KEY = defineSecret('MAILERLITE_API_KEY');
 
+// ── PII masking (GDPR data minimisation — no raw emails in logs) ────────────
+
+/** Masks an email for logging: `rasheed@example.com` → `ra***@ex***` */
+export function maskEmail(email: string): string {
+  const [local, domain] = email.split('@');
+  if (!domain) return '***';
+  return `${local.slice(0, 2)}***@${domain.slice(0, 2)}***`;
+}
+
 // ── Types ────────────────────────────────────────────────────────────────────
 
 export interface EmailAttachment {
@@ -170,13 +179,13 @@ export async function sendEmail(message: EmailMessage): Promise<void> {
   try {
     await sendViaMailerLite(message);
     logger.info(
-      `[emailService] ✓ sent "${message.subject}" → ${message.to.email}`,
+      `[emailService] ✓ sent "${message.subject}" → ${maskEmail(message.to.email)}`,
       { metadata: message.metadata },
     );
   } catch (err) {
     const errMsg = err instanceof Error ? err.message : String(err);
     logger.error(
-      `[emailService] ✗ failed to send "${message.subject}" → ${message.to.email}: ${errMsg}`,
+      `[emailService] ✗ failed to send "${message.subject}" → ${maskEmail(message.to.email)}: ${errMsg}`,
     );
     await writeToOutbox(message, 'failed', errMsg);
     throw err;

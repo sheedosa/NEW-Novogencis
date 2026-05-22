@@ -62,7 +62,7 @@ export const stripeWebhook = onRequest(
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       logger.warn(`[stripeWebhook] signature verification failed: ${message}`);
-      res.status(400).send(`Signature verification failed: ${message}`);
+      res.status(400).send('Invalid signature.');
       return;
     }
 
@@ -89,7 +89,7 @@ export const stripeWebhook = onRequest(
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       logger.error(`[stripeWebhook] error handling ${event.type}: ${message}`);
-      res.status(500).send(`Handler error: ${message}`);
+      res.status(500).send('Internal error.');
       return;
     }
 
@@ -160,6 +160,19 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session): Promis
   }
 
   await patientRef.update(updates);
+
+  // Write a PI → clientId lookup doc so refund handler doesn't need a full collection scan.
+  const piId = typeof session.payment_intent === 'string'
+    ? session.payment_intent
+    : (session.payment_intent?.id ?? null);
+  if (piId) {
+    await db.collection('payment_intents').doc(piId).set({
+      clientId: patientId,
+      sessionId: session.id,
+      createdAt: FieldValue.serverTimestamp(),
+    });
+  }
+
   logger.info(`[stripeWebhook] marked payment Paid for session ${session.id} on patient ${patientId}`);
 
   // System log for the audit trail
@@ -190,36 +203,48 @@ async function handleCheckoutExpired(session: Stripe.Checkout.Session): Promise<
 }
 
 async function handleChargeRefunded(charge: Stripe.Charge): Promise<void> {
-  // We track payments by PaymentIntent. Find the patient + payment via the PI.
+  // We track payments by PaymentIntent. Find the patient via the PI lookup doc.
   const piId = typeof charge.payment_intent === 'string' ? charge.payment_intent : charge.payment_intent?.id;
   if (!piId) return;
 
-  // Query every client doc looking for a payment with this PaymentIntent.
-  // Small clinic — acceptable. At scale we'd index this differently.
-  const clientsSnap = await db.collection('clients').get();
-  for (const clientDoc of clientsSnap.docs) {
-    type PaymentLike = { id?: string; status: string; stripePaymentIntentId?: string; refundAmount?: number; [key: string]: unknown };
-    const payments: PaymentLike[] = Array.isArray(clientDoc.data().payments) ? clientDoc.data().payments : [];
-    const idx = payments.findIndex(p => p.stripePaymentIntentId === piId);
-    if (idx === -1) continue;
-    const refundedAmount = charge.amount_refunded / 100;
-    payments[idx] = {
-      ...payments[idx],
-      status: 'Refunded',
-      refundAmount: refundedAmount,
-      refundedAt: new Date().toISOString(),
-    };
-    await clientDoc.ref.update({ payments });
-    await db.collection('system_logs').add({
-      type: 'payment_refunded',
-      patientId: clientDoc.id,
-      stripePaymentIntentId: piId,
-      amount: refundedAmount,
-      timestamp: FieldValue.serverTimestamp(),
-      source: 'stripe_webhook',
-    });
-    logger.info(`[stripeWebhook] refund recorded for PI ${piId} on patient ${clientDoc.id}`);
+  // Use the lookup collection written during checkout.completed — no full scan.
+  const lookupSnap = await db.collection('payment_intents').doc(piId).get();
+  const clientId = lookupSnap.exists ? lookupSnap.data()?.clientId : null;
+
+  if (!clientId) {
+    logger.warn(`[stripeWebhook] no payment_intents lookup for refunded PI ${piId}`);
     return;
   }
-  logger.warn(`[stripeWebhook] no payment record for refunded PI ${piId}`);
+
+  const clientDoc = await db.collection('clients').doc(clientId).get();
+  if (!clientDoc.exists) {
+    logger.warn(`[stripeWebhook] client ${clientId} not found for refunded PI ${piId}`);
+    return;
+  }
+
+  type PaymentLike = { id?: string; status: string; stripePaymentIntentId?: string; refundAmount?: number; [key: string]: unknown };
+  const payments: PaymentLike[] = Array.isArray(clientDoc.data()!.payments) ? clientDoc.data()!.payments : [];
+  const idx = payments.findIndex(p => p.stripePaymentIntentId === piId);
+  if (idx === -1) {
+    logger.warn(`[stripeWebhook] no payment record matching PI ${piId} on client ${clientId}`);
+    return;
+  }
+
+  const refundedAmount = charge.amount_refunded / 100;
+  payments[idx] = {
+    ...payments[idx],
+    status: 'Refunded',
+    refundAmount: refundedAmount,
+    refundedAt: new Date().toISOString(),
+  };
+  await clientDoc.ref.update({ payments });
+  await db.collection('system_logs').add({
+    type: 'payment_refunded',
+    patientId: clientId,
+    stripePaymentIntentId: piId,
+    amount: refundedAmount,
+    timestamp: FieldValue.serverTimestamp(),
+    source: 'stripe_webhook',
+  });
+  logger.info(`[stripeWebhook] refund recorded for PI ${piId} on patient ${clientId}`);
 }

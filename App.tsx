@@ -52,11 +52,13 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boole
           >
             Refresh Page
           </button>
-          <pre className="mt-8 p-4 bg-red-50 text-red-600 rounded-lg text-left overflow-auto max-w-full text-xs">
-            {this.state.error?.toString()}
-            {"\n\n"}
-            {this.state.error?.stack}
-          </pre>
+          {import.meta.env.DEV && (
+            <pre className="mt-8 p-4 bg-red-50 text-red-600 rounded-lg text-left overflow-auto max-w-full text-xs">
+              {this.state.error?.toString()}
+              {"\n\n"}
+              {this.state.error?.stack}
+            </pre>
+          )}
         </div>
       );
     }
@@ -598,10 +600,17 @@ const App: React.FC = () => {
     
     if (user.role === 'client') {
       // Check for pending assessment
-      const pendingAssessmentMatch = localStorage.getItem('pendingAssessment');
+      const pendingAssessmentMatch = sessionStorage.getItem('pendingAssessment') || localStorage.getItem('pendingAssessment');
       if (pendingAssessmentMatch) {
         try {
           const pendingData = JSON.parse(pendingAssessmentMatch);
+          // Expire health data after 30 minutes (GDPR data minimisation)
+          const THIRTY_MINUTES = 30 * 60 * 1000;
+          if (pendingData._storedAt && Date.now() - pendingData._storedAt > THIRTY_MINUTES) {
+            sessionStorage.removeItem('pendingAssessment');
+            localStorage.removeItem('pendingAssessment');
+            throw new Error('Pending assessment expired');
+          }
           const { answers, formData, gender } = pendingData;
           
           let doctorPreference: 'female-only' | 'ok-with-male' | undefined = undefined;
@@ -634,7 +643,8 @@ const App: React.FC = () => {
           }
 
           await setDoc(doc(db, 'clients', user.id), cleanData(clientUpdates), { merge: true });
-          localStorage.removeItem('pendingAssessment');
+          sessionStorage.removeItem('pendingAssessment');
+          localStorage.removeItem('pendingAssessment'); // clean up legacy storage
         } catch (error) {
           console.error("Error linking pending assessment:", error);
         }

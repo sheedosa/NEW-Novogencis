@@ -30,6 +30,7 @@ import {
   buildEmailText,
   MAILERLITE_API_KEY,
   FROM_NOREPLY,
+  maskEmail,
 } from './emailService.js';
 import { buildAftercarePdf, DEFAULT_CLINIC } from './pdfGenerator.js';
 
@@ -104,7 +105,7 @@ export const sendAftercareEmail = onDocumentWritten(
     }
 
     logger.info(
-      `[sendAftercareEmail][${appointmentId}] sending aftercare to ${patientEmail}`,
+      `[sendAftercareEmail][${appointmentId}] sending aftercare to ${maskEmail(patientEmail)}`,
     );
 
     // ── Build aftercare PDF ──────────────────────────────────────────────────

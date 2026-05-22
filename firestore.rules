@@ -262,6 +262,14 @@ service cloud.firestore {
       allow create, update, delete: if false; // Cloud Functions only
     }
 
+    // ── Payment intent lookups (PI → clientId mapping) ────────────────
+    // Written by stripeWebhook Cloud Function (Admin SDK). Used for
+    // efficient refund lookups without scanning all clients. No client access.
+    match /payment_intents/{docId} {
+      allow read: if isAdmin();
+      allow create, update, delete: if false; // Cloud Functions only
+    }
+
     // ── Default deny ──────────────────────────────────────────────────
     // Any path not explicitly granted above is rejected.
     match /{document=**} {

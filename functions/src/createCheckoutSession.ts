@@ -45,6 +45,23 @@ interface CreateCheckoutOutput {
 
 const PORTAL_BASE_URL = 'https://gen-lang-client-0344977334.web.app';
 
+/** Allowed origins for Stripe redirect URLs — prevents open redirect attacks. */
+const ALLOWED_REDIRECT_ORIGINS = [
+  'https://gen-lang-client-0344977334.web.app',
+  'https://novogenics.co.uk',
+  'https://www.novogenics.co.uk',
+];
+
+function validateRedirectUrl(url: string | undefined, fallback: string): string {
+  if (!url) return fallback;
+  try {
+    const parsed = new URL(url);
+    if (ALLOWED_REDIRECT_ORIGINS.includes(parsed.origin)) return url;
+  } catch { /* invalid URL */ }
+  logger.warn(`[createCheckoutSession] Rejected redirect URL: ${url}`);
+  return fallback;
+}
+
 export const createCheckoutSession = onCall<CreateCheckoutInput, Promise<CreateCheckoutOutput>>(
   {
     region: 'europe-west2',
@@ -54,13 +71,11 @@ export const createCheckoutSession = onCall<CreateCheckoutInput, Promise<CreateC
     memory: '256MiB',
   },
   async (req) => {
-    // ── Auth: admin only ─────────────────────────────────────────────────────
+    // ── Auth: admin only (custom claims — no Firestore fallback) ───────────
     if (!req.auth?.uid) {
       throw new HttpsError('unauthenticated', 'Sign in required.');
     }
-    const userDoc = await db.collection('users').doc(req.auth.uid).get();
-    const isAdmin = req.auth.token.admin === true || userDoc.data()?.role === 'admin';
-    if (!isAdmin) {
+    if (req.auth.token.admin !== true) {
       throw new HttpsError('permission-denied', 'Admin only.');
     }
 
@@ -121,8 +136,8 @@ export const createCheckoutSession = onCall<CreateCheckoutInput, Promise<CreateC
             },
           },
         }],
-        success_url: successUrl ?? `${PORTAL_BASE_URL}/#client-dashboard?payment=success&session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url:  cancelUrl  ?? `${PORTAL_BASE_URL}/#client-dashboard?payment=cancelled`,
+        success_url: validateRedirectUrl(successUrl, `${PORTAL_BASE_URL}/#client-dashboard?payment=success&session_id={CHECKOUT_SESSION_ID}`),
+        cancel_url:  validateRedirectUrl(cancelUrl,  `${PORTAL_BASE_URL}/#client-dashboard?payment=cancelled`),
         // Metadata is preserved on the session + payment intent — the webhook
         // uses this to reconcile back to our Firestore docs.
         metadata: {
@@ -138,7 +153,7 @@ export const createCheckoutSession = onCall<CreateCheckoutInput, Promise<CreateC
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       logger.error(`[createCheckoutSession] Stripe error for patient ${patientId}: ${message}`);
-      throw new HttpsError('internal', `Stripe checkout creation failed: ${message}`);
+      throw new HttpsError('internal', 'Payment processing failed. Please try again or contact the clinic.');
     }
 
     if (!session.url || !session.id) {

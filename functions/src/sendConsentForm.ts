@@ -32,6 +32,7 @@ import {
   buildEmailText,
   MAILERLITE_API_KEY,
   FROM_NOREPLY,
+  maskEmail,
 } from './emailService.js';
 import { buildConsentPdf, DEFAULT_CLINIC } from './pdfGenerator.js';
 
@@ -122,7 +123,7 @@ export const sendConsentForm = onDocumentWritten(
     }
 
     logger.info(
-      `[sendConsentForm][${appointmentId}] sending consent form to ${patientEmail}`,
+      `[sendConsentForm][${appointmentId}] sending consent form to ${maskEmail(patientEmail)}`,
     );
 
     // ── Build PDF ────────────────────────────────────────────────────────────

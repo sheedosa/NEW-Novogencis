@@ -44,13 +44,11 @@ export const createRefund = onCall<CreateRefundInput, Promise<CreateRefundOutput
     memory: '256MiB',
   },
   async (req) => {
-    // ── Auth: admin only ─────────────────────────────────────────────────────
+    // ── Auth: admin only (custom claims — no Firestore fallback) ───────────
     if (!req.auth?.uid) {
       throw new HttpsError('unauthenticated', 'Sign in required.');
     }
-    const userDoc = await db.collection('users').doc(req.auth.uid).get();
-    const isAdmin = req.auth.token.admin === true || userDoc.data()?.role === 'admin';
-    if (!isAdmin) {
+    if (req.auth.token.admin !== true) {
       throw new HttpsError('permission-denied', 'Admin only.');
     }
 
@@ -109,7 +107,7 @@ export const createRefund = onCall<CreateRefundInput, Promise<CreateRefundOutput
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       logger.error(`[createRefund] Stripe error for payment ${paymentId}: ${message}`);
-      throw new HttpsError('internal', `Stripe refund failed: ${message}`);
+      throw new HttpsError('internal', 'Refund processing failed. Please try again or contact support.');
     }
 
     logger.info(

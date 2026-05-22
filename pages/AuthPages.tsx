@@ -26,28 +26,15 @@ const AuthPages: React.FC<AuthPagesProps> = ({ onLogin, onNavigate }) => {
     setError('');
 
     const input = username.trim().toLowerCase();
-    let loginEmail = input;
-    
-    const adminMapping: Record<string, string> = {
-      'rasheed_admin': 'rasheedamer99@gmail.com',
-      'rasheed': 'rasheedamer99@gmail.com',
-      'aminah_amer': 'aminah_amer@hotmail.com',
-      'waqas_farid': 'wfarid812@gmail.com',
-      'aminah_doctor': 'aminah_doctor@novogenics.internal',
-      'waqass_doctor': 'waqass_doctor@novogenics.internal'
-    };
 
-    // Smart mapping: if it's not an email, try to map it
+    // Require email-based login — no username mapping (security: prevents
+    // PII exposure in the client bundle).
     if (!input.includes('@')) {
-      if (adminMapping[input]) {
-        loginEmail = adminMapping[input];
-      } else {
-        // For non-admin usernames, we don't have a deterministic mapping anymore
-        // because clients use their real emails. We'll try the legacy internal 
-        // fallback just in case, but we should probably warn them.
-        loginEmail = `${input}@novogenics.internal`;
-      }
+      setError('Please sign in with your email address.');
+      setLoading(false);
+      return;
     }
+    const loginEmail = input;
 
     try {
       const userCredential = await signInWithEmailAndPassword(auth, loginEmail, password);
@@ -65,13 +52,7 @@ const AuthPages: React.FC<AuthPagesProps> = ({ onLogin, onNavigate }) => {
         const userWithId = { ...userData, id: userData.id || userCredential.user.uid };
         onLogin(userWithId);
       } else {
-        // If Auth succeeded but profile is missing, it's a "zombie" account
-        // or a mismatch in login method.
-        if (!input.includes('@')) {
-          setError('User profile not found. Please try signing in with your email address instead of your username.');
-        } else {
-          setError('User profile not found. Please contact the clinic to verify your account status.');
-        }
+        setError('User profile not found. Please contact the clinic to verify your account status.');
         await signOut(auth);
       }
     } catch (err: unknown) {

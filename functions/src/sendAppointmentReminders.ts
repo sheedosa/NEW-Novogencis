@@ -32,6 +32,7 @@ import {
   buildEmailText,
   MAILERLITE_API_KEY,
   FROM_NOREPLY,
+  maskEmail,
 } from './emailService.js';
 import { buildPreTreatmentPdf, DEFAULT_CLINIC } from './pdfGenerator.js';
 
@@ -131,7 +132,7 @@ export const sendAppointmentReminders = onSchedule(
       }
 
       logger.info(
-        `[sendAppointmentReminders][${apptId}] sending reminder to ${patientEmail}`,
+        `[sendAppointmentReminders][${apptId}] sending reminder to ${maskEmail(patientEmail)}`,
       );
 
       // ── Build pre-treatment PDF ──────────────────────────────────────────

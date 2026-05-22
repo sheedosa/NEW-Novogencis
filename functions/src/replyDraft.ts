@@ -38,14 +38,11 @@ export const draftReply = onCall(
     memory: '256MiB',
   },
   async (req) => {
-    // ── Auth check ───────────────────────────────────────────────────────────
+    // ── Auth: admin only (custom claims — no Firestore fallback) ───────────
     if (!req.auth?.uid) {
       throw new HttpsError('unauthenticated', 'Sign in required.');
     }
-
-    const userDoc = await db.collection('users').doc(req.auth.uid).get();
-    const isAdmin = req.auth.token.admin === true || userDoc.data()?.role === 'admin';
-    if (!isAdmin) {
+    if (req.auth.token.admin !== true) {
       throw new HttpsError('permission-denied', 'Admin only.');
     }
 
@@ -127,7 +124,7 @@ Draft a reply.`;
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       logger.error(`[draftReply] ${clientId} failed`, { error: message });
-      throw new HttpsError('internal', `AI draft failed: ${message}`);
+      throw new HttpsError('internal', 'Draft generation temporarily unavailable. Please try again.');
     }
   },
 );

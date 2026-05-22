@@ -28,16 +28,11 @@ service firebase.storage {
       return request.auth != null;
     }
 
-    // Admin = either a custom-claim admin OR a Firestore doc with role='admin'.
-    // We check the Firestore doc lazily; Storage rules cannot do `exists()`
-    // safely on all paths so we rely primarily on the custom claim. Set the
-    // claim from a Cloud Function on admin bootstrap (recommended).
+    // Admin = custom-claim admin ONLY. The custom claim must be set from a
+    // Cloud Function during admin bootstrap. No email-domain fallback — that
+    // pattern allows privilege escalation via self-registered emails.
     function isAdmin() {
-      return isAuthenticated() && (
-        request.auth.token.admin == true ||
-        (request.auth.token.email != null &&
-         request.auth.token.email.matches('.*@novogenics[.]internal$'))
-      );
+      return isAuthenticated() && request.auth.token.admin == true;
     }
 
     function isOwner(clientId) {

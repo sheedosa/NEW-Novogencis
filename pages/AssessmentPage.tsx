@@ -471,7 +471,8 @@ const AssessmentPage: React.FC<AssessmentPageProps> = ({ onNavigate, onIntakeCom
     } catch (err: unknown) {
       const authError = err as { code?: string };
       if (authError.code === 'auth/email-already-in-use') {
-        localStorage.setItem('pendingAssessment', JSON.stringify({ answers, formData, gender }));
+        // Use sessionStorage (cleared on tab close) + TTL for health data protection (GDPR Art 9)
+        sessionStorage.setItem('pendingAssessment', JSON.stringify({ answers, formData, gender, _storedAt: Date.now() }));
         setError('email_exists'); // Use a specific error state
       } else if (authError.code === 'auth/weak-password') {
         setError('Password is too weak. Please use at least 6 characters.');
