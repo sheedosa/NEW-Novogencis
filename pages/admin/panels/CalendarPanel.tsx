@@ -1,5 +1,6 @@
 import React, { memo, useState, useMemo } from 'react';
 import { useAdminContext } from '../context';
+import type { Appointment } from '../../../types';
 import {
   ChevronLeft, ChevronRight, Plus, Calendar as CalendarIcon,
   List, LayoutGrid, Users as UsersIcon, User as UserIcon, Filter,
@@ -242,7 +243,7 @@ function CalendarPanel() {
 
       {/* ── Workload heatmap (week-view only) — quick read of utilisation ── */}
       {view === 'week' && (() => {
-        const SLOTS_PER_DAY = HOURS.length;  // 9 hours = 9 slots per day for a 1-per-hour clinic
+        const SLOTS_PER_DAY = HOURS.length;  // 14 hours (09:00–22:00) = 14 slots per day
         const todayStr = new Date().toISOString().split('T')[0];
         const days = weekDates.map(d => {
           const ds = d.toISOString().split('T')[0];
@@ -315,7 +316,7 @@ function CalendarPanel() {
               {/* Grid: hours × days */}
               <div className="relative" style={{ height: `${HOURS.length * SLOT_HEIGHT}px` }}>
                 {/* Hour rows (background) */}
-                <div className="absolute inset-0 grid grid-cols-[40px_repeat(7,1fr)] sm:grid-cols-[60px_repeat(7,1fr)] grid-rows-[repeat(9,60px)]">
+                <div className="absolute inset-0 grid grid-cols-[40px_repeat(7,1fr)] sm:grid-cols-[60px_repeat(7,1fr)] grid-rows-[repeat(14,60px)]">
                   {HOURS.map((h, hi) =>
                     [-1, 0, 1, 2, 3, 4, 5, 6].map(col =>
                       col === -1 ? (
@@ -359,7 +360,7 @@ function CalendarPanel() {
                           top: `${topPct * 100}%`,
                           left: `calc(60px + ${dayIdx} * ${colWidth} + 2px)`,
                           width: `calc(${colWidth} - 4px)`,
-                          height: '52px',
+                          height: `${Math.max(24, ((apt.durationMin ?? 30) / 60) * SLOT_HEIGHT)}px`,
                         }}
                         onClick={() => openBookingModal(apt.clientId)}
                         title={`${apt.clientName} · ${apt.type} · ${apt.time}`}
@@ -387,7 +388,7 @@ function CalendarPanel() {
             />
           ) : null}
           <div className="relative" style={{ height: `${HOURS.length * SLOT_HEIGHT}px` }}>
-            <div className="absolute inset-0 grid grid-cols-[40px_1fr] sm:grid-cols-[60px_1fr] grid-rows-[repeat(9,60px)]">
+            <div className="absolute inset-0 grid grid-cols-[40px_1fr] sm:grid-cols-[60px_1fr] grid-rows-[repeat(14,60px)]">
               {HOURS.map((h, hi) => (
                 <React.Fragment key={hi}>
                   <div className="text-xs text-hint pr-2 text-right pt-1 -translate-y-1.5">
@@ -421,7 +422,7 @@ function CalendarPanel() {
                     top: `${topPct * 100}%`,
                     left: '64px',
                     right: '8px',
-                    height: '52px',
+                    height: `${Math.max(36, ((apt.durationMin ?? 30) / 60) * SLOT_HEIGHT)}px`,
                   }}
                   onClick={() => openBookingModal(apt.clientId)}
                   title={apt.clientName}
@@ -471,15 +472,16 @@ function CalendarPanel() {
                     <p className="text-sm font-medium text-obsidian truncate">{apt.clientName}</p>
                     <p className="text-xs text-muted truncate">{apt.type}{apt.doctorName ? ` · ${apt.doctorName}` : ''}</p>
                   </div>
-                  <StatusBadge status={apt.status} />
+                  <select
+                    value={apt.status}
+                    onChange={(e) => onUpdateAppointment(apt.id, { status: e.target.value as Appointment['status'] })}
+                    className="text-xs bg-cream/60 border border-sand/40 rounded-lg px-2 py-1 font-medium focus:ring-2 focus:ring-primary/20 cursor-pointer"
+                  >
+                    {['Confirmed','Pending','Awaiting deposit','Completed','Cancelled','No-Show'].map(s => (
+                      <option key={s} value={s}>{s}</option>
+                    ))}
+                  </select>
                   <div className="flex items-center gap-1 shrink-0">
-                    <button
-                      onClick={() => onUpdateAppointment(apt.id, { status: apt.status === 'Confirmed' ? 'Completed' : 'Confirmed' })}
-                      className="btn-icon"
-                      title="Toggle status"
-                    >
-                      <CheckCircle size={13} />
-                    </button>
                     <button
                       onClick={() => onDeleteAppointment(apt.id)}
                       className="btn-icon hover:!text-danger"

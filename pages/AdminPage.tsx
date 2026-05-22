@@ -137,7 +137,10 @@ const AdminPage: React.FC<AdminPageProps> = ({
   const isAssignedToUser = useCallback((client: Client, targetUser: User | null) => {
     if (!targetUser) return false;
     if (targetUser.adminType === 'technical') return false;
-    return appointments.some(a => a.clientId === client.id && a.doctorId === targetUser.id);
+    return appointments.some(a =>
+      a.clientId === client.id &&
+      (a.doctorId === targetUser.id || a.doctorName === targetUser.fullName),
+    );
   }, [appointments]);
 
   const isAssignedToMe = useCallback((client: Client | undefined) => {

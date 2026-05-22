@@ -250,7 +250,8 @@ export interface FAQItem {
   answer: string;
 }
 
-export interface Treatment {
+/** Public-facing treatment info shown on the website Treatments page. */
+export interface PublicTreatment {
   id: string;
   name: string;
   whatIsIt: string;

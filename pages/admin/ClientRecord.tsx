@@ -135,6 +135,19 @@ const ClientRecord: React.FC = () => {
     return [];
   })();
 
+  /** Parse "10:30 AM" into minutes since midnight for conflict checks. */
+  const parseTime12h = (t: string | undefined): number | null => {
+    if (!t) return null;
+    const m = t.trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+    if (!m) return null;
+    let h = parseInt(m[1], 10);
+    const min = parseInt(m[2], 10);
+    const ampm = m[3].toUpperCase();
+    if (ampm === 'PM' && h !== 12) h += 12;
+    if (ampm === 'AM' && h === 12) h = 0;
+    return h * 60 + min;
+  };
+
   const openReschedule = (apt: Appointment) => {
     setRescheduleApt(apt);
     setRescheduleForm({ date: apt.date, time: apt.time });
@@ -144,6 +157,33 @@ const ClientRecord: React.FC = () => {
   const submitReschedule = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!rescheduleApt || !rescheduleForm.date || !rescheduleForm.time) return;
+
+    // Conflict check — same logic as BookingModal, excluding the appointment being rescheduled
+    const clinicianId = rescheduleApt.clinicianId;
+    if (clinicianId && rescheduleForm.date && rescheduleForm.time) {
+      const start = parseTime12h(rescheduleForm.time);
+      if (start !== null) {
+        const end = start + (rescheduleApt.durationMin ?? 30);
+        const conflict = appointments.find(a => {
+          if (a.id === rescheduleApt.id) return false;
+          if (a.clinicianId !== clinicianId) return false;
+          if (a.date !== rescheduleForm.date) return false;
+          if (a.status === 'Cancelled' || a.status === 'No-Show') return false;
+          const aStart = parseTime12h(a.time);
+          if (aStart === null) return false;
+          const aEnd = aStart + (a.durationMin ?? 30);
+          return start < aEnd && end > aStart;
+        });
+        if (conflict) {
+          alert(
+            `Conflict: ${conflict.doctorName ?? 'This clinician'} already has "${conflict.type}" ` +
+            `with ${conflict.clientName} at ${conflict.time} on ${conflict.date}. Pick a different time.`,
+          );
+          return;
+        }
+      }
+    }
+
     setRescheduleStatus('saving');
     try {
       await onUpdateAppointment(rescheduleApt.id, { date: rescheduleForm.date, time: rescheduleForm.time });
