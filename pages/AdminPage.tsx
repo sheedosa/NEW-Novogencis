@@ -982,25 +982,15 @@ const AdminPage: React.FC<AdminPageProps> = ({
                     <option value="" disabled>Choose a treatment…</option>
                     {treatments.map(t => (
                       <option key={t.id} value={t.id}>
-                        {t.name} · {t.durationMin}min · {t.fullPricePence === 0 ? 'Free' : `£${(t.fullPricePence / 100).toFixed(0)}`}
+                        {t.name} · {t.durationMin} min
                       </option>
                     ))}
                   </Select>
 
                   {/* Treatment summary — small confirmation strip */}
                   {selectedTreatment && (
-                    <div className="rounded-md bg-cream/60 px-3 py-2.5 flex items-center justify-between text-xs">
-                      <span className="text-muted">
-                        Duration <span className="text-obsidian font-medium">{selectedTreatment.durationMin} min</span>
-                      </span>
-                      <span className="text-muted">
-                        Full price <span className="text-obsidian font-medium">£{(selectedTreatment.fullPricePence / 100).toFixed(0)}</span>
-                      </span>
-                      <span className="text-muted">
-                        Deposit <span className="text-obsidian font-medium">
-                          {selectedTreatment.depositPct === 0 ? '—' : `£${(depositPence / 100).toFixed(0)} (${selectedTreatment.depositPct}%)`}
-                        </span>
-                      </span>
+                    <div className="rounded-md bg-cream/60 px-3 py-2.5 text-xs text-muted">
+                      Duration <span className="text-obsidian font-medium">{selectedTreatment.durationMin} min</span>
                     </div>
                   )}
 
@@ -1038,7 +1028,7 @@ const AdminPage: React.FC<AdminPageProps> = ({
                       value={bookingForm.time || ''}
                       onChange={(e) => setBookingForm(prev => ({ ...prev, time: e.target.value }))}
                     >
-                      {['09:00 AM','09:30 AM','10:00 AM','10:30 AM','11:00 AM','11:30 AM','12:00 PM','12:30 PM','01:00 PM','01:30 PM','02:00 PM','02:30 PM','03:00 PM','03:30 PM','04:00 PM','04:30 PM','05:00 PM','05:30 PM'].map(t => <option key={t} value={t}>{t}</option>)}
+                      {['09:00 AM','09:30 AM','10:00 AM','10:30 AM','11:00 AM','11:30 AM','12:00 PM','12:30 PM','01:00 PM','01:30 PM','02:00 PM','02:30 PM','03:00 PM','03:30 PM','04:00 PM','04:30 PM','05:00 PM','05:30 PM','06:00 PM','06:30 PM','07:00 PM','07:30 PM','08:00 PM','08:30 PM','09:00 PM','09:30 PM','10:00 PM'].map(t => <option key={t} value={t}>{t}</option>)}
                     </Select>
                   </div>
 
@@ -1064,9 +1054,7 @@ const AdminPage: React.FC<AdminPageProps> = ({
                   <div className="flex items-center justify-end gap-2 pt-2">
                     <Button variant="ghost" onClick={() => setShowBookingModal(false)}>Cancel</Button>
                     <Button type="submit" variant="primary" disabled={!!liveConflict}>
-                      {selectedTreatment && selectedTreatment.depositPct > 0
-                        ? `Confirm · £${(depositPence / 100).toFixed(0)} deposit`
-                        : 'Confirm appointment'}
+                      Confirm appointment
                     </Button>
                   </div>
                 </form>
