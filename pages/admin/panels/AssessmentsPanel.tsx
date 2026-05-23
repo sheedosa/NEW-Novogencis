@@ -9,7 +9,7 @@ import {
   Siren, ArrowRight, Sparkles, RefreshCw, Brain, FileText,
 } from 'lucide-react';
 import {
-  PageHeader, Card, CardHeader, Badge, StatusBadge, Button, EmptyState, AISurface,
+  PageHeader, Card, CardHeader, Badge, StatusBadge, Button, EmptyState, AISurface, useToast,
 } from '../../../components/ui';
 
 const SUITABILITY_VARIANT: Record<AITriage['suitability'], 'active' | 'pending' | 'danger'> = {
@@ -25,6 +25,7 @@ const SUITABILITY_LABEL: Record<AITriage['suitability'], string> = {
 };
 
 function AssessmentsPanel() {
+  const { toast } = useToast();
   const {
     filteredClients,
     triageSelectedId,
@@ -261,7 +262,7 @@ function AssessmentsPanel() {
                       setTriageSelectedId(next?.id || reviewedTriage[0]?.id || null);
                     } catch (e) {
                       console.error('Feedback error:', e);
-                      alert('Failed to submit feedback. Please try again.');
+                      toast.error('Failed to submit feedback', { description: 'Please try again.' });
                     }
                   }}
                 />

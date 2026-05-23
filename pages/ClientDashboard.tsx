@@ -11,7 +11,7 @@ import {
 import {
   Button, Input, Modal, PageHeader, EmptyState, StatusBadge as UIStatusBadge,
   Stat, Card as UICard, CardHeader, SidebarItem as UISidebarItem,
-  BottomNav,
+  BottomNav, useToast,
 } from '../components/ui';
 import { Page, User, Appointment, Client, Message, GalleryItem } from '../types';
 import { FORMS } from '../constants';
@@ -220,6 +220,7 @@ const MessagesTab = memo(function MessagesTab({ userMessages, user, onSendMessag
 });
 
 const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNavigate, appointments, clients, messages, notifications, onMarkNotificationRead, onSendMessage, onMarkMessageRead, onUpdateMessage, onUpdateClient, onAcceptPolicies }) => {
+  const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<Tab>('overview');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isFormSaving, setIsFormSaving] = useState(false);
@@ -264,7 +265,7 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
     if (file) {
       const error = validateImageFile(file);
       if (error) {
-        alert(error);
+        toast.error(error);
         e.target.value = '';
         return;
       }
@@ -327,11 +328,11 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
       setGalleryUploadLabel('');
       setGalleryUploadPreview(null);
       setUploadProgress(0);
-      alert('Photo uploaded successfully.');
+      toast.success('Photo uploaded');
     } catch (error) {
       const msg = error instanceof Error ? error.message : 'Failed to upload photo. Please try again.';
       console.error('Error uploading gallery photo:', error);
-      alert(msg);
+      toast.error('Upload failed', { description: msg });
     } finally {
       setIsUploading(false);
       setUploadProgress(0);
@@ -415,7 +416,7 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
       setIsEditingProfile(false);
     } catch (error) {
       console.error('Failed to save profile:', error);
-      alert('Failed to save profile updates. Please try again.');
+      toast.error('Save failed', { description: 'Please try again.' });
     } finally {
       setIsSavingProfile(false);
     }

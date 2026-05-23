@@ -5,7 +5,7 @@ import {
   CalendarDays, Users as UsersIcon, User as UserIcon, Plus,
 } from 'lucide-react';
 import {
-  PageHeader, Card, Button, StatusBadge, EmptyState,
+  PageHeader, Card, Button, StatusBadge, EmptyState, useConfirm,
 } from '../../../components/ui';
 
 const AppointmentsPanel: React.FC = () => {
@@ -21,12 +21,25 @@ const AppointmentsPanel: React.FC = () => {
     changeMonth, getCalendarDays,
   } = useAdminContext();
 
+  const { confirm, ConfirmHost } = useConfirm();
+
+  const handleDelete = async (id: string, clientName: string) => {
+    const ok = await confirm({
+      title: 'Delete this appointment?',
+      description: `This will permanently remove ${clientName}'s appointment. This action cannot be undone.`,
+      confirmLabel: 'Delete',
+      tone: 'danger',
+    });
+    if (ok) await onDeleteAppointment(id);
+  };
+
   const sortedAppointments = [...appointments].sort(
     (a, b) => new Date(a.date || 0).getTime() - new Date(b.date || 0).getTime(),
   );
 
   return (
     <div className="animate-fade-up flex flex-col gap-4">
+      {ConfirmHost}
       <PageHeader
         title="Appointments"
         subtitle={`${appointments.length} scheduled`}
@@ -122,7 +135,7 @@ const AppointmentsPanel: React.FC = () => {
                           <CheckCircle size={13} />
                         </button>
                         <button
-                          onClick={() => onDeleteAppointment(apt.id)}
+                          onClick={() => handleDelete(apt.id, apt.clientName)}
                           className="btn-icon hover:!text-danger"
                           aria-label="Delete"
                         >
@@ -176,7 +189,7 @@ const AppointmentsPanel: React.FC = () => {
                               <CheckCircle size={13} />
                             </button>
                             <button
-                              onClick={() => onDeleteAppointment(apt.id)}
+                              onClick={() => handleDelete(apt.id, apt.clientName)}
                               className="btn-icon hover:!text-danger"
                               title="Delete"
                             >

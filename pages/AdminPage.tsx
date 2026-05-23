@@ -6,7 +6,7 @@ import { InteractiveForm } from '../components/InteractiveForm';
 import Logo from '../components/Logo';
 import { storage, db } from '../firebase';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
-import { collection, onSnapshot, query, where } from 'firebase/firestore';
+import { collection, onSnapshot, query, where, doc, updateDoc, arrayUnion } from 'firebase/firestore';
 import {
   Camera, Upload, X, PanelLeftClose, PanelLeftOpen, Menu, Search, Bell, BellOff,
   LogOut, Sun, CalendarDays, Settings, ChevronsUpDown, Eye,
@@ -15,7 +15,7 @@ import {
   StickyNote, CreditCard, Star, ChevronDown, UserCheck,
   Receipt, BarChart3, ListChecks, TrendingUp,
 } from 'lucide-react';
-import { Button, Modal, Input, Select, Textarea, SidebarItem as UISidebarItem, EmptyState, CommandPalette } from '../components/ui';
+import { Button, Modal, Input, Select, Textarea, SidebarItem as UISidebarItem, EmptyState, CommandPalette, useToast, BottomNav } from '../components/ui';
 import type { CommandItem } from '../components/ui';
 import { processImageForUpload, validateImageFile, ACCEPTED_IMAGE_TYPES } from '../imageUtils';
 import { logClinicalAction } from '../utils/auditLogger';
@@ -48,6 +48,7 @@ const AdminPage: React.FC<AdminPageProps> = ({
   templates, onAddTemplate, onUpdateTemplate, onDeleteTemplate,
   viewAsTestPatient, onSetViewAsTestPatient, onSeedDummyPatient,
 }) => {
+  const { toast } = useToast();
   // ── UI state ───────────────────────────────────────────────────────────────
   const [activeTab, setActiveTab]                   = useState<AdminTab>('overview');
   const [effectiveAdminType, setEffectiveAdminType] = useState<AdminType | 'all'>(user?.adminType || 'all');
@@ -153,14 +154,14 @@ const AdminPage: React.FC<AdminPageProps> = ({
     const file = e.target.files?.[0];
     if (!file) return;
     const error = validateImageFile(file);
-    if (error) { alert(error); e.target.value = ''; return; }
+    if (error) { toast.error(error); e.target.value = ''; return; }
     setGalleryUploadFile(file);
     const reader = new FileReader();
     reader.onloadend = () => setGalleryUploadPreview(reader.result as string);
     reader.readAsDataURL(file);
   };
 
-  const handleGalleryUpload = async (clientId: string, currentGallery: GalleryItem[] = []) => {
+  const handleGalleryUpload = async (clientId: string) => {
     if (!galleryUploadFile) return;
     setIsUploading(true);
     setUploadProgress(0);
@@ -183,17 +184,18 @@ const AdminPage: React.FC<AdminPageProps> = ({
         uploadedAt: new Date().toISOString(),
         source: 'Clinical',
       };
-      await onUpdateClient(clientId, { gallery: [...currentGallery, newItem] });
+      // Use arrayUnion to avoid race conditions when two admins upload concurrently
+      await updateDoc(doc(db, 'clients', clientId), { gallery: arrayUnion(newItem) });
       setShowGalleryUpload(false);
       setGalleryUploadFile(null);
       setGalleryUploadLabel('');
       setGalleryUploadPreview(null);
       setUploadProgress(0);
-      alert('Photo uploaded successfully.');
+      toast.success('Photo uploaded');
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : 'Failed to upload.';
       console.error('Gallery upload error:', error);
-      alert(msg);
+      toast.error('Upload failed', { description: msg });
     } finally {
       setIsUploading(false);
     }
@@ -376,10 +378,10 @@ const AdminPage: React.FC<AdminPageProps> = ({
     });
     if (conflict) {
       const clinicianName = CLINICIANS.find(c => c.id === bookingForm.clinicianId)?.name ?? 'this clinician';
-      alert(
-        `Booking conflict: ${clinicianName} already has "${conflict.type}" with ${conflict.clientName} ` +
-        `at ${conflict.time} on ${conflict.date}. Pick a different time or clinician.`,
-      );
+      toast.error('Booking conflict', {
+        description: `${clinicianName} already has "${conflict.type}" with ${conflict.clientName} at ${conflict.time} on ${conflict.date}. Pick a different time or clinician.`,
+        duration: 8000,
+      });
       return;
     }
 
@@ -464,7 +466,7 @@ const AdminPage: React.FC<AdminPageProps> = ({
       });
     } catch (error) {
       console.error('Failed to send form:', error);
-      alert('Failed to send form. Please try again.');
+      toast.error('Failed to send form', { description: 'Please try again.' });
     }
   };
 
@@ -545,7 +547,9 @@ const AdminPage: React.FC<AdminPageProps> = ({
   }, [clients, setActiveTab, setShowBookingModal, setShowNotifications, onLogout, setSelectedClientId]);
 
   // ── Context value ──────────────────────────────────────────────────────────
-  const ctx = {
+  // Memoised so consumer panels don't re-render when AdminPage re-renders for
+  // unrelated reasons (e.g. App.tsx onSnapshot deltas to other collections).
+  const ctx = React.useMemo(() => ({
     // Props
     user, onLogout, onNavigate, clients, appointments, messages, notifications,
     onAddAppointment, onUpdateAppointment, onDeleteAppointment,
@@ -596,7 +600,28 @@ const AdminPage: React.FC<AdminPageProps> = ({
     templates, onAddTemplate, onUpdateTemplate, onDeleteTemplate,
     // Preview mode (view as test patient)
     viewAsTestPatient, onSetViewAsTestPatient, onSeedDummyPatient,
-  };
+  }), [
+    user, onLogout, onNavigate, clients, appointments, messages, notifications,
+    onAddAppointment, onUpdateAppointment, onDeleteAppointment,
+    onSendMessage, onMarkMessageRead, onUpdateMessage, onUpdateClient,
+    onMarkNotificationRead, tasks, onAddTask, onUpdateTask, onDeleteTask,
+    onSaveTreatmentPlan, onAddPrescription, onUpdatePrescription,
+    onAddPayment, onUpdatePayment,
+    activeTab, effectiveAdminType, selectedClientId, clientRecordTab,
+    isSidebarOpen, isSidebarCollapsed, lightboxImage, showNotifications,
+    uploadProgress, showBookingModal, appointmentView, currentCalendarDate,
+    viewingForm, bookingForm, threadSearch, showQuickActions, selectedThreadId,
+    showOnlyAssigned, showAccountSwitcher, triageSelectedId, notifFilter,
+    showMorningBriefing, isUploading, showGalleryUpload, galleryUploadFile,
+    galleryUploadLabel, galleryUploadPreview,
+    selectedClient, filteredClients, filteredAppointments,
+    filteredNotifications, messageThreads, unreadCount, mockStats,
+    isAssignedToMe, handleFileSelect, handleNotificationClick, clearAll,
+    handleSidebarClick, openBookingModal, handleBookingSubmit,
+    handleSendForm, getCalendarDays,
+    templates, onAddTemplate, onUpdateTemplate, onDeleteTemplate,
+    viewAsTestPatient, onSetViewAsTestPatient, onSeedDummyPatient,
+  ]);
 
   // ── Panel selector ─────────────────────────────────────────────────────────
   // Map legacy tab IDs onto the new structure so external setActiveTab() calls
@@ -938,12 +963,24 @@ const AdminPage: React.FC<AdminPageProps> = ({
             </div>
           </header>
 
-          <div className="portal-content mx-auto" data-scroll key={`${resolvedTab}-${selectedClientId || 'list'}`}>
+          <div className="portal-content mx-auto pb-20 lg:pb-4" data-scroll key={`${resolvedTab}-${selectedClientId || 'list'}`}>
             {/* Each panel applies its own `animate-fade-up` for a soft enter.
                 AnimatePresence-wrapped transitions caused stuck opacity:0 states
                 when rapid tab clicks interrupted mid-flight animations. */}
             {renderPanel()}
           </div>
+
+          {/* Mobile-only bottom nav — 4 most-used surfaces in thumb zone. */}
+          <BottomNav
+            active={resolvedTab}
+            onChange={(id) => handleSidebarClick(id as AdminTab)}
+            items={[
+              { id: 'today',        label: 'Today',     icon: <Sun size={18} />,          badge: todayBadge },
+              { id: 'inbox',        label: 'Inbox',     icon: <Inbox size={18} />,        badge: inboxBadge },
+              { id: 'calendar',     label: 'Calendar',  icon: <CalendarIcon size={18} /> },
+              { id: 'clients',      label: 'Patients',  icon: <Users size={18} /> },
+            ]}
+          />
 
           {/* Booking Modal — treatment-first flow with live conflict warning. */}
           <Modal
@@ -1119,7 +1156,7 @@ const AdminPage: React.FC<AdminPageProps> = ({
                 <Button variant="ghost" onClick={() => setShowGalleryUpload(false)} disabled={isUploading}>Cancel</Button>
                 <Button
                   variant="primary"
-                  onClick={() => handleGalleryUpload(selectedClient.id, selectedClient.gallery)}
+                  onClick={() => handleGalleryUpload(selectedClient.id)}
                   disabled={isUploading || !galleryUploadFile}
                   leadingIcon={<Upload size={14} />}
                 >

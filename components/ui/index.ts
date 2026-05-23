@@ -15,3 +15,7 @@ export type { CommandItem } from './CommandPalette';
 export { Avatar, getAvatarTone } from './Avatar';
 export { AISurface } from './AISurface';
 export { BrandMark } from './BrandMark';
+export { ToastProvider, useToast, notify } from './Toast';
+export type { ToastTone } from './Toast';
+export { useConfirm } from './ConfirmDialog';
+export type { ConfirmOptions } from './ConfirmDialog';

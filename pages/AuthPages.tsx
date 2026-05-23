@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { signInWithEmailAndPassword, signOut } from 'firebase/auth';
+import { signInWithEmailAndPassword, signOut, sendPasswordResetEmail } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import { Page, User } from '../types';
 import { auth, db } from '../firebase';
@@ -12,13 +12,17 @@ interface AuthPagesProps {
   onNavigate: (page: Page) => void;
 }
 
+type Mode = 'sign-in' | 'forgot-password';
+
 const AuthPages: React.FC<AuthPagesProps> = ({ onLogin, onNavigate }) => {
+  const [mode, setMode] = useState<Mode>('sign-in');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [verificationSent, setVerificationSent] = useState(false);
+  const [resetSent, setResetSent] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -38,9 +42,9 @@ const AuthPages: React.FC<AuthPagesProps> = ({ onLogin, onNavigate }) => {
 
     try {
       const userCredential = await signInWithEmailAndPassword(auth, loginEmail, password);
-      
+
       let userDoc = await getDoc(doc(db, 'users', userCredential.user.uid));
-      
+
       // Retry once if profile doc isn't visible yet (Firestore propagation can lag).
       if (!userDoc.exists()) {
         await new Promise(resolve => setTimeout(resolve, 2000));
@@ -68,6 +72,64 @@ const AuthPages: React.FC<AuthPagesProps> = ({ onLogin, onNavigate }) => {
     }
   };
 
+  const handlePasswordReset = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+
+    const email = username.trim().toLowerCase();
+    if (!email.includes('@')) {
+      setError('Please enter the email address you signed up with.');
+      setLoading(false);
+      return;
+    }
+
+    try {
+      await sendPasswordResetEmail(auth, email);
+      // Always show success — don't reveal whether the email exists (enumeration protection).
+      setResetSent(true);
+    } catch (err: unknown) {
+      const error = err as { code?: string };
+      // Even on invalid email, show generic success to prevent enumeration —
+      // but still log internally for debugging.
+      console.warn('Password reset:', error.code);
+      setResetSent(true);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ─── Password reset confirmation screen ─────────────────────────────────────
+  if (resetSent) {
+    return (
+      <div className="min-h-screen bg-cream flex items-center justify-center p-6">
+        <div className="w-full max-w-md bg-white rounded-xl shadow-panel p-8 text-center flex flex-col gap-4">
+          <div className="w-12 h-12 rounded-md bg-cream flex items-center justify-center mx-auto text-primary">
+            <Mail size={20} />
+          </div>
+          <h2 className="text-xl font-medium text-obsidian">Check your email</h2>
+          <p className="text-sm text-muted leading-relaxed">
+            If an account exists for <span className="font-medium text-obsidian">{username.trim()}</span>, we've sent
+            a password-reset link. Follow the link in the email to choose a new password.
+          </p>
+          <p className="text-xs text-muted">Didn't receive it? Check your spam folder, or contact the clinic.</p>
+          <Button
+            variant="primary"
+            fullWidth
+            onClick={() => {
+              setResetSent(false);
+              setMode('sign-in');
+              setError('');
+              setPassword('');
+            }}
+          >
+            Back to sign in
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   if (verificationSent) {
     return (
       <div className="min-h-screen bg-cream flex items-center justify-center p-6">
@@ -94,6 +156,66 @@ const AuthPages: React.FC<AuthPagesProps> = ({ onLogin, onNavigate }) => {
     );
   }
 
+  // ─── Forgot password form ───────────────────────────────────────────────────
+  if (mode === 'forgot-password') {
+    return (
+      <div className="min-h-screen bg-cream flex flex-col items-center justify-center p-6">
+        <div className="max-w-sm w-full">
+          <div className="flex justify-center mb-6 cursor-pointer" onClick={() => onNavigate(Page.Home)}>
+            <Logo size="sm" />
+          </div>
+
+          <div className="bg-white rounded-xl shadow-panel border border-sand p-7">
+            <div className="mb-5">
+              <h1 className="text-xl font-medium text-obsidian">Reset your password</h1>
+              <p className="text-sm text-muted mt-1">We'll email you a secure link to set a new password.</p>
+            </div>
+
+            <form onSubmit={handlePasswordReset} className="flex flex-col gap-4">
+              <Input
+                label="Email"
+                type="email"
+                required
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                placeholder="you@example.com"
+                autoComplete="email"
+              />
+
+              {error && (
+                <div role="alert" className="bg-danger-bg text-danger-text text-xs px-3 py-2 rounded-md border border-danger/15">
+                  {error}
+                </div>
+              )}
+
+              <Button type="submit" variant="primary" fullWidth loading={loading}>
+                Send reset link
+              </Button>
+
+              <button
+                type="button"
+                onClick={() => { setMode('sign-in'); setError(''); }}
+                className="text-xs text-muted hover:text-obsidian transition-colors mt-1"
+              >
+                Back to sign in
+              </button>
+            </form>
+          </div>
+
+          <div className="mt-5 text-center">
+            <button
+              onClick={() => onNavigate(Page.Home)}
+              className="text-xs text-muted hover:text-obsidian transition-colors inline-flex items-center gap-1.5"
+            >
+              <ArrowLeft size={13} /> Back to website
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ─── Sign-in form ───────────────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-cream flex flex-col items-center justify-center p-6">
       <div className="max-w-sm w-full">
@@ -110,7 +232,7 @@ const AuthPages: React.FC<AuthPagesProps> = ({ onLogin, onNavigate }) => {
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <Input
               label="Email"
-              type="text"
+              type="email"
               required
               value={username}
               onChange={(e) => setUsername(e.target.value)}
@@ -121,7 +243,13 @@ const AuthPages: React.FC<AuthPagesProps> = ({ onLogin, onNavigate }) => {
             <div className="flex flex-col gap-1.5">
               <div className="flex justify-between items-center">
                 <label className="text-xs font-medium text-muted">Password</label>
-                <button type="button" className="text-xs text-muted hover:text-obsidian transition-colors">Forgot?</button>
+                <button
+                  type="button"
+                  onClick={() => { setMode('forgot-password'); setError(''); setPassword(''); }}
+                  className="text-xs text-muted hover:text-obsidian transition-colors"
+                >
+                  Forgot?
+                </button>
               </div>
               <div className="relative">
                 <input
@@ -144,7 +272,7 @@ const AuthPages: React.FC<AuthPagesProps> = ({ onLogin, onNavigate }) => {
             </div>
 
             {error && (
-              <div className="bg-danger-bg text-danger-text text-xs px-3 py-2 rounded-md border border-danger/15">
+              <div role="alert" className="bg-danger-bg text-danger-text text-xs px-3 py-2 rounded-md border border-danger/15">
                 {error}
               </div>
             )}

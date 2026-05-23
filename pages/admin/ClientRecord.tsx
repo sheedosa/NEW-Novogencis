@@ -12,7 +12,7 @@ import {
   User as UserIcon, MessageSquare, Images, Activity, Receipt, Ban, Bell,
   Phone, Mail, MapPin, StickyNote, ArrowRight, Siren, Calendar as CalendarIcon,
 } from 'lucide-react';
-import { Card as UICard, CardHeader, Button as UIButton, Badge as UIBadge, StatusBadge as UIStatusBadge, EmptyState as UIEmptyState } from '../../components/ui';
+import { Card as UICard, CardHeader, Button as UIButton, Badge as UIBadge, StatusBadge as UIStatusBadge, EmptyState as UIEmptyState, useToast } from '../../components/ui';
 
 type ViewTab = 'snapshot' | 'plan' | 'files' | 'activity' | 'money';
 import { storage } from '../../firebase';
@@ -23,6 +23,7 @@ import { notifyFeedbackReceived, notifyFormSent, notifyPaymentSent } from '../..
 import { Appointment, TreatmentPlan, TreatmentPhase, Prescription, Payment } from '../../types';
 
 const ClientRecord: React.FC = () => {
+  const { toast } = useToast();
   const {
     selectedClient,
     clientRecordTab,
@@ -175,10 +176,10 @@ const ClientRecord: React.FC = () => {
           return start < aEnd && end > aStart;
         });
         if (conflict) {
-          alert(
-            `Conflict: ${conflict.doctorName ?? 'This clinician'} already has "${conflict.type}" ` +
-            `with ${conflict.clientName} at ${conflict.time} on ${conflict.date}. Pick a different time.`,
-          );
+          toast.error('Scheduling conflict', {
+            description: `${conflict.doctorName ?? 'This clinician'} already has "${conflict.type}" with ${conflict.clientName} at ${conflict.time} on ${conflict.date}. Pick a different time.`,
+            duration: 8000,
+          });
           return;
         }
       }

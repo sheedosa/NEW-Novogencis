@@ -7,7 +7,7 @@ import {
   Clock, CheckCircle, X as XIcon, Trash2, BarChart3,
 } from 'lucide-react';
 import {
-  PageHeader, Card, Button, StatusBadge, EmptyState, Badge,
+  PageHeader, Card, Button, StatusBadge, EmptyState, Badge, useConfirm,
 } from '../../../components/ui';
 
 type View = 'week' | 'day' | 'list';
@@ -55,6 +55,18 @@ function CalendarPanel() {
     onDeleteAppointment,
     getFirstName,
   } = useAdminContext();
+
+  const { confirm, ConfirmHost } = useConfirm();
+
+  const handleDelete = async (id: string, clientName: string) => {
+    const ok = await confirm({
+      title: 'Delete this appointment?',
+      description: `This will permanently remove ${clientName}'s appointment. This action cannot be undone.`,
+      confirmLabel: 'Delete',
+      tone: 'danger',
+    });
+    if (ok) await onDeleteAppointment(id);
+  };
 
   // Default to day view on mobile (week view is too dense for <640px viewports).
   const [view, setView] = useState<View>(() => {
@@ -143,6 +155,7 @@ function CalendarPanel() {
 
   return (
     <div className="animate-fade-up flex flex-col gap-3">
+      {ConfirmHost}
       <PageHeader
         title="Calendar"
         subtitle={
@@ -483,7 +496,7 @@ function CalendarPanel() {
                   </select>
                   <div className="flex items-center gap-1 shrink-0">
                     <button
-                      onClick={() => onDeleteAppointment(apt.id)}
+                      onClick={() => handleDelete(apt.id, apt.clientName)}
                       className="btn-icon hover:!text-danger"
                       title="Delete"
                     >

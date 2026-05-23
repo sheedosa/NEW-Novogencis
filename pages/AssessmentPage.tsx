@@ -5,6 +5,7 @@ import { storage, auth } from '../firebase';
 import { signInAnonymously } from 'firebase/auth';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { processImageForUpload, validateImageFile, ACCEPTED_IMAGE_TYPES } from '../imageUtils';
+import { useToast } from '../components/ui';
 
 interface Question {
   id: string;
@@ -31,6 +32,7 @@ interface AssessmentPageProps {
 type Phase = 'gender' | 'assessment' | 'intake';
 
 const AssessmentPage: React.FC<AssessmentPageProps> = ({ onNavigate, onIntakeComplete, onCreateAccount }) => {
+  const { toast } = useToast();
   const [phase, setPhase] = useState<Phase>('gender');
   const [step, setStep] = useState(0);
   const [clientId, setClientId] = useState<string | null>(null);
@@ -206,7 +208,7 @@ const AssessmentPage: React.FC<AssessmentPageProps> = ({ onNavigate, onIntakeCom
 
     const validationError = validateImageFile(file);
     if (validationError) {
-      alert(validationError);
+      toast.error(validationError);
       return;
     }
 
@@ -267,14 +269,14 @@ const AssessmentPage: React.FC<AssessmentPageProps> = ({ onNavigate, onIntakeCom
           }
         };
       });
-      alert('Photo uploaded successfully.');
+      toast.success('Photo uploaded');
     } catch (err) {
       const message =
         err instanceof Error ? err.message :
         (err as { message?: string })?.message ||
         'Failed to upload image. Please try again.';
       console.error('Upload error:', err);
-      alert(message);
+      toast.error('Upload failed', { description: message });
       setError(message);
     } finally {
       setUploading(false);

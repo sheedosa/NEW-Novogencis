@@ -24,6 +24,7 @@ import Footer from './components/Footer';
 import WhatsAppWidget from './components/WhatsAppWidget';
 import CookieBanner from './components/CookieBanner';
 import Logo from './components/Logo';
+import { ToastProvider } from './components/ui';
 
 // Error Boundary Component
 class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean, error: Error | null }> {
@@ -237,7 +238,14 @@ const App: React.FC = () => {
     const path = 'appointments';
     let q;
     if (currentUser.role === 'admin') {
-      q = query(collection(db, path), orderBy('createdAt', 'desc'));
+      // Limit to recent appointments (date >= 90 days ago) to keep reads bounded as clinic grows.
+      const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+      q = query(
+        collection(db, path),
+        where('date', '>=', ninetyDaysAgo),
+        orderBy('date', 'desc'),
+        limit(500),
+      );
     } else {
       q = query(collection(db, path), where('clientId', '==', currentUser.id));
     }
@@ -1060,17 +1068,19 @@ const App: React.FC = () => {
 
   return (
     <ErrorBoundary>
-      <div className="flex flex-col min-h-screen">
-        {!isDashboard && !isAuthPage && !isAssessmentPage && <Header currentPage={currentPage} onNavigate={navigateTo} />}
-        <main className="flex-grow">
-          <Suspense fallback={<PageLoader />}>
-            {renderPage()}
-          </Suspense>
-        </main>
-        {!isDashboard && !isAuthPage && !isAssessmentPage && <Footer onNavigate={navigateTo} />}
-        {!hideWhatsApp && <WhatsAppWidget />}
-        <CookieBanner />
-      </div>
+      <ToastProvider>
+        <div className="flex flex-col min-h-screen">
+          {!isDashboard && !isAuthPage && !isAssessmentPage && <Header currentPage={currentPage} onNavigate={navigateTo} />}
+          <main className="flex-grow">
+            <Suspense fallback={<PageLoader />}>
+              {renderPage()}
+            </Suspense>
+          </main>
+          {!isDashboard && !isAuthPage && !isAssessmentPage && <Footer onNavigate={navigateTo} />}
+          {!hideWhatsApp && <WhatsAppWidget />}
+          <CookieBanner />
+        </div>
+      </ToastProvider>
     </ErrorBoundary>
   );
 };

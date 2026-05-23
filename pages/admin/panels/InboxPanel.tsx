@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 import {
   PageHeader, Card, Button, EmptyState, Modal, Input, Select, Textarea, Badge,
-  Skeleton,
+  Skeleton, useConfirm,
 } from '../../../components/ui';
 
 type InboxFilter = 'all' | 'tasks' | 'assessments' | 'messages' | 'forms' | 'payments';
@@ -61,6 +61,18 @@ function InboxPanel() {
     handleSidebarClick,
     setTriageSelectedId,
   } = useAdminContext();
+
+  const { confirm, ConfirmHost } = useConfirm();
+
+  const handleDeleteTask = async (id: string, title: string) => {
+    const ok = await confirm({
+      title: 'Delete this task?',
+      description: `"${title}" will be permanently removed.`,
+      confirmLabel: 'Delete',
+      tone: 'danger',
+    });
+    if (ok) await onDeleteTask(id);
+  };
 
   const [filter, setFilter] = useState<InboxFilter>('all');
   const [showNewTask, setShowNewTask] = useState(false);
@@ -280,6 +292,7 @@ function InboxPanel() {
 
   return (
     <div className="animate-fade-up flex flex-col gap-4">
+      {ConfirmHost}
       <PageHeader
         title="Inbox"
         subtitle={`${items.length} item${items.length !== 1 ? 's' : ''} need${items.length === 1 ? 's' : ''} you`}
@@ -429,7 +442,7 @@ function InboxPanel() {
                     </Button>
                   )}
                   {item.task && (
-                    <Button variant="ghost" size="sm" onClick={() => onDeleteTask(item.task!.id)} aria-label="Delete task">
+                    <Button variant="ghost" size="sm" onClick={() => handleDeleteTask(item.task!.id, item.task!.title)} aria-label="Delete task">
                       <Trash2 size={13} />
                     </Button>
                   )}
