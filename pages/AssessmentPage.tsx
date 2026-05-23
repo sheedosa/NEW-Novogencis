@@ -64,25 +64,8 @@ const AssessmentPage: React.FC<AssessmentPageProps> = ({ onNavigate, onIntakeCom
   const fileInputRef = useRef<HTMLInputElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-  const days = useMemo(() => Array.from({ length: 31 }, (_, i) => (i + 1).toString().padStart(2, '0')), []);
-  const months = useMemo(() => [
-    { value: '01', label: 'Jan' },
-    { value: '02', label: 'Feb' },
-    { value: '03', label: 'Mar' },
-    { value: '04', label: 'Apr' },
-    { value: '05', label: 'May' },
-    { value: '06', label: 'Jun' },
-    { value: '07', label: 'Jul' },
-    { value: '08', label: 'Aug' },
-    { value: '09', label: 'Sep' },
-    { value: '10', label: 'Oct' },
-    { value: '11', label: 'Nov' },
-    { value: '12', label: 'Dec' },
-  ], []);
-  const years = useMemo(() => {
-    const currentYear = new Date().getFullYear();
-    return Array.from({ length: 100 }, (_, i) => (currentYear - i).toString());
-  }, []);
+  // DOB now uses a native <input type="date"> on all platforms — iOS/Android
+  // show a native rolling picker which is dramatically better than 3 selects.
 
   const femaleQuestions: Question[] = [
     { id: 'f1', category: 'Hair Loss Details', text: 'Where is your main area of hair thinning or hair loss?', type: 'checkbox', options: ['Hairline', 'Frontal scalp', 'Parting', 'Crown / Vertex', 'Diffuse thinning across the scalp', 'Unsure'] },
@@ -154,21 +137,6 @@ const AssessmentPage: React.FC<AssessmentPageProps> = ({ onNavigate, onIntakeCom
       ...prev,
       [name]: type === 'checkbox' ? checked : value
     }));
-  };
-
-  const handleDOBChange = (part: 'day' | 'month' | 'year', value: string) => {
-    setFormData(prev => {
-      const parts = prev.dateOfBirth.split('-');
-      let y = parts[0] || '';
-      let m = parts[1] || '';
-      let d = parts[2] || '';
-
-      if (part === 'year') y = value;
-      if (part === 'month') m = value;
-      if (part === 'day') d = value;
-
-      return { ...prev, dateOfBirth: `${y}-${m}-${d}` };
-    });
   };
 
   const handleGenderSelect = (g: 'male' | 'female') => {
@@ -487,7 +455,7 @@ const AssessmentPage: React.FC<AssessmentPageProps> = ({ onNavigate, onIntakeCom
 
   if (accountCreated) {
     return (
-      <div className="animate-fade-in bg-cream h-screen w-screen fixed inset-0 flex flex-col items-center justify-center p-4 overflow-hidden">
+      <div className="animate-fade-in bg-cream h-[100dvh] w-screen fixed inset-0 flex flex-col items-center justify-center p-4 overflow-hidden">
         <div className="max-w-2xl w-full bg-white rounded-[2rem] md:rounded-[2.5rem] p-8 md:p-20 shadow-2xl border border-black/5 text-center space-y-6">
           <div className="w-16 h-16 md:w-20 md:h-20 bg-primary/10 rounded-full flex items-center justify-center text-primary mx-auto mb-4">
             <ShieldCheck size={36} />
@@ -512,7 +480,10 @@ const AssessmentPage: React.FC<AssessmentPageProps> = ({ onNavigate, onIntakeCom
 
 
   return (
-    <div className="animate-fade-in bg-cream h-screen w-screen fixed inset-0 flex flex-col items-center justify-center p-0 md:p-6 overflow-hidden">
+    <div
+      className="animate-fade-in bg-cream h-[100dvh] w-screen fixed inset-0 flex flex-col items-center justify-center p-0 md:p-6 overflow-hidden"
+      style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
+    >
       {/* Exit Button */}
       <button 
         onClick={() => window.location.hash = 'home'}
@@ -522,7 +493,7 @@ const AssessmentPage: React.FC<AssessmentPageProps> = ({ onNavigate, onIntakeCom
         <X size={20} />
       </button>
 
-      <div className="w-full max-w-[1200px] mx-auto flex flex-col h-full md:h-auto max-h-screen">
+      <div className="w-full max-w-[1200px] mx-auto flex flex-col h-full md:h-auto md:max-h-[100dvh]">
         <div className="text-center mb-4 md:mb-10 px-4 pt-8 md:pt-0 flex-shrink-0">
           <span className="text-primary font-medium text-[10px] md:text-xs uppercase tracking-[0.4em] block mb-1 md:mb-2">
             {phase === 'gender' ? 'Free Instant Hair Assessment' : phase === 'intake' ? 'Almost Done' : `Step ${step + 1} of ${currentQuestions.length}`}
@@ -571,7 +542,7 @@ const AssessmentPage: React.FC<AssessmentPageProps> = ({ onNavigate, onIntakeCom
                   {(['male', 'female'] as const).map(g => (
                     <button 
                       key={g} onClick={() => handleGenderSelect(g)}
-                      className={`flex-1 py-8 md:py-10 rounded-2xl font-medium uppercase text-sm md:text-base border-2 transition-all flex flex-col items-center justify-center ${gender === g && genderSelected ? 'border-primary bg-primary/5 text-primary scale-105' : 'border-gray-100 text-muted hover:border-primary/30 hover:bg-gray-50'}`}
+                      className={`flex-1 py-5 md:py-8 rounded-2xl font-medium uppercase text-sm md:text-base border-2 transition-all flex flex-col items-center justify-center ${gender === g && genderSelected ? 'border-primary bg-primary/5 text-primary scale-105' : 'border-gray-100 text-muted hover:border-primary/30 hover:bg-gray-50'}`}
                     >
                       <User size={30} className="mb-2" />
                       {g}
@@ -592,32 +563,16 @@ const AssessmentPage: React.FC<AssessmentPageProps> = ({ onNavigate, onIntakeCom
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <label className="text-[10px] font-medium text-obsidian uppercase ml-1">Date of Birth*</label>
-                      <div className="grid grid-cols-3 gap-2">
-                        <select 
-                          value={formData.dateOfBirth.split('-')[2] || ''} 
-                          onChange={(e) => handleDOBChange('day', e.target.value)}
-                          className="w-full bg-cream border-none rounded-xl md:rounded-2xl px-3 py-3.5 md:py-4 focus:ring-2 focus:ring-primary/20 text-sm font-bold cursor-pointer"
-                        >
-                          <option value="" disabled>Day</option>
-                          {days.map(d => <option key={d} value={d}>{d}</option>)}
-                        </select>
-                        <select 
-                          value={formData.dateOfBirth.split('-')[1] || ''} 
-                          onChange={(e) => handleDOBChange('month', e.target.value)}
-                          className="w-full bg-cream border-none rounded-xl md:rounded-2xl px-3 py-3.5 md:py-4 focus:ring-2 focus:ring-primary/20 text-sm font-bold cursor-pointer"
-                        >
-                          <option value="" disabled>Month</option>
-                          {months.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
-                        </select>
-                        <select 
-                          value={formData.dateOfBirth.split('-')[0] || ''} 
-                          onChange={(e) => handleDOBChange('year', e.target.value)}
-                          className="w-full bg-cream border-none rounded-xl md:rounded-2xl px-3 py-3.5 md:py-4 focus:ring-2 focus:ring-primary/20 text-sm font-bold cursor-pointer"
-                        >
-                          <option value="" disabled>Year</option>
-                          {years.map(y => <option key={y} value={y}>{y}</option>)}
-                        </select>
-                      </div>
+                      <input
+                        type="date"
+                        name="dateOfBirth"
+                        value={formData.dateOfBirth}
+                        onChange={handleInputChange}
+                        max={new Date().toISOString().split('T')[0]}
+                        min="1900-01-01"
+                        required
+                        className="w-full bg-cream border-none rounded-xl md:rounded-2xl px-4 md:px-5 py-3.5 md:py-4 focus:ring-2 focus:ring-primary/20 text-base sm:text-sm font-bold"
+                      />
                     </div>
                     <div className="space-y-2">
                       <label className="text-[10px] font-medium text-obsidian uppercase ml-1">City (UK)*</label>
@@ -820,7 +775,7 @@ const AssessmentPage: React.FC<AssessmentPageProps> = ({ onNavigate, onIntakeCom
             )}
           </div>
 
-          <div className="p-5 md:p-8 border-t border-gray-100 flex justify-between items-center bg-white flex-shrink-0">
+          <div className="p-4 md:p-6 border-t border-gray-100 flex justify-between items-center bg-white flex-shrink-0" style={{ paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 1rem)' }}>
             {(phase === 'assessment' || phase === 'intake') && (
               <button 
                 onClick={handleBack}

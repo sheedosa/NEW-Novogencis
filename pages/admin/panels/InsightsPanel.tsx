@@ -290,7 +290,7 @@ function InsightsPanel() {
       />
 
       {/* KPI row — each KPI now compared against the prior 30 days */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <Stat
           label="Conversion rate"
           value={`${conversionRate}%`}

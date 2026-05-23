@@ -214,7 +214,7 @@ function MoneyPanel() {
         }
       />
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <Stat
           label="Received this month"
           value={formatGBP(stats.receivedMtd)}
@@ -374,51 +374,95 @@ function MoneyPanel() {
               const today = new Date();
               const due = p.dueDate ? new Date(p.dueDate) : null;
               const isOverdue = p.status === 'Overdue' || (p.status === 'Pending' && due && due < today);
+              const dateLabel = p.status === 'Paid'
+                ? `Paid ${p.paidDate ? new Date(p.paidDate).toLocaleDateString('en-GB') : ''}`
+                : p.dueDate
+                  ? `Due ${new Date(p.dueDate).toLocaleDateString('en-GB')}`
+                  : `Created ${new Date(p.createdAt).toLocaleDateString('en-GB')}`;
               return (
                 <div
                   key={`${row.clientId}-${p.id}`}
-                  className={`px-4 py-3 hover:bg-cream/40 transition-colors flex items-center gap-3 ${idx > 0 ? 'border-t border-cream' : ''} ${isOverdue ? 'bg-danger-bg/30' : ''}`}
+                  className={`px-4 py-3 hover:bg-cream/40 transition-colors ${idx > 0 ? 'border-t border-cream' : ''} ${isOverdue ? 'bg-danger-bg/30' : ''}`}
                 >
-                  <button
-                    onClick={() => { setSelectedClientId(row.clientId); handleSidebarClick('patients'); setClientRecordTab('financials'); }}
-                    className="flex items-center gap-3 min-w-0 flex-grow text-left"
-                  >
-                    <div className="min-w-0 flex-grow">
-                      <div className="flex items-center gap-2">
+                  {/* Mobile stacked card */}
+                  <div className="md:hidden flex flex-col gap-2">
+                    <button
+                      onClick={() => { setSelectedClientId(row.clientId); handleSidebarClick('patients'); setClientRecordTab('financials'); }}
+                      className="flex items-start justify-between gap-3 text-left"
+                    >
+                      <div className="min-w-0 flex-grow">
                         <p className="text-sm font-medium text-obsidian truncate">{row.clientName}</p>
-                        <span className="text-xs text-hint shrink-0">·</span>
-                        <p className="text-xs text-muted truncate">{p.description}</p>
+                        <p className="text-xs text-muted mt-0.5 line-clamp-1">{p.description}</p>
                       </div>
-                      <p className="text-xs text-muted mt-0.5">
-                        {p.reference && <span className="font-mono mr-2">{p.reference}</span>}
-                        {p.status === 'Paid'
-                          ? `Paid ${p.paidDate ? new Date(p.paidDate).toLocaleDateString('en-GB') : ''}`
-                          : p.dueDate
-                            ? `Due ${new Date(p.dueDate).toLocaleDateString('en-GB')}`
-                            : `Created ${new Date(p.createdAt).toLocaleDateString('en-GB')}`}
-                      </p>
+                      <p className="text-base font-medium text-obsidian shrink-0">{formatGBP(p.amount, p.currency || 'GBP')}</p>
+                    </button>
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <Badge variant={p.status === 'Paid' ? 'active' : isOverdue ? 'danger' : 'pending'}>
+                          {isOverdue && p.status !== 'Overdue' ? 'Overdue' : p.status}
+                        </Badge>
+                        <span className="text-xs text-muted truncate">{dateLabel}</span>
+                      </div>
+                      {p.status !== 'Paid' && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          leadingIcon={<Check size={13} />}
+                          onClick={async () => {
+                            await onUpdatePayment(row.clientId, p.id, {
+                              status: 'Paid',
+                              paidDate: new Date().toISOString().split('T')[0],
+                            });
+                          }}
+                        >
+                          Mark paid
+                        </Button>
+                      )}
                     </div>
-                    <p className="text-base font-medium text-obsidian shrink-0">{formatGBP(p.amount, p.currency || 'GBP')}</p>
-                  </button>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <Badge variant={p.status === 'Paid' ? 'active' : isOverdue ? 'danger' : 'pending'}>
-                      {isOverdue && p.status !== 'Overdue' ? 'Overdue' : p.status}
-                    </Badge>
-                    {p.status !== 'Paid' && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        leadingIcon={<Check size={13} />}
-                        onClick={async () => {
-                          await onUpdatePayment(row.clientId, p.id, {
-                            status: 'Paid',
-                            paidDate: new Date().toISOString().split('T')[0],
-                          });
-                        }}
-                      >
-                        Mark paid
-                      </Button>
+                    {p.reference && (
+                      <p className="text-xs text-hint font-mono">{p.reference}</p>
                     )}
+                  </div>
+
+                  {/* Desktop inline row */}
+                  <div className="hidden md:flex items-center gap-3">
+                    <button
+                      onClick={() => { setSelectedClientId(row.clientId); handleSidebarClick('patients'); setClientRecordTab('financials'); }}
+                      className="flex items-center gap-3 min-w-0 flex-grow text-left"
+                    >
+                      <div className="min-w-0 flex-grow">
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-medium text-obsidian truncate">{row.clientName}</p>
+                          <span className="text-xs text-hint shrink-0">·</span>
+                          <p className="text-xs text-muted truncate">{p.description}</p>
+                        </div>
+                        <p className="text-xs text-muted mt-0.5">
+                          {p.reference && <span className="font-mono mr-2">{p.reference}</span>}
+                          {dateLabel}
+                        </p>
+                      </div>
+                      <p className="text-base font-medium text-obsidian shrink-0">{formatGBP(p.amount, p.currency || 'GBP')}</p>
+                    </button>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <Badge variant={p.status === 'Paid' ? 'active' : isOverdue ? 'danger' : 'pending'}>
+                        {isOverdue && p.status !== 'Overdue' ? 'Overdue' : p.status}
+                      </Badge>
+                      {p.status !== 'Paid' && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          leadingIcon={<Check size={13} />}
+                          onClick={async () => {
+                            await onUpdatePayment(row.clientId, p.id, {
+                              status: 'Paid',
+                              paidDate: new Date().toISOString().split('T')[0],
+                            });
+                          }}
+                        >
+                          Mark paid
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 </div>
               );

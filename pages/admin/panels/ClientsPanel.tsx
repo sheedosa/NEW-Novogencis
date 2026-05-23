@@ -192,7 +192,7 @@ const ClientsPanel: React.FC = () => {
       {!selectedClientId ? (
         <>
           {/* Stats */}
-          <div className="hidden lg:grid grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             <Stat
               label="Total registry"
               value={stats.total}

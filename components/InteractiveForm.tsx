@@ -1,8 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Message, Client } from '../types';
 import { FORMS } from '../constants';
-import { Printer, X, FileEdit, PenLine, PenTool } from 'lucide-react';
-import { Button, Input } from './ui';
+import { Printer, FileEdit, PenLine, PenTool } from 'lucide-react';
+import { Button, Input, Modal } from './ui';
 
 type FormFieldValue = string | boolean;
 type FormData = Record<string, FormFieldValue>;
@@ -206,92 +206,15 @@ export const InteractiveForm: React.FC<InteractiveFormProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-obsidian/55 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-      <div className="w-full max-w-2xl max-h-[90vh] bg-white rounded-xl shadow-modal flex flex-col overflow-hidden animate-fade-up">
-        <div className="px-5 py-4 border-b border-sand flex justify-between items-center shrink-0">
-          <div className="min-w-0">
-            <h2 className="text-base font-medium text-obsidian truncate">{form.title}</h2>
-            <p className="text-xs text-muted mt-0.5">
-              {isReadOnly ? 'Completed record' : 'Requires your signature'}
-            </p>
-          </div>
-          <div className="flex items-center gap-1 shrink-0">
-            {isReadOnly && (
-              <button onClick={() => window.print()} className="btn-icon" aria-label="Print">
-                <Printer size={14} />
-              </button>
-            )}
-            <button onClick={onClose} className="btn-icon" aria-label="Close">
-              <X size={14} />
-            </button>
-          </div>
-        </div>
-
-        <div className="flex-grow overflow-y-auto px-5 py-5 flex flex-col gap-6">
-          {/* Form content */}
-          <div className="bg-cream/60 border border-sand rounded-md p-4">
-            <p className="text-sm text-obsidian leading-relaxed whitespace-pre-wrap">
-              {form.content}
-            </p>
-          </div>
-
-          {/* Fields */}
-          <div>
-            <div className="flex items-center gap-2 mb-3">
-              <FileEdit size={14} className="text-muted" />
-              <h3 className="text-sm font-medium text-obsidian">Patient information & declarations</h3>
-            </div>
-            {renderFields()}
-          </div>
-
-          {/* Signature */}
-          <div>
-            <div className="flex justify-between items-end mb-2">
-              <div className="flex items-center gap-2">
-                <PenLine size={14} className="text-muted" />
-                <h3 className="text-sm font-medium text-obsidian">Patient signature</h3>
-              </div>
-              {!isReadOnly && signature && (
-                <button onClick={clearSignature} className="text-xs text-danger hover:underline">
-                  Clear
-                </button>
-              )}
-            </div>
-
-            <div className="bg-cream rounded-md border border-dashed border-sand h-36 relative overflow-hidden">
-              {isReadOnly && !signature ? (
-                <div className="absolute inset-0 flex items-center justify-center text-hint text-sm">
-                  No signature provided
-                </div>
-              ) : (
-                <canvas
-                  ref={canvasRef}
-                  width={800}
-                  height={144}
-                  onMouseDown={startDrawing}
-                  onMouseMove={draw}
-                  onMouseUp={stopDrawing}
-                  onMouseOut={stopDrawing}
-                  onTouchStart={startDrawing}
-                  onTouchMove={draw}
-                  onTouchEnd={stopDrawing}
-                  className={`w-full h-full touch-none ${isReadOnly ? 'cursor-default' : 'cursor-crosshair'}`}
-                />
-              )}
-            </div>
-            <div className="mt-2 flex justify-between items-center">
-              <p className="text-xs text-muted">
-                {isReadOnly ? `Signed on ${new Date(message.signedAt!).toLocaleString('en-GB')}` : 'Sign above with mouse or touch'}
-              </p>
-              {formData.name && (
-                <p className="text-sm text-obsidian">{formData.name as string}</p>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {!isReadOnly && (
-          <div className="px-5 py-4 border-t border-sand bg-ivory shrink-0 flex flex-col gap-2">
+    <Modal
+      open={true}
+      onClose={onClose}
+      title={form.title}
+      subtitle={isReadOnly ? 'Completed record' : 'Requires your signature'}
+      size="lg"
+      footer={
+        !isReadOnly ? (
+          <div className="flex flex-col gap-2">
             {!validation.valid && (
               <p className="text-xs text-warning-text">
                 Please complete: <span className="font-medium">{validation.missingField}</span>
@@ -313,8 +236,78 @@ export const InteractiveForm: React.FC<InteractiveFormProps> = ({
               </Button>
             </div>
           </div>
-        )}
+        ) : (
+          <div className="flex items-center justify-end gap-2">
+            <Button variant="ghost" onClick={() => window.print()} leadingIcon={<Printer size={14} />}>
+              Print
+            </Button>
+            <Button variant="primary" onClick={onClose}>Close</Button>
+          </div>
+        )
+      }
+    >
+      <div className="flex flex-col gap-6">
+        {/* Form content */}
+        <div className="bg-cream/60 border border-sand rounded-md p-4">
+          <p className="text-sm text-obsidian leading-relaxed whitespace-pre-wrap">
+            {form.content}
+          </p>
+        </div>
+
+        {/* Fields */}
+        <div>
+          <div className="flex items-center gap-2 mb-3">
+            <FileEdit size={14} className="text-muted" />
+            <h3 className="text-sm font-medium text-obsidian">Patient information & declarations</h3>
+          </div>
+          {renderFields()}
+        </div>
+
+        {/* Signature */}
+        <div>
+          <div className="flex justify-between items-end mb-2">
+            <div className="flex items-center gap-2">
+              <PenLine size={14} className="text-muted" />
+              <h3 className="text-sm font-medium text-obsidian">Patient signature</h3>
+            </div>
+            {!isReadOnly && signature && (
+              <button onClick={clearSignature} className="text-xs text-danger hover:underline">
+                Clear
+              </button>
+            )}
+          </div>
+
+          <div className="bg-cream rounded-md border border-dashed border-sand h-40 relative overflow-hidden">
+            {isReadOnly && !signature ? (
+              <div className="absolute inset-0 flex items-center justify-center text-hint text-sm">
+                No signature provided
+              </div>
+            ) : (
+              <canvas
+                ref={canvasRef}
+                width={800}
+                height={160}
+                onMouseDown={startDrawing}
+                onMouseMove={draw}
+                onMouseUp={stopDrawing}
+                onMouseOut={stopDrawing}
+                onTouchStart={startDrawing}
+                onTouchMove={draw}
+                onTouchEnd={stopDrawing}
+                className={`w-full h-full touch-none ${isReadOnly ? 'cursor-default' : 'cursor-crosshair'}`}
+              />
+            )}
+          </div>
+          <div className="mt-2 flex justify-between items-center">
+            <p className="text-xs text-muted">
+              {isReadOnly ? `Signed on ${new Date(message.signedAt!).toLocaleString('en-GB')}` : 'Sign above with mouse or touch'}
+            </p>
+            {formData.name && (
+              <p className="text-sm text-obsidian">{formData.name as string}</p>
+            )}
+          </div>
+        </div>
       </div>
-    </div>
+    </Modal>
   );
 };

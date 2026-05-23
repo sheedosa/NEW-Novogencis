@@ -81,7 +81,7 @@ const MessagesTab = memo(function MessagesTab({ userMessages, user, onSendMessag
   const [isSending, setIsSending] = useState(false);
 
   return (
-    <div className="animate-fade-up h-[calc(100dvh-16rem)] sm:h-[calc(100dvh-12rem)] flex flex-col">
+    <div className="animate-fade-up h-[calc(100dvh-13rem)] sm:h-[calc(100dvh-11rem)] flex flex-col">
       <div className="bg-white rounded-lg border border-black/5 shadow-sm flex flex-col overflow-hidden flex-grow">
         <div className="p-4 md:p-6 border-b border-black/5 flex justify-between items-center bg-white z-10">
           <div className="flex items-center gap-3">
@@ -699,9 +699,9 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
               </div>
             )}
 
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 md:gap-10">
-               {/* Left: Session Timeline */}
-               <div className="lg:col-span-8 space-y-6">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 md:gap-10">
+               {/* Left: Session Timeline (rendered second on mobile) */}
+               <div className="lg:col-span-8 space-y-4 md:space-y-6 order-2 lg:order-1">
                   <div className="bg-white rounded-lg p-6 md:p-10 border border-black/5 shadow-sm">
                      <div className="flex justify-between items-center mb-8">
                         <div className="flex items-center gap-3">
@@ -747,8 +747,8 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
                   </div>
                </div>
 
-               {/* Right: Progress Summary, Prescriptions & Gallery */}
-               <div className="lg:col-span-4 space-y-6">
+               {/* Right: Progress Summary, Prescriptions & Gallery (rendered first on mobile) */}
+               <div className="lg:col-span-4 space-y-4 md:space-y-6 order-1 lg:order-2">
                   <Card className="p-5 md:p-8 bg-obsidian text-white border-none shadow-xl shadow-obsidian/20">
                      <h3 className="text-xs text-muted text-gray-400 mb-6">Program Overview</h3>
                      <div className="space-y-6">
@@ -835,7 +835,8 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
             />
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 md:gap-10">
-               <div className="lg:col-span-8 space-y-4">
+               {/* Left: Appointments list (rendered second on mobile so policy info sees first) */}
+               <div className="lg:col-span-8 space-y-4 order-2 lg:order-1">
                   {userAppointments.length > 0 ? (
                     userAppointments
                       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
@@ -949,9 +950,10 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
                     </div>
                   )}
                </div>
-               <div className="lg:col-span-4 space-y-6">
-                  <div className="bg-primary/5 rounded-xl p-5 md:p-8 lg:p-10 border border-primary/10">
-                    <h4 className="text-lg font-medium text-obsidian uppercase mb-6">Booking Policy</h4>
+               {/* Right: Policy + change card (rendered first on mobile) */}
+               <div className="lg:col-span-4 space-y-4 md:space-y-6 order-1 lg:order-2">
+                  <div className="bg-primary/5 rounded-xl p-4 md:p-6 lg:p-8 border border-primary/10">
+                    <h4 className="text-base md:text-lg font-medium text-obsidian uppercase mb-4 md:mb-6">Booking Policy</h4>
                     <ul className="space-y-4">
                       {[
                         "Please provide 48 hours' notice for cancellations.",
@@ -1027,9 +1029,17 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
                   </div>
                 </div>
 
-                {/* Visual progress timeline so patients can see exactly where they are */}
-                <div className="px-6 md:px-8 py-6 border-t border-sand">
-                  <div className="flex items-center gap-3 md:gap-4">
+                {/* Visual progress timeline — vertical on mobile, horizontal on desktop */}
+                <div className="px-4 md:px-8 py-5 md:py-6 border-t border-sand">
+                  {/* Mobile vertical */}
+                  <div className="flex flex-col md:hidden">
+                    <VTimelineStep label="Submitted" state="complete" hasNext />
+                    <VTimelineStep label="Under review" state="active" hasNext />
+                    <VTimelineStep label="Feedback ready" state="pending" hasNext />
+                    <VTimelineStep label="Book consultation" state="pending" />
+                  </div>
+                  {/* Desktop horizontal */}
+                  <div className="hidden md:flex items-center gap-3 md:gap-4">
                     <TimelineStep label="Submitted" state="complete" />
                     <TimelineConnector state="complete" />
                     <TimelineStep label="Under review" state="active" />
@@ -1038,7 +1048,7 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
                     <TimelineConnector state="pending" />
                     <TimelineStep label="Book consultation" state="pending" />
                   </div>
-                  <p className="text-2xs text-hint mt-4 text-center">
+                  <p className="text-xs text-hint mt-4 md:text-center">
                     Submitted {currentClient?.createdAt
                       ? new Date(currentClient.createdAt).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
                       : 'just now'}
@@ -1112,11 +1122,16 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
                           <p className="text-sm text-muted mb-4">Your clinical team uses these to assess your hair and scalp.</p>
                           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
                             {photoUrls.map((url, i) => (
-                              <a
+                              <button
                                 key={i}
-                                href={url}
-                                target="_blank"
-                                rel="noopener noreferrer"
+                                type="button"
+                                onClick={() => setLightboxImage({
+                                  id: `assessment-${i}`,
+                                  url,
+                                  label: `Assessment photo ${i + 1}`,
+                                  uploadedAt: currentClient?.createdAt ?? new Date().toISOString(),
+                                  source: 'Assessment',
+                                })}
                                 className="block aspect-square rounded-lg overflow-hidden bg-cream border border-sand hover:border-primary/40 transition-colors group"
                               >
                                 <img
@@ -1125,7 +1140,7 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
                                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                                   loading="lazy"
                                 />
-                              </a>
+                              </button>
                             ))}
                           </div>
                         </div>
@@ -1166,13 +1181,13 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
             <PageHeader title="Profile" subtitle="Your account and contact details" />
             
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 md:gap-10">
-              <div className="lg:col-span-4 space-y-6">
-                <div className="bg-white p-5 md:p-8 rounded-lg border border-black/5 shadow-sm text-center">
-                  <div className="w-24 h-24 bg-primary/10 rounded-full flex items-center justify-center text-primary mx-auto mb-6">
-                    <UserIcon size={40} />
+              <div className="lg:col-span-4 space-y-4 md:space-y-6">
+                <div className="bg-white p-4 md:p-8 rounded-lg border border-black/5 shadow-sm text-center">
+                  <div className="w-20 h-20 md:w-24 md:h-24 bg-primary/10 rounded-full flex items-center justify-center text-primary mx-auto mb-4 md:mb-6">
+                    <UserIcon size={36} />
                   </div>
-                  <h3 className="text-xl font-medium text-obsidian mb-1">{user?.fullName}</h3>
-                  <p className="text-xs text-muted mb-6">Client ID: {currentClient?.id || 'N/A'}</p>
+                  <h3 className="text-lg md:text-xl font-medium text-obsidian mb-1">{user?.fullName}</h3>
+                  <p className="text-xs text-muted mb-4 md:mb-6">Client ID: {currentClient?.id || 'N/A'}</p>
                   <div className="flex justify-center gap-2">
                     <span className="px-3 py-1 bg-primary/10 text-primary rounded-full text-xs text-muted">
                       {currentClient?.status || 'Active'}
@@ -1180,7 +1195,8 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
                   </div>
                 </div>
 
-                <div className="bg-white p-5 md:p-8 rounded-lg border border-black/5 shadow-sm">
+                {/* Account Status — hidden on mobile (already implied by status badge above) */}
+                <div className="hidden lg:block bg-white p-5 md:p-8 rounded-lg border border-black/5 shadow-sm">
                   <h4 className="text-xs text-muted mb-6">Account Status</h4>
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
@@ -1194,8 +1210,8 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
               </div>
 
               <div className="lg:col-span-8 space-y-6">
-                <div className="bg-white p-5 md:p-8 lg:p-12 rounded-xl border border-black/5 shadow-sm">
-                  <h3 className="text-xl font-medium text-obsidian uppercase mb-8">Personal Information</h3>
+                <div className="bg-white p-4 md:p-8 lg:p-12 rounded-xl border border-black/5 shadow-sm">
+                  <h3 className="text-lg md:text-xl font-medium text-obsidian uppercase mb-6 md:mb-8">Personal Information</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-8">
                     {isEditingProfile ? (
                       <form onSubmit={handleSaveProfile} className="md:col-span-2 space-y-6">
@@ -1239,18 +1255,43 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
                             />
                           </div>
                         </div>
-                        <div className="flex justify-end gap-3 pt-4 border-t border-black/5">
-                          <button 
+                        {/* Inline footer (desktop) + sticky footer (mobile) */}
+                        <div className="hidden md:flex justify-end gap-3 pt-4 border-t border-black/5">
+                          <button
                             type="button"
                             onClick={() => setIsEditingProfile(false)}
                             className="px-6 py-3 rounded-full text-xs font-medium text-muted hover:bg-cream transition-colors"
                           >
                             Cancel
                           </button>
-                          <button 
+                          <button
                             type="submit"
                             disabled={isSavingProfile}
                             className="bg-primary text-obsidian px-8 py-3 rounded-full text-xs font-medium transition-all disabled:opacity-50 flex items-center gap-2"
+                          >
+                            {isSavingProfile ? (
+                              <>
+                                <div className="w-4 h-4 border-2 border-obsidian/20 border-t-clinical-dark rounded-full animate-spin" />
+                                Saving...
+                              </>
+                            ) : (
+                              'Save Changes'
+                            )}
+                          </button>
+                        </div>
+                        {/* Mobile sticky footer */}
+                        <div className="md:hidden fixed bottom-16 inset-x-0 z-30 bg-white border-t border-sand flex gap-2 px-4 py-3" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 12px)' }}>
+                          <button
+                            type="button"
+                            onClick={() => setIsEditingProfile(false)}
+                            className="flex-1 py-3 rounded-md text-sm font-medium text-muted bg-cream"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            type="submit"
+                            disabled={isSavingProfile}
+                            className="flex-[2] bg-primary text-obsidian py-3 rounded-md text-sm font-medium disabled:opacity-50 flex items-center justify-center gap-2"
                           >
                             {isSavingProfile ? (
                               <>
@@ -1692,6 +1733,32 @@ const TimelineStep: React.FC<{ label: string; state: TimelineState }> = ({ label
         {state === 'complete' ? '✓' : state === 'active' ? '●' : '○'}
       </div>
       <span className={`text-[10px] uppercase tracking-wider text-center ${labelClass}`}>{label}</span>
+    </div>
+  );
+};
+
+/** Vertical timeline step for mobile — dot on left, label + connector on right. */
+const VTimelineStep: React.FC<{ label: string; state: TimelineState; hasNext?: boolean }> = ({ label, state, hasNext }) => {
+  const dotClass =
+    state === 'complete' ? 'bg-primary text-white border-primary' :
+    state === 'active'   ? 'bg-white text-primary border-primary animate-pulse' :
+                           'bg-cream text-hint border-sand';
+  const labelClass =
+    state === 'pending' ? 'text-hint' :
+    state === 'active'  ? 'text-obsidian font-medium' :
+                          'text-muted';
+  const lineClass = state === 'complete' ? 'bg-primary' : 'bg-sand';
+  return (
+    <div className="flex items-stretch gap-3">
+      <div className="flex flex-col items-center">
+        <div className={`w-8 h-8 rounded-full border flex items-center justify-center text-xs font-medium shrink-0 ${dotClass}`}>
+          {state === 'complete' ? '✓' : state === 'active' ? '●' : '○'}
+        </div>
+        {hasNext && <div className={`w-[2px] flex-grow my-1 rounded-full ${lineClass}`} />}
+      </div>
+      <div className={`flex-1 pb-4 ${hasNext ? '' : 'pt-1'}`}>
+        <span className={`text-sm ${labelClass}`}>{label}</span>
+      </div>
     </div>
   );
 };

@@ -6,7 +6,7 @@ import { logClinicalAction } from '../../../utils/auditLogger';
 import { notifyFeedbackReceived } from '../../../utils/notificationService';
 import {
   Inbox, AlertTriangle, Check, ClipboardList, ExternalLink,
-  Siren, ArrowRight, Sparkles, RefreshCw, Brain, FileText,
+  Siren, ArrowRight, Sparkles, RefreshCw, Brain, FileText, ArrowLeft,
 } from 'lucide-react';
 import {
   PageHeader, Card, CardHeader, Badge, StatusBadge, Button, EmptyState, AISurface, useToast,
@@ -53,7 +53,7 @@ function AssessmentsPanel() {
   };
 
   return (
-    <div className="animate-fade-up flex flex-col gap-4 lg:h-[calc(100dvh-9rem)]">
+    <div className="animate-fade-up flex flex-col gap-4 lg:h-[calc(100dvh-9rem)] pb-20 lg:pb-0">
       <PageHeader
         title="Assessments"
         subtitle="Review intake forms and submit clinical feedback"
@@ -66,8 +66,8 @@ function AssessmentsPanel() {
       />
 
       <div className="flex-grow grid grid-cols-1 lg:grid-cols-12 gap-3 min-h-0 lg:overflow-hidden">
-        {/* Queue list */}
-        <Card padded={false} className="lg:col-span-4 flex flex-col overflow-hidden">
+        {/* Queue list — hidden on mobile when an assessment is selected */}
+        <Card padded={false} className={`lg:col-span-4 flex-col overflow-hidden ${effectiveTriageId ? 'hidden lg:flex' : 'flex'}`}>
           <div className="px-4 py-3 border-b border-sand shrink-0">
             <p className="text-sm font-medium text-obsidian">Awaiting review</p>
           </div>
@@ -139,8 +139,8 @@ function AssessmentsPanel() {
           </div>
         </Card>
 
-        {/* Detail */}
-        <div className="lg:col-span-8 flex flex-col min-h-0 overflow-hidden">
+        {/* Detail — hidden on mobile when no assessment is selected */}
+        <div className={`lg:col-span-8 flex-col min-h-0 overflow-hidden ${effectiveTriageId ? 'flex' : 'hidden lg:flex'}`}>
           {!triageSelected ? (
             <Card className="h-full flex items-center justify-center">
               <EmptyState
@@ -155,6 +155,13 @@ function AssessmentsPanel() {
               <Card tone="dark">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
                   <div className="flex items-center gap-3">
+                    <button
+                      onClick={() => setTriageSelectedId(null)}
+                      className="lg:hidden inline-flex items-center justify-center w-10 h-10 rounded-md text-white/70 hover:text-white hover:bg-white/10 transition-colors -ml-1"
+                      aria-label="Back to queue"
+                    >
+                      <ArrowLeft size={18} />
+                    </button>
                     <div className="avatar avatar-lg">{getInitials(triageSelected.name)}</div>
                     <div>
                       <h3 className="text-base font-medium text-white">{triageSelected.name}</h3>

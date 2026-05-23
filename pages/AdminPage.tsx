@@ -978,7 +978,7 @@ const AdminPage: React.FC<AdminPageProps> = ({
               { id: 'today',        label: 'Today',     icon: <Sun size={18} />,          badge: todayBadge },
               { id: 'inbox',        label: 'Inbox',     icon: <Inbox size={18} />,        badge: inboxBadge },
               { id: 'calendar',     label: 'Calendar',  icon: <CalendarIcon size={18} /> },
-              { id: 'clients',      label: 'Patients',  icon: <Users size={18} /> },
+              { id: 'patients',     label: 'Patients',  icon: <Users size={18} /> },
             ]}
           />
 

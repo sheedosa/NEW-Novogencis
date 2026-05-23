@@ -4,7 +4,7 @@ import { MessageInputForm } from '../AdminComponents';
 import { FORMS } from '../../../constants';
 import {
   Search, MessageCircle, Phone, FileText, CreditCard,
-  Users as UsersIcon, User as UserIcon, ExternalLink,
+  Users as UsersIcon, User as UserIcon, ExternalLink, ArrowLeft,
 } from 'lucide-react';
 import {
   PageHeader, Button, Card, EmptyState,
@@ -60,7 +60,7 @@ const MessagesPanel: React.FC = () => {
     });
 
   return (
-    <div className="animate-fade-up flex flex-col gap-4 h-[calc(100vh-9rem)]">
+    <div className="animate-fade-up flex flex-col gap-4 h-auto lg:h-[calc(100dvh-9rem)] pb-20 lg:pb-0">
       <PageHeader
         title="Messages"
         subtitle="Patient conversations and clinical updates"
@@ -79,8 +79,8 @@ const MessagesPanel: React.FC = () => {
       />
 
       <div className="flex-grow grid grid-cols-1 md:grid-cols-12 gap-3 min-h-0">
-        {/* Thread list */}
-        <Card padded={false} className="md:col-span-4 flex flex-col min-h-0 overflow-hidden">
+        {/* Thread list — hidden on mobile when a thread is selected */}
+        <Card padded={false} className={`md:col-span-4 flex-col min-h-0 overflow-hidden h-[calc(100dvh-12rem)] md:h-auto ${selectedThreadId ? 'hidden md:flex' : 'flex'}`}>
           <div className="search-wrap p-3 border-b border-sand shrink-0">
             <Search size={14} className="search-icon" />
             <input
@@ -146,12 +146,19 @@ const MessagesPanel: React.FC = () => {
           </div>
         </Card>
 
-        {/* Thread view */}
-        <Card padded={false} className="md:col-span-8 flex flex-col min-h-0 overflow-hidden">
+        {/* Thread view — hidden on mobile when no thread is selected */}
+        <Card padded={false} className={`md:col-span-8 flex-col min-h-0 overflow-hidden h-[calc(100dvh-12rem)] md:h-auto ${selectedThreadId ? 'flex' : 'hidden md:flex'}`}>
           {selectedThreadId ? (
             <>
               <div className="px-4 py-3 border-b border-sand flex justify-between items-center shrink-0 bg-white">
                 <div className="flex items-center gap-3 min-w-0">
+                  <button
+                    onClick={() => setSelectedThreadId(null)}
+                    className="md:hidden btn-icon -ml-1"
+                    aria-label="Back to threads"
+                  >
+                    <ArrowLeft size={16} />
+                  </button>
                   <div className="avatar avatar-md">{getInitials(clients.find(c => c.id === selectedThreadId)?.name)}</div>
                   <div className="min-w-0">
                     <h3 className="text-sm font-medium text-obsidian truncate">

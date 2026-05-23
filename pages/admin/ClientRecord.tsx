@@ -12,7 +12,7 @@ import {
   User as UserIcon, MessageSquare, Images, Activity, Receipt, Ban, Bell,
   Phone, Mail, MapPin, StickyNote, ArrowRight, Siren, Calendar as CalendarIcon,
 } from 'lucide-react';
-import { Card as UICard, CardHeader, Button as UIButton, Badge as UIBadge, StatusBadge as UIStatusBadge, EmptyState as UIEmptyState, useToast } from '../../components/ui';
+import { Card as UICard, CardHeader, Button as UIButton, Badge as UIBadge, StatusBadge as UIStatusBadge, EmptyState as UIEmptyState, useToast, Modal as UIModal } from '../../components/ui';
 
 type ViewTab = 'snapshot' | 'plan' | 'files' | 'activity' | 'money';
 import { storage } from '../../firebase';
@@ -1169,9 +1169,28 @@ const ClientRecord: React.FC = () => {
               </div>
 
               {/* Add Phase Modal */}
-              {showAddPhase && (
-                <div className="fixed inset-0 z-[100] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setShowAddPhase(false)}>
-                  <form onClick={e => e.stopPropagation()} onSubmit={async (e) => {
+              <UIModal
+                open={showAddPhase}
+                onClose={() => setShowAddPhase(false)}
+                title="Add Treatment Phase"
+                size="md"
+                footer={
+                  <div className="flex gap-3 justify-end">
+                    <button type="button" onClick={() => setShowAddPhase(false)} className="px-4 py-2 text-sm text-muted hover:text-obsidian">Cancel</button>
+                    <button
+                      type="submit"
+                      form="add-phase-form"
+                      disabled={treatmentPlanSaving}
+                      className="bg-primary text-obsidian px-5 py-2 rounded-md text-sm font-medium disabled:opacity-50"
+                    >
+                      {treatmentPlanSaving ? 'Saving…' : 'Add Phase'}
+                    </button>
+                  </div>
+                }
+              >
+                <form
+                  id="add-phase-form"
+                  onSubmit={async (e) => {
                     e.preventDefault();
                     setTreatmentPlanSaving(true);
                     const newPhase: TreatmentPhase = {
@@ -1192,46 +1211,55 @@ const ClientRecord: React.FC = () => {
                     setPhaseForm({ name: '', description: '', sessionsPlanned: 1, notes: '' });
                     setShowAddPhase(false);
                     setTreatmentPlanSaving(false);
-                  }} className="bg-white rounded-lg shadow-modal w-full max-w-md overflow-hidden">
-                    <div className="p-6 border-b border-black/5">
-                      <h3 className="text-sm font-medium text-obsidian">Add Treatment Phase</h3>
-                    </div>
-                    <div className="p-6 space-y-4 max-h-[65vh] overflow-y-auto">
-                      <div>
-                        <label className="text-xs text-muted block mb-1">Plan Title {!plan && <span className="text-primary">(first phase)</span>}</label>
-                        <input type="text" value={planTitle} onChange={e => setPlanTitle(e.target.value)} placeholder="e.g. 12-Month PRP Protocol" className="w-full bg-cream border-transparent rounded-xl px-4 py-3 text-sm font-medium focus:ring-2 focus:ring-primary/20" />
-                      </div>
-                      <div>
-                        <label className="text-xs text-muted block mb-1">Phase Name <span className="text-red-400">*</span></label>
-                        <input required type="text" value={phaseForm.name} onChange={e => setPhaseForm(p => ({ ...p, name: e.target.value }))} placeholder="e.g. Initial Intensive" className="w-full bg-cream border-transparent rounded-xl px-4 py-3 text-sm font-medium focus:ring-2 focus:ring-primary/20" />
-                      </div>
-                      <div>
-                        <label className="text-xs text-muted block mb-1">Description</label>
-                        <input type="text" value={phaseForm.description} onChange={e => setPhaseForm(p => ({ ...p, description: e.target.value }))} placeholder="Brief description of goals" className="w-full bg-cream border-transparent rounded-xl px-4 py-3 text-sm font-medium focus:ring-2 focus:ring-primary/20" />
-                      </div>
-                      <div>
-                        <label className="text-xs text-muted block mb-1">Sessions Planned</label>
-                        <input type="number" min={1} value={phaseForm.sessionsPlanned} onChange={e => setPhaseForm(p => ({ ...p, sessionsPlanned: Number(e.target.value) }))} className="w-full bg-cream border-transparent rounded-xl px-4 py-3 text-sm font-medium focus:ring-2 focus:ring-primary/20" />
-                      </div>
-                      <div>
-                        <label className="text-xs text-muted block mb-1">Notes</label>
-                        <textarea value={phaseForm.notes} onChange={e => setPhaseForm(p => ({ ...p, notes: e.target.value }))} rows={2} placeholder="Clinical notes for this phase" className="w-full bg-cream border-transparent rounded-xl px-4 py-3 text-sm font-medium focus:ring-2 focus:ring-primary/20 resize-none" />
-                      </div>
-                    </div>
-                    <div className="p-6 border-t border-black/5 flex gap-3 justify-end bg-cream/30">
-                      <button type="button" onClick={() => setShowAddPhase(false)} className="px-5 py-2.5 text-xs text-muted hover:text-obsidian">Cancel</button>
-                      <button type="submit" disabled={treatmentPlanSaving} className="bg-primary text-obsidian px-6 py-2.5 rounded-xl text-xs text-muted disabled:opacity-50">
-                        {treatmentPlanSaving ? 'Saving…' : 'Add Phase'}
-                      </button>
-                    </div>
-                  </form>
-                </div>
-              )}
+                  }}
+                  className="space-y-4"
+                >
+                  <div>
+                    <label className="text-xs text-muted block mb-1">Plan Title {!plan && <span className="text-primary">(first phase)</span>}</label>
+                    <input type="text" value={planTitle} onChange={e => setPlanTitle(e.target.value)} placeholder="e.g. 12-Month PRP Protocol" className="w-full bg-cream border-transparent rounded-md px-4 py-3 text-base sm:text-sm font-medium focus:ring-2 focus:ring-primary/20" />
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted block mb-1">Phase Name <span className="text-red-400">*</span></label>
+                    <input required type="text" value={phaseForm.name} onChange={e => setPhaseForm(p => ({ ...p, name: e.target.value }))} placeholder="e.g. Initial Intensive" className="w-full bg-cream border-transparent rounded-md px-4 py-3 text-base sm:text-sm font-medium focus:ring-2 focus:ring-primary/20" />
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted block mb-1">Description</label>
+                    <input type="text" value={phaseForm.description} onChange={e => setPhaseForm(p => ({ ...p, description: e.target.value }))} placeholder="Brief description of goals" className="w-full bg-cream border-transparent rounded-md px-4 py-3 text-base sm:text-sm font-medium focus:ring-2 focus:ring-primary/20" />
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted block mb-1">Sessions Planned</label>
+                    <input type="number" min={1} value={phaseForm.sessionsPlanned} onChange={e => setPhaseForm(p => ({ ...p, sessionsPlanned: Number(e.target.value) }))} className="w-full bg-cream border-transparent rounded-md px-4 py-3 text-base sm:text-sm font-medium focus:ring-2 focus:ring-primary/20" />
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted block mb-1">Notes</label>
+                    <textarea value={phaseForm.notes} onChange={e => setPhaseForm(p => ({ ...p, notes: e.target.value }))} rows={2} placeholder="Clinical notes for this phase" className="w-full bg-cream border-transparent rounded-md px-4 py-3 text-base sm:text-sm font-medium focus:ring-2 focus:ring-primary/20 resize-none" />
+                  </div>
+                </form>
+              </UIModal>
 
               {/* Add Prescription Modal */}
-              {showAddRx && (
-                <div className="fixed inset-0 z-[100] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setShowAddRx(false)}>
-                  <form onClick={e => e.stopPropagation()} onSubmit={async (e) => {
+              <UIModal
+                open={showAddRx}
+                onClose={() => setShowAddRx(false)}
+                title="Add Prescription"
+                size="md"
+                footer={
+                  <div className="flex gap-3 justify-end">
+                    <button type="button" onClick={() => setShowAddRx(false)} className="px-4 py-2 text-sm text-muted hover:text-obsidian">Cancel</button>
+                    <button
+                      type="submit"
+                      form="add-rx-form"
+                      disabled={rxSaving}
+                      className="bg-primary text-obsidian px-5 py-2 rounded-md text-sm font-medium disabled:opacity-50"
+                    >
+                      {rxSaving ? 'Saving…' : 'Add Prescription'}
+                    </button>
+                  </div>
+                }
+              >
+                <form
+                  id="add-rx-form"
+                  onSubmit={async (e) => {
                     e.preventDefault();
                     setRxSaving(true);
                     const newRx: Prescription = {
@@ -1249,42 +1277,32 @@ const ClientRecord: React.FC = () => {
                     setRxForm({ drugName: '', dosage: '', instructions: '', startDate: '', endDate: '', prescribedBy: '' });
                     setShowAddRx(false);
                     setRxSaving(false);
-                  }} className="bg-white rounded-lg shadow-modal w-full max-w-md overflow-hidden">
-                    <div className="p-6 border-b border-black/5">
-                      <h3 className="text-sm font-medium text-obsidian">Add Prescription</h3>
+                  }}
+                  className="space-y-4"
+                >
+                  {[
+                    { label: 'Drug / Product Name *', field: 'drugName', required: true, placeholder: 'e.g. Minoxidil 5%' },
+                    { label: 'Dosage *', field: 'dosage', required: true, placeholder: 'e.g. 1ml twice daily' },
+                    { label: 'Instructions', field: 'instructions', required: false, placeholder: 'e.g. Apply to affected area in the morning' },
+                    { label: 'Prescribed By', field: 'prescribedBy', required: false, placeholder: user?.fullName || '' },
+                  ].map(({ label, field, required, placeholder }) => (
+                    <div key={field}>
+                      <label className="text-xs text-muted block mb-1">{label}</label>
+                      <input required={required} type="text" value={(rxForm as Record<string, string>)[field]} onChange={e => setRxForm(p => ({ ...p, [field]: e.target.value }))} placeholder={placeholder} className="w-full bg-cream border-transparent rounded-md px-4 py-3 text-base sm:text-sm font-medium focus:ring-2 focus:ring-primary/20" />
                     </div>
-                    <div className="p-6 space-y-4 max-h-[65vh] overflow-y-auto">
-                      {[
-                        { label: 'Drug / Product Name *', field: 'drugName', required: true, placeholder: 'e.g. Minoxidil 5%' },
-                        { label: 'Dosage *', field: 'dosage', required: true, placeholder: 'e.g. 1ml twice daily' },
-                        { label: 'Instructions', field: 'instructions', required: false, placeholder: 'e.g. Apply to affected area in the morning' },
-                        { label: 'Prescribed By', field: 'prescribedBy', required: false, placeholder: user?.fullName || '' },
-                      ].map(({ label, field, required, placeholder }) => (
-                        <div key={field}>
-                          <label className="text-xs text-muted block mb-1">{label}</label>
-                          <input required={required} type="text" value={(rxForm as Record<string, string>)[field]} onChange={e => setRxForm(p => ({ ...p, [field]: e.target.value }))} placeholder={placeholder} className="w-full bg-cream border-transparent rounded-xl px-4 py-3 text-sm font-medium focus:ring-2 focus:ring-primary/20" />
-                        </div>
-                      ))}
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <div>
-                          <label className="text-xs text-muted block mb-1">Start Date *</label>
-                          <input required type="date" value={rxForm.startDate} onChange={e => setRxForm(p => ({ ...p, startDate: e.target.value }))} className="w-full bg-cream border-transparent rounded-xl px-4 py-3 text-sm font-medium focus:ring-2 focus:ring-primary/20" />
-                        </div>
-                        <div>
-                          <label className="text-xs text-muted block mb-1">End Date</label>
-                          <input type="date" value={rxForm.endDate} onChange={e => setRxForm(p => ({ ...p, endDate: e.target.value }))} className="w-full bg-cream border-transparent rounded-xl px-4 py-3 text-sm font-medium focus:ring-2 focus:ring-primary/20" />
-                        </div>
-                      </div>
+                  ))}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs text-muted block mb-1">Start Date *</label>
+                      <input required type="date" value={rxForm.startDate} onChange={e => setRxForm(p => ({ ...p, startDate: e.target.value }))} className="w-full bg-cream border-transparent rounded-md px-4 py-3 text-base sm:text-sm font-medium focus:ring-2 focus:ring-primary/20" />
                     </div>
-                    <div className="p-6 border-t border-black/5 flex gap-3 justify-end bg-cream/30">
-                      <button type="button" onClick={() => setShowAddRx(false)} className="px-5 py-2.5 text-xs text-muted hover:text-obsidian">Cancel</button>
-                      <button type="submit" disabled={rxSaving} className="bg-primary text-obsidian px-6 py-2.5 rounded-xl text-xs text-muted disabled:opacity-50">
-                        {rxSaving ? 'Saving…' : 'Add Prescription'}
-                      </button>
+                    <div>
+                      <label className="text-xs text-muted block mb-1">End Date</label>
+                      <input type="date" value={rxForm.endDate} onChange={e => setRxForm(p => ({ ...p, endDate: e.target.value }))} className="w-full bg-cream border-transparent rounded-md px-4 py-3 text-base sm:text-sm font-medium focus:ring-2 focus:ring-primary/20" />
                     </div>
-                  </form>
-                </div>
-              )}
+                  </div>
+                </form>
+              </UIModal>
             </div>
           );
         })()}
@@ -1359,9 +1377,28 @@ const ClientRecord: React.FC = () => {
               </Card>
 
               {/* Add Payment Modal */}
-              {showAddPayment && (
-                <div className="fixed inset-0 z-[100] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setShowAddPayment(false)}>
-                  <form onClick={e => e.stopPropagation()} onSubmit={async (e) => {
+              <UIModal
+                open={showAddPayment}
+                onClose={() => setShowAddPayment(false)}
+                title="Add Payment Entry"
+                size="md"
+                footer={
+                  <div className="flex gap-3 justify-end">
+                    <button type="button" onClick={() => setShowAddPayment(false)} className="px-4 py-2 text-sm text-muted hover:text-obsidian">Cancel</button>
+                    <button
+                      type="submit"
+                      form="add-payment-form"
+                      disabled={paymentSaving}
+                      className="bg-primary text-obsidian px-5 py-2 rounded-md text-sm font-medium disabled:opacity-50"
+                    >
+                      {paymentSaving ? 'Saving…' : 'Add Entry'}
+                    </button>
+                  </div>
+                }
+              >
+                <form
+                  id="add-payment-form"
+                  onSubmit={async (e) => {
                     e.preventDefault();
                     setPaymentSaving(true);
                     const newPay: Payment = {
@@ -1378,47 +1415,37 @@ const ClientRecord: React.FC = () => {
                     setPaymentForm({ description: '', amount: '', currency: 'GBP', status: 'Pending', dueDate: '', reference: '' });
                     setShowAddPayment(false);
                     setPaymentSaving(false);
-                  }} className="bg-white rounded-lg shadow-modal w-full max-w-md overflow-hidden">
-                    <div className="p-6 border-b border-black/5">
-                      <h3 className="text-sm font-medium text-obsidian">Add Payment Entry</h3>
+                  }}
+                  className="space-y-4"
+                >
+                  <div>
+                    <label className="text-xs text-muted block mb-1">Description *</label>
+                    <input required type="text" value={paymentForm.description} onChange={e => setPaymentForm(p => ({ ...p, description: e.target.value }))} placeholder="e.g. Initial PRP Session — Session 1" className="w-full bg-cream border-transparent rounded-md px-4 py-3 text-base sm:text-sm font-medium focus:ring-2 focus:ring-primary/20" />
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs text-muted block mb-1">Amount (£) *</label>
+                      <input required type="number" min="0" step="0.01" value={paymentForm.amount} onChange={e => setPaymentForm(p => ({ ...p, amount: e.target.value }))} placeholder="0.00" className="w-full bg-cream border-transparent rounded-md px-4 py-3 text-base sm:text-sm font-medium focus:ring-2 focus:ring-primary/20" />
                     </div>
-                    <div className="p-6 space-y-4 max-h-[65vh] overflow-y-auto">
-                      <div>
-                        <label className="text-xs text-muted block mb-1">Description *</label>
-                        <input required type="text" value={paymentForm.description} onChange={e => setPaymentForm(p => ({ ...p, description: e.target.value }))} placeholder="e.g. Initial PRP Session — Session 1" className="w-full bg-cream border-transparent rounded-xl px-4 py-3 text-sm font-medium focus:ring-2 focus:ring-primary/20" />
-                      </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <div>
-                          <label className="text-xs text-muted block mb-1">Amount (£) *</label>
-                          <input required type="number" min="0" step="0.01" value={paymentForm.amount} onChange={e => setPaymentForm(p => ({ ...p, amount: e.target.value }))} placeholder="0.00" className="w-full bg-cream border-transparent rounded-xl px-4 py-3 text-sm font-medium focus:ring-2 focus:ring-primary/20" />
-                        </div>
-                        <div>
-                          <label className="text-xs text-muted block mb-1">Status</label>
-                          <select value={paymentForm.status} onChange={e => setPaymentForm(p => ({ ...p, status: e.target.value as Payment['status'] }))} className="w-full bg-cream border-transparent rounded-xl px-4 py-3 text-sm font-medium focus:ring-2 focus:ring-primary/20">
-                            <option>Pending</option><option>Paid</option><option>Overdue</option><option>Refunded</option>
-                          </select>
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <div>
-                          <label className="text-xs text-muted block mb-1">Due Date</label>
-                          <input type="date" value={paymentForm.dueDate} onChange={e => setPaymentForm(p => ({ ...p, dueDate: e.target.value }))} className="w-full bg-cream border-transparent rounded-xl px-4 py-3 text-sm font-medium focus:ring-2 focus:ring-primary/20" />
-                        </div>
-                        <div>
-                          <label className="text-xs text-muted block mb-1">Reference</label>
-                          <input type="text" value={paymentForm.reference} onChange={e => setPaymentForm(p => ({ ...p, reference: e.target.value }))} placeholder="INV-001" className="w-full bg-cream border-transparent rounded-xl px-4 py-3 text-sm font-medium focus:ring-2 focus:ring-primary/20" />
-                        </div>
-                      </div>
+                    <div>
+                      <label className="text-xs text-muted block mb-1">Status</label>
+                      <select value={paymentForm.status} onChange={e => setPaymentForm(p => ({ ...p, status: e.target.value as Payment['status'] }))} className="w-full bg-cream border-transparent rounded-md px-4 py-3 text-base sm:text-sm font-medium focus:ring-2 focus:ring-primary/20">
+                        <option>Pending</option><option>Paid</option><option>Overdue</option><option>Refunded</option>
+                      </select>
                     </div>
-                    <div className="p-6 border-t border-black/5 flex gap-3 justify-end bg-cream/30">
-                      <button type="button" onClick={() => setShowAddPayment(false)} className="px-5 py-2.5 text-xs text-muted hover:text-obsidian">Cancel</button>
-                      <button type="submit" disabled={paymentSaving} className="bg-primary text-obsidian px-6 py-2.5 rounded-xl text-xs text-muted disabled:opacity-50">
-                        {paymentSaving ? 'Saving…' : 'Add Entry'}
-                      </button>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs text-muted block mb-1">Due Date</label>
+                      <input type="date" value={paymentForm.dueDate} onChange={e => setPaymentForm(p => ({ ...p, dueDate: e.target.value }))} className="w-full bg-cream border-transparent rounded-md px-4 py-3 text-base sm:text-sm font-medium focus:ring-2 focus:ring-primary/20" />
                     </div>
-                  </form>
-                </div>
-              )}
+                    <div>
+                      <label className="text-xs text-muted block mb-1">Reference</label>
+                      <input type="text" value={paymentForm.reference} onChange={e => setPaymentForm(p => ({ ...p, reference: e.target.value }))} placeholder="INV-001" className="w-full bg-cream border-transparent rounded-md px-4 py-3 text-base sm:text-sm font-medium focus:ring-2 focus:ring-primary/20" />
+                    </div>
+                  </div>
+                </form>
+              </UIModal>
             </div>
           );
         })()}
@@ -1428,91 +1455,103 @@ const ClientRecord: React.FC = () => {
       {/* /2-column grid */}
 
       {/* Reschedule Modal */}
-      {rescheduleApt && (
-        <div className="fixed inset-0 z-[100] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setRescheduleApt(null)}>
-          <form onClick={(e) => e.stopPropagation()} onSubmit={submitReschedule} className="bg-white rounded-lg shadow-modal w-full max-w-md overflow-hidden">
-            <div className="p-6 border-b border-black/5">
-              <h3 className="text-sm font-medium text-obsidian">Reschedule Appointment</h3>
-              <p className="text-2xs text-muted font-medium mt-1">{rescheduleApt.type} — currently {rescheduleApt.date} {rescheduleApt.time}</p>
+      <UIModal
+        open={!!rescheduleApt}
+        onClose={() => setRescheduleApt(null)}
+        title="Reschedule Appointment"
+        subtitle={rescheduleApt ? `${rescheduleApt.type} — currently ${rescheduleApt.date} ${rescheduleApt.time}` : undefined}
+        size="md"
+        footer={
+          <div className="flex gap-3 justify-end">
+            <button type="button" onClick={() => setRescheduleApt(null)} className="px-4 py-2 text-sm text-muted hover:text-obsidian transition-colors">Cancel</button>
+            <button
+              type="submit"
+              form="reschedule-form"
+              disabled={rescheduleStatus === 'saving' || !rescheduleForm.date || !rescheduleForm.time}
+              className="bg-primary text-obsidian px-5 py-2 rounded-md text-sm font-medium disabled:opacity-50"
+            >
+              {rescheduleStatus === 'saving' ? 'Saving…' : 'Confirm Reschedule'}
+            </button>
+          </div>
+        }
+      >
+        {rescheduleApt && (
+          <form id="reschedule-form" onSubmit={submitReschedule} className="space-y-4">
+            <div>
+              <label className="text-xs text-muted block mb-2">New Date</label>
+              <input
+                type="date"
+                required
+                value={rescheduleForm.date}
+                onChange={(e) => setRescheduleForm(p => ({ ...p, date: e.target.value }))}
+                min={new Date().toISOString().split('T')[0]}
+                className="w-full bg-cream border-transparent rounded-md px-4 py-3 text-base sm:text-sm font-medium focus:ring-2 focus:ring-primary/20"
+              />
             </div>
-            <div className="p-6 space-y-4">
-              <div>
-                <label className="text-xs text-muted block mb-2">New Date</label>
-                <input
-                  type="date"
-                  required
-                  value={rescheduleForm.date}
-                  onChange={(e) => setRescheduleForm(p => ({ ...p, date: e.target.value }))}
-                  min={new Date().toISOString().split('T')[0]}
-                  className="w-full bg-cream border-transparent rounded-xl px-4 py-3 text-sm font-medium focus:ring-2 focus:ring-primary/20"
-                />
-              </div>
-              <div>
-                <label className="text-xs text-muted block mb-2">New Time</label>
-                <select
-                  required
-                  value={rescheduleForm.time}
-                  onChange={(e) => setRescheduleForm(p => ({ ...p, time: e.target.value }))}
-                  className="w-full bg-cream border-transparent rounded-xl px-4 py-3 text-sm font-medium focus:ring-2 focus:ring-primary/20"
-                >
-                  <option value="">Select time...</option>
-                  {['09:00 AM','09:30 AM','10:00 AM','10:30 AM','11:00 AM','11:30 AM','12:00 PM','12:30 PM','01:00 PM','01:30 PM','02:00 PM','02:30 PM','03:00 PM','03:30 PM','04:00 PM','04:30 PM','05:00 PM','05:30 PM','06:00 PM','06:30 PM','07:00 PM','07:30 PM','08:00 PM','08:30 PM','09:00 PM','09:30 PM','10:00 PM'].map(t => (
-                    <option key={t} value={t}>{t}</option>
-                  ))}
-                </select>
-              </div>
-              {rescheduleStatus === 'error' && (
-                <p className="text-2xs font-medium text-red-500">Failed to reschedule. Please try again.</p>
-              )}
+            <div>
+              <label className="text-xs text-muted block mb-2">New Time</label>
+              <select
+                required
+                value={rescheduleForm.time}
+                onChange={(e) => setRescheduleForm(p => ({ ...p, time: e.target.value }))}
+                className="w-full bg-cream border-transparent rounded-md px-4 py-3 text-base sm:text-sm font-medium focus:ring-2 focus:ring-primary/20"
+              >
+                <option value="">Select time...</option>
+                {['09:00 AM','09:30 AM','10:00 AM','10:30 AM','11:00 AM','11:30 AM','12:00 PM','12:30 PM','01:00 PM','01:30 PM','02:00 PM','02:30 PM','03:00 PM','03:30 PM','04:00 PM','04:30 PM','05:00 PM','05:30 PM','06:00 PM','06:30 PM','07:00 PM','07:30 PM','08:00 PM','08:30 PM','09:00 PM','09:30 PM','10:00 PM'].map(t => (
+                  <option key={t} value={t}>{t}</option>
+                ))}
+              </select>
             </div>
-            <div className="p-6 border-t border-black/5 flex gap-3 justify-end bg-cream/30">
-              <button type="button" onClick={() => setRescheduleApt(null)} className="px-5 py-2.5 text-xs text-muted hover:text-obsidian transition-colors">Cancel</button>
-              <button type="submit" disabled={rescheduleStatus === 'saving' || !rescheduleForm.date || !rescheduleForm.time} className="bg-primary text-obsidian px-6 py-2.5 rounded-xl text-xs text-muted disabled:opacity-50">
-                {rescheduleStatus === 'saving' ? 'Saving…' : 'Confirm Reschedule'}
-              </button>
-            </div>
+            {rescheduleStatus === 'error' && (
+              <p className="text-xs font-medium text-red-500">Failed to reschedule. Please try again.</p>
+            )}
           </form>
-        </div>
-      )}
+        )}
+      </UIModal>
 
       {/* Quick Edit Modal */}
-      {showQuickEdit && (
-        <div className="fixed inset-0 z-[100] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setShowQuickEdit(false)}>
-          <form onClick={(e) => e.stopPropagation()} onSubmit={submitQuickEdit} className="bg-white rounded-lg shadow-modal w-full max-w-md overflow-hidden">
-            <div className="p-6 border-b border-black/5">
-              <h3 className="text-sm font-medium text-obsidian">Quick Edit Profile</h3>
-              <p className="text-2xs text-muted font-medium mt-1">Registry ID: {selectedClient.id}</p>
-            </div>
-            <div className="p-6 space-y-4 max-h-[60vh] overflow-y-auto">
-              <div>
-                <label className="text-xs text-muted block mb-2">Full Name</label>
-                <input type="text" required value={quickEditForm.name} onChange={(e) => setQuickEditForm(p => ({ ...p, name: e.target.value }))} className="w-full bg-cream border-transparent rounded-xl px-4 py-3 text-sm font-medium focus:ring-2 focus:ring-primary/20" />
-              </div>
-              <div>
-                <label className="text-xs text-muted block mb-2">Email</label>
-                <input type="email" required value={quickEditForm.email} onChange={(e) => setQuickEditForm(p => ({ ...p, email: e.target.value }))} className="w-full bg-cream border-transparent rounded-xl px-4 py-3 text-sm font-medium focus:ring-2 focus:ring-primary/20" />
-              </div>
-              <div>
-                <label className="text-xs text-muted block mb-2">Phone</label>
-                <input type="tel" value={quickEditForm.phone} onChange={(e) => setQuickEditForm(p => ({ ...p, phone: e.target.value }))} className="w-full bg-cream border-transparent rounded-xl px-4 py-3 text-sm font-medium focus:ring-2 focus:ring-primary/20" />
-              </div>
-              <div>
-                <label className="text-xs text-muted block mb-2">Address</label>
-                <textarea value={quickEditForm.address} onChange={(e) => setQuickEditForm(p => ({ ...p, address: e.target.value }))} rows={2} className="w-full bg-cream border-transparent rounded-xl px-4 py-3 text-sm font-medium focus:ring-2 focus:ring-primary/20 resize-none" />
-              </div>
-              {quickEditStatus === 'error' && (
-                <p className="text-2xs font-medium text-red-500">Failed to save. Please try again.</p>
-              )}
-            </div>
-            <div className="p-6 border-t border-black/5 flex gap-3 justify-end bg-cream/30">
-              <button type="button" onClick={() => setShowQuickEdit(false)} className="px-5 py-2.5 text-xs text-muted hover:text-obsidian transition-colors">Cancel</button>
-              <button type="submit" disabled={quickEditStatus === 'saving' || !quickEditForm.name.trim() || !quickEditForm.email.trim()} className="bg-obsidian text-white px-6 py-2.5 rounded-xl text-xs text-muted disabled:opacity-50">
-                {quickEditStatus === 'saving' ? 'Saving…' : 'Save Changes'}
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
+      <UIModal
+        open={showQuickEdit}
+        onClose={() => setShowQuickEdit(false)}
+        title="Quick Edit Profile"
+        subtitle={`Registry ID: ${selectedClient.id}`}
+        size="md"
+        footer={
+          <div className="flex gap-3 justify-end">
+            <button type="button" onClick={() => setShowQuickEdit(false)} className="px-4 py-2 text-sm text-muted hover:text-obsidian transition-colors">Cancel</button>
+            <button
+              type="submit"
+              form="quick-edit-form"
+              disabled={quickEditStatus === 'saving' || !quickEditForm.name.trim() || !quickEditForm.email.trim()}
+              className="bg-obsidian text-white px-5 py-2 rounded-md text-sm font-medium disabled:opacity-50"
+            >
+              {quickEditStatus === 'saving' ? 'Saving…' : 'Save Changes'}
+            </button>
+          </div>
+        }
+      >
+        <form id="quick-edit-form" onSubmit={submitQuickEdit} className="space-y-4">
+          <div>
+            <label className="text-xs text-muted block mb-2">Full Name</label>
+            <input type="text" required value={quickEditForm.name} onChange={(e) => setQuickEditForm(p => ({ ...p, name: e.target.value }))} className="w-full bg-cream border-transparent rounded-md px-4 py-3 text-base sm:text-sm font-medium focus:ring-2 focus:ring-primary/20" />
+          </div>
+          <div>
+            <label className="text-xs text-muted block mb-2">Email</label>
+            <input type="email" required value={quickEditForm.email} onChange={(e) => setQuickEditForm(p => ({ ...p, email: e.target.value }))} className="w-full bg-cream border-transparent rounded-md px-4 py-3 text-base sm:text-sm font-medium focus:ring-2 focus:ring-primary/20" />
+          </div>
+          <div>
+            <label className="text-xs text-muted block mb-2">Phone</label>
+            <input type="tel" value={quickEditForm.phone} onChange={(e) => setQuickEditForm(p => ({ ...p, phone: e.target.value }))} className="w-full bg-cream border-transparent rounded-md px-4 py-3 text-base sm:text-sm font-medium focus:ring-2 focus:ring-primary/20" />
+          </div>
+          <div>
+            <label className="text-xs text-muted block mb-2">Address</label>
+            <textarea value={quickEditForm.address} onChange={(e) => setQuickEditForm(p => ({ ...p, address: e.target.value }))} rows={2} className="w-full bg-cream border-transparent rounded-md px-4 py-3 text-base sm:text-sm font-medium focus:ring-2 focus:ring-primary/20 resize-none" />
+          </div>
+          {quickEditStatus === 'error' && (
+            <p className="text-xs font-medium text-red-500">Failed to save. Please try again.</p>
+          )}
+        </form>
+      </UIModal>
     </div>
   );
 };

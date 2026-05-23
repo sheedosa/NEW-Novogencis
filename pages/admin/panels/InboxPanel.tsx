@@ -391,7 +391,7 @@ function InboxPanel() {
                 animate={{ opacity: 1, height: 'auto' }}
                 exit={{ opacity: 0, x: 80, height: 0, transition: { duration: 0.2 } }}
                 transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
-                className={`group px-4 py-3 hover:bg-cream/40 transition-colors flex items-start gap-3 relative ${idx > 0 ? 'border-t border-cream' : ''} ${item.priority === 'high' ? 'bg-danger-bg/40' : ''}`}
+                className={`group px-4 py-3 hover:bg-cream/40 transition-colors relative ${idx > 0 ? 'border-t border-cream' : ''} ${item.priority === 'high' ? 'bg-danger-bg/40' : ''}`}
               >
                 {/* Type accent stripe on the left — instant visual categorisation */}
                 <div className={`absolute left-0 top-0 bottom-0 w-[3px] ${
@@ -402,53 +402,101 @@ function InboxPanel() {
                   item.type === 'payment'          ? 'bg-success' :
                                                      'bg-transparent'
                 }`} />
-                {/* Type-tinted icon — pops against monotone background */}
-                <div className={`w-8 h-8 rounded-md flex items-center justify-center shrink-0 ${
-                  item.type === 'assessment' ? 'bg-info-light text-info-text' :
-                  item.type === 'message'    ? 'bg-primary/10 text-primary' :
-                  item.type === 'form'       ? 'bg-warning-bg text-warning-text' :
-                  item.type === 'payment'    ? 'bg-success-light text-success-text' :
-                                               'bg-cream text-obsidian'
-                }`}>
-                  {iconFor(item.type)}
-                </div>
 
-                {/* Body */}
-                <div className="min-w-0 flex-grow">
+                {/* Mobile: stacked card layout */}
+                <div className="flex flex-col gap-2.5 md:hidden">
+                  <div className="flex items-start gap-3">
+                    <div className={`w-9 h-9 rounded-md flex items-center justify-center shrink-0 ${
+                      item.type === 'assessment' ? 'bg-info-light text-info-text' :
+                      item.type === 'message'    ? 'bg-primary/10 text-primary' :
+                      item.type === 'form'       ? 'bg-warning-bg text-warning-text' :
+                      item.type === 'payment'    ? 'bg-success-light text-success-text' :
+                                                   'bg-cream text-obsidian'
+                    }`}>
+                      {iconFor(item.type)}
+                    </div>
+                    <div className="min-w-0 flex-grow">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-[10px] font-medium uppercase tracking-wider text-hint">
+                          {item.type === 'assessment' ? 'Assessment' :
+                           item.type === 'message'    ? 'Message' :
+                           item.type === 'form'       ? 'Form' :
+                           item.type === 'payment'    ? 'Payment' :
+                           item.type === 'task'       ? 'Task' : 'Item'}
+                        </span>
+                        {item.priority === 'high' && (
+                          <span className="inline-flex items-center gap-0.5 text-[10px] font-medium uppercase tracking-wider text-danger">
+                            <AlertTriangle size={10} /> Priority
+                          </span>
+                        )}
+                        <span className="text-xs text-hint ml-auto">{relativeTime(item.when)} ago</span>
+                      </div>
+                      <p className="text-sm font-medium text-obsidian mt-0.5">{item.title}</p>
+                      <p className="text-xs text-muted mt-0.5 line-clamp-2">{item.subtitle}</p>
+                    </div>
+                  </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-medium uppercase tracking-wider text-hint">
-                      {item.type === 'assessment' ? 'Assessment' :
-                       item.type === 'message'    ? 'Message' :
-                       item.type === 'form'       ? 'Form' :
-                       item.type === 'payment'    ? 'Payment' :
-                       item.type === 'task'       ? 'Task' : 'Item'}
-                    </span>
-                    {item.priority === 'high' && (
-                      <span className="inline-flex items-center gap-0.5 text-[10px] font-medium uppercase tracking-wider text-danger">
-                        <AlertTriangle size={10} /> Priority
-                      </span>
+                    <Button variant="primary" size="sm" trailingIcon={<ArrowRight size={13} />} onClick={item.primaryAction.onClick} className="flex-1">
+                      {item.primaryAction.label}
+                    </Button>
+                    {item.secondaryAction && (
+                      <Button variant="ghost" size="sm" onClick={item.secondaryAction.onClick} aria-label="Snooze">
+                        <Snowflake size={13} />
+                      </Button>
+                    )}
+                    {item.task && (
+                      <Button variant="ghost" size="sm" onClick={() => handleDeleteTask(item.task!.id, item.task!.title)} aria-label="Delete task">
+                        <Trash2 size={13} />
+                      </Button>
                     )}
                   </div>
-                  <p className="text-sm font-medium text-obsidian truncate mt-0.5">{item.title}</p>
-                  <p className="text-xs text-muted mt-0.5 line-clamp-2">{item.subtitle}</p>
-                  <p className="text-xs text-hint mt-1">{relativeTime(item.when)} ago</p>
                 </div>
 
-                {/* Actions */}
-                <div className="flex items-center gap-1 shrink-0">
-                  {item.secondaryAction && (
-                    <Button variant="ghost" size="sm" onClick={item.secondaryAction.onClick}>
-                      <Snowflake size={13} />
+                {/* Desktop: inline row */}
+                <div className="hidden md:flex items-start gap-3">
+                  <div className={`w-8 h-8 rounded-md flex items-center justify-center shrink-0 ${
+                    item.type === 'assessment' ? 'bg-info-light text-info-text' :
+                    item.type === 'message'    ? 'bg-primary/10 text-primary' :
+                    item.type === 'form'       ? 'bg-warning-bg text-warning-text' :
+                    item.type === 'payment'    ? 'bg-success-light text-success-text' :
+                                                 'bg-cream text-obsidian'
+                  }`}>
+                    {iconFor(item.type)}
+                  </div>
+                  <div className="min-w-0 flex-grow">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-medium uppercase tracking-wider text-hint">
+                        {item.type === 'assessment' ? 'Assessment' :
+                         item.type === 'message'    ? 'Message' :
+                         item.type === 'form'       ? 'Form' :
+                         item.type === 'payment'    ? 'Payment' :
+                         item.type === 'task'       ? 'Task' : 'Item'}
+                      </span>
+                      {item.priority === 'high' && (
+                        <span className="inline-flex items-center gap-0.5 text-[10px] font-medium uppercase tracking-wider text-danger">
+                          <AlertTriangle size={10} /> Priority
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-sm font-medium text-obsidian truncate mt-0.5">{item.title}</p>
+                    <p className="text-xs text-muted mt-0.5 line-clamp-2">{item.subtitle}</p>
+                    <p className="text-xs text-hint mt-1">{relativeTime(item.when)} ago</p>
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    {item.secondaryAction && (
+                      <Button variant="ghost" size="sm" onClick={item.secondaryAction.onClick}>
+                        <Snowflake size={13} />
+                      </Button>
+                    )}
+                    {item.task && (
+                      <Button variant="ghost" size="sm" onClick={() => handleDeleteTask(item.task!.id, item.task!.title)} aria-label="Delete task">
+                        <Trash2 size={13} />
+                      </Button>
+                    )}
+                    <Button variant="primary" size="sm" trailingIcon={<ArrowRight size={13} />} onClick={item.primaryAction.onClick}>
+                      {item.primaryAction.label}
                     </Button>
-                  )}
-                  {item.task && (
-                    <Button variant="ghost" size="sm" onClick={() => handleDeleteTask(item.task!.id, item.task!.title)} aria-label="Delete task">
-                      <Trash2 size={13} />
-                    </Button>
-                  )}
-                  <Button variant="primary" size="sm" trailingIcon={<ArrowRight size={13} />} onClick={item.primaryAction.onClick}>
-                    {item.primaryAction.label}
-                  </Button>
+                  </div>
                 </div>
               </motion.div>
             ))}

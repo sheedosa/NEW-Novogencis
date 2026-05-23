@@ -210,7 +210,7 @@ function CalendarPanel() {
           </button>
           <button
             onClick={() => setView('week')}
-            className={`px-3 py-1 rounded-sm text-sm transition-colors inline-flex items-center gap-1.5 ${
+            className={`hidden md:inline-flex px-3 py-1 rounded-sm text-sm transition-colors items-center gap-1.5 ${
               view === 'week' ? 'bg-white text-obsidian shadow-sm font-medium' : 'text-muted'
             }`}
           >
@@ -304,9 +304,9 @@ function CalendarPanel() {
         );
       })()}
 
-      {/* ── Week view ──────────────────────────────────────────────────── */}
+      {/* ── Week view (desktop only) ───────────────────────────────────── */}
       {view === 'week' && (
-        <Card padded={false}>
+        <Card padded={false} className="hidden md:block">
           <div className="overflow-x-auto">
             <div className="min-w-[640px] sm:min-w-[800px]">
               {/* Header row: days */}
@@ -388,6 +388,57 @@ function CalendarPanel() {
             </div>
           </div>
         </Card>
+      )}
+
+      {/* ── Week view (mobile agenda — stacked by day) ─────────────────── */}
+      {view === 'week' && (
+        <div className="md:hidden flex flex-col gap-3">
+          {weekDates.map(d => {
+            const ds = d.toISOString().split('T')[0];
+            const toMinutes = (t: string) => {
+              const p = parseTime12h(t);
+              return p ? p.h * 60 + p.m : 0;
+            };
+            const dayAppts = (byDate[ds] || []).sort((a, b) => toMinutes(a.time) - toMinutes(b.time));
+            const isToday = ds === new Date().toISOString().split('T')[0];
+            return (
+              <Card key={ds} padded={false}>
+                <div className={`px-4 py-2.5 border-b border-sand flex items-center justify-between ${isToday ? 'bg-primary/5' : ''}`}>
+                  <div className="flex items-center gap-2">
+                    <span className={`text-sm font-medium ${isToday ? 'text-primary' : 'text-obsidian'}`}>
+                      {d.toLocaleDateString('en-GB', { weekday: 'long' })}
+                    </span>
+                    <span className="text-xs text-muted">
+                      {d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
+                    </span>
+                    {isToday && <span className="text-2xs uppercase tracking-wider text-primary font-medium">Today</span>}
+                  </div>
+                  <span className="text-xs text-hint">
+                    {dayAppts.length} session{dayAppts.length !== 1 ? 's' : ''}
+                  </span>
+                </div>
+                {dayAppts.length === 0 ? (
+                  <div className="px-4 py-3 text-center">
+                    <p className="text-xs text-hint">No appointments</p>
+                  </div>
+                ) : (
+                  <div className="divide-y divide-cream">
+                    {dayAppts.map(apt => (
+                      <div key={apt.id} className="px-4 py-3 flex items-center gap-3">
+                        <div className="text-xs font-medium text-obsidian w-16 shrink-0">{apt.time}</div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-obsidian truncate">{apt.clientName}</p>
+                          <p className="text-xs text-muted truncate">{apt.type}</p>
+                        </div>
+                        <StatusBadge status={apt.status} />
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </Card>
+            );
+          })}
+        </div>
       )}
 
       {/* ── Day view ───────────────────────────────────────────────────── */}
