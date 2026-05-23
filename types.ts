@@ -150,7 +150,7 @@ export interface Appointment {
   clientName: string;
   doctorId?: string;
   doctorName?: string;
-  type: 'Initial Consultation' | 'Follow-up Consultation' | 'PRP Session' | 'EV-Enriched Plasma Session' | 'Hair Assessment' | 'Microneedling Session';
+  type: 'PRP + Microneedling' | 'EV Enriched Plasma / Autologous Exosomes + Microneedling' | 'Face to Face Consultation' | 'Initial Consultation' | 'Follow-up Consultation' | 'PRP Session' | 'EV-Enriched Plasma Session' | 'Hair Assessment' | 'Microneedling Session';
   date: string;
   time: string;
   status: 'Confirmed' | 'Pending' | 'Awaiting deposit' | 'Completed' | 'Cancelled' | 'No-Show';

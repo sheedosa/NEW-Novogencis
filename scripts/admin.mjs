@@ -25,46 +25,49 @@ const require = createRequire(import.meta.url);
 
 // ── Load service account ─────────────────────────────────────────────────────
 
-function loadServiceAccount() {
+const PROJECT_ID = 'gen-lang-client-0344977334';
+const DATABASE_ID = 'ai-studio-ffbd754d-87bd-4895-950f-a8738f36064a';
+
+const admin = require('firebase-admin');
+const { getFirestore } = require('firebase-admin/firestore');
+
+/**
+ * Init strategy:
+ *   1. GOOGLE_APPLICATION_CREDENTIALS env var → service account file
+ *   2. service-account.json in project root → service account file
+ *   3. Application Default Credentials (ADC) → `gcloud auth application-default login`
+ */
+function initFirebase() {
   const envPath = process.env.GOOGLE_APPLICATION_CREDENTIALS;
   const localPath = resolve(__dirname, '../service-account.json');
 
   if (envPath && existsSync(envPath)) {
-    return { credential: envPath, source: envPath };
+    const sa = JSON.parse(readFileSync(envPath, 'utf8'));
+    admin.initializeApp({ credential: admin.credential.cert(sa), projectId: sa.project_id });
+    console.log(`\n🔑  Using service account: ${envPath}`);
+    console.log(`📦  Project: ${sa.project_id}\n`);
+    return;
   }
   if (existsSync(localPath)) {
-    return { credential: localPath, source: 'service-account.json' };
+    const sa = JSON.parse(readFileSync(localPath, 'utf8'));
+    admin.initializeApp({ credential: admin.credential.cert(sa), projectId: sa.project_id });
+    console.log(`\n🔑  Using service account: service-account.json`);
+    console.log(`📦  Project: ${sa.project_id}\n`);
+    return;
   }
 
-  console.error('\n❌  No service account found.\n');
-  console.error('  Steps to fix:');
-  console.error('  1. Go to Firebase Console → Project Settings → Service Accounts');
-  console.error('  2. Click "Generate new private key" → Save as service-account.json');
-  console.error('  3. Place service-account.json in the NEW-Novogencis project root');
-  console.error('  (It is gitignored — never commit it)\n');
-  process.exit(1);
+  // Fallback: Application Default Credentials (run `gcloud auth application-default login` first)
+  admin.initializeApp({ projectId: PROJECT_ID });
+  console.log(`\n🔑  Using Application Default Credentials (ADC)`);
+  console.log(`📦  Project: ${PROJECT_ID}\n`);
 }
 
-const { credential: saPath, source: saSource } = loadServiceAccount();
-
-const admin = require('firebase-admin');
-const { getFirestore } = require('firebase-admin/firestore');
-const serviceAccount = JSON.parse(readFileSync(saPath, 'utf8'));
-
-const DATABASE_ID = 'ai-studio-ffbd754d-87bd-4895-950f-a8738f36064a';
-
 if (!admin.apps.length) {
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount),
-    projectId: serviceAccount.project_id,
-  });
+  initFirebase();
 }
 
 const auth = admin.auth();
 const db = getFirestore(admin.app(), DATABASE_ID);
-
-console.log(`\n🔑  Using service account: ${saSource}`);
-console.log(`📦  Project: ${serviceAccount.project_id}\n`);
 
 // ── Admin user definitions ───────────────────────────────────────────────────
 // These are the known admin accounts. Claims are set server-side — the emails
@@ -211,45 +214,23 @@ async function revokeClaims(email) {
  * Seed the treatments catalogue. Idempotent — uses doc IDs so re-running
  * updates existing treatments rather than duplicating them. Prices in pence.
  */
+// IDs of treatments that have been retired — deactivated on seed so they
+// no longer appear in the booking dropdown.
+const RETIRED_TREATMENT_IDS = [
+  'initial-consultation',
+  'follow-up-consultation',
+  'hair-assessment',
+  'prp-session',
+  'ev-plasma-session',
+  'microneedling-session',
+];
+
 const DEFAULT_TREATMENTS = [
   {
-    id: 'initial-consultation',
-    name: 'Initial Consultation',
-    description: 'In-clinic clinical review of your assessment + treatment recommendation.',
-    durationMin: 30,
-    fullPricePence: 7500,        // £75
-    depositPct: 100,             // paid in full at booking
-    refundPolicy: 'consult',
-    category: 'consultation',
-    isActive: true,
-  },
-  {
-    id: 'follow-up-consultation',
-    name: 'Follow-up Consultation',
-    description: 'Progress review for existing patients between treatment phases.',
-    durationMin: 30,
-    fullPricePence: 5000,        // £50
-    depositPct: 100,
-    refundPolicy: 'consult',
-    category: 'consultation',
-    isActive: true,
-  },
-  {
-    id: 'hair-assessment',
-    name: 'Hair Assessment',
-    description: 'Detailed in-clinic scalp + trichoscopy review.',
-    durationMin: 45,
-    fullPricePence: 0,           // free
-    depositPct: 0,
-    refundPolicy: 'consult',
-    category: 'consultation',
-    isActive: true,
-  },
-  {
-    id: 'prp-session',
-    name: 'PRP Session',
-    description: 'Platelet-rich plasma scalp injection using T-Lab system.',
-    durationMin: 60,
+    id: 'prp-microneedling',
+    name: 'PRP + Microneedling',
+    description: 'Platelet-rich plasma scalp injection with microneedling session.',
+    durationMin: 75,
     fullPricePence: 58000,       // £580
     depositPct: 30,              // £174 deposit
     refundPolicy: 'prp',
@@ -257,10 +238,10 @@ const DEFAULT_TREATMENTS = [
     isActive: true,
   },
   {
-    id: 'ev-plasma-session',
-    name: 'EV-Enriched Plasma Session',
-    description: 'Autologous exosome scalp therapy.',
-    durationMin: 60,
+    id: 'ev-exosomes-microneedling',
+    name: 'EV Enriched Plasma / Autologous Exosomes + Microneedling',
+    description: 'Autologous exosome scalp therapy combined with microneedling.',
+    durationMin: 120,
     fullPricePence: 72000,       // £720
     depositPct: 35,              // £252 — non-refundable preparation cost
     refundPolicy: 'exosome',
@@ -268,14 +249,14 @@ const DEFAULT_TREATMENTS = [
     isActive: true,
   },
   {
-    id: 'microneedling-session',
-    name: 'Microneedling Session',
-    description: 'Scalp microneedling, typically combined with PRP or exosomes.',
-    durationMin: 30,
-    fullPricePence: 22000,       // £220
-    depositPct: 30,
-    refundPolicy: 'prp',
-    category: 'microneedling',
+    id: 'face-to-face-consultation',
+    name: 'Face to Face Consultation',
+    description: 'In-clinic consultation — clinical review of your assessment + treatment recommendation.',
+    durationMin: 75,
+    fullPricePence: 7500,        // £75
+    depositPct: 100,             // paid in full at booking
+    refundPolicy: 'consult',
+    category: 'consultation',
     isActive: true,
   },
 ];
@@ -283,20 +264,36 @@ const DEFAULT_TREATMENTS = [
 async function seedTreatments() {
   console.log('Seeding treatments catalogue...\n');
   const now = new Date().toISOString();
+
+  // Deactivate retired treatments (keeps data for historical appointments)
+  let retiredCount = 0;
+  for (const id of RETIRED_TREATMENT_IDS) {
+    const ref = db.collection('treatments').doc(id);
+    const existing = await ref.get();
+    if (existing.exists && existing.data().isActive !== false) {
+      await ref.update({ isActive: false, updatedAt: now });
+      console.log(`  🗑  ${existing.data().name} — deactivated`);
+      retiredCount++;
+    }
+  }
+  if (retiredCount > 0) console.log(`  (${retiredCount} old treatment(s) deactivated)\n`);
+
+  // Seed new treatments
   let upsertCount = 0;
   for (const t of DEFAULT_TREATMENTS) {
     const ref = db.collection('treatments').doc(t.id);
     const existing = await ref.get();
     if (existing.exists) {
-      // Don't overwrite admin edits — only set updatedAt
-      console.log(`  •  ${t.name} — already exists, skipped`);
-      continue;
+      // Update existing to match latest config (name, duration, etc.)
+      await ref.update({ ...t, updatedAt: now });
+      console.log(`  ♻  ${t.name} — updated (${t.durationMin}min)`);
+    } else {
+      await ref.set({ ...t, createdAt: now });
+      console.log(`  ✅  ${t.name} (${t.durationMin}min, £${(t.fullPricePence / 100).toFixed(0)})`);
     }
-    await ref.set({ ...t, createdAt: now });
-    console.log(`  ✅  ${t.name} (£${(t.fullPricePence / 100).toFixed(0)}, ${t.depositPct}% deposit)`);
     upsertCount++;
   }
-  console.log(`\nDone — ${upsertCount} new treatment(s) added.\n`);
+  console.log(`\nDone — ${upsertCount} treatment(s) seeded, ${retiredCount} retired.\n`);
 }
 
 // ── Router ───────────────────────────────────────────────────────────────────
