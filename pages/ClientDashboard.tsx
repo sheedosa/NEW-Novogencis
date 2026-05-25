@@ -555,10 +555,10 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
                 </div>
               </UICard>
 
-              <UICard tone="dark">
+              <UICard accent="gold">
                 <CardHeader
-                  title={<span className="text-white">Your clinician</span>}
-                  leadingIcon={<Stethoscope size={14} className="text-primary" />}
+                  title="Your clinician"
+                  leadingIcon={<Stethoscope size={14} />}
                 />
                 {(() => {
                   const assigned = userAppointments
@@ -567,15 +567,15 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
                   if (assigned?.doctorName) {
                     return (
                       <>
-                        <p className="text-base font-medium text-white">{assigned.doctorName}</p>
-                        <p className="text-xs text-white/60 mt-0.5">Via {assigned.type}</p>
+                        <p className="text-base font-medium text-obsidian">{assigned.doctorName}</p>
+                        <p className="text-xs text-muted mt-0.5">Via {assigned.type}</p>
                       </>
                     );
                   }
                   return (
                     <>
-                      <p className="text-base font-medium text-white">Pending assignment</p>
-                      <p className="text-xs text-white/60 mt-0.5">A clinician is assigned at booking</p>
+                      <p className="text-base font-medium text-obsidian">Pending assignment</p>
+                      <p className="text-xs text-muted mt-0.5">A clinician is assigned at booking</p>
                     </>
                   );
                 })()}
@@ -601,24 +601,22 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
                 </div>
               </UICard>
 
-              <UICard tone="dark">
+              <UICard accent="gold">
                 <CardHeader
-                  title={<span className="text-white">Clinical update</span>}
+                  title="Clinical update"
                   subtitle={
-                    currentClient?.assessmentData?.reviewDate ? (
-                      <span className="text-white/60">
-                        Reviewed {new Date(currentClient.assessmentData.reviewDate).toLocaleDateString()}
-                      </span>
-                    ) : undefined
+                    currentClient?.assessmentData?.reviewDate
+                      ? `Reviewed ${new Date(currentClient.assessmentData.reviewDate).toLocaleDateString()}`
+                      : undefined
                   }
-                  leadingIcon={<ClipboardList size={14} className="text-primary" />}
+                  leadingIcon={<ClipboardList size={14} />}
                 />
                 {currentClient?.assessmentData?.clinicalFeedback ? (
                   <button
                     onClick={() => setActiveTab('assessments')}
-                    className="w-full text-left bg-white/5 rounded-md border border-white/10 hover:bg-white/10 transition-colors p-3"
+                    className="w-full text-left bg-cream/40 rounded-md border border-sand hover:bg-cream transition-colors p-3"
                   >
-                    <p className="text-sm leading-relaxed text-white/85 line-clamp-3">
+                    <p className="text-sm leading-relaxed text-obsidian line-clamp-3">
                       "{currentClient.assessmentData.clinicalFeedback}"
                     </p>
                     <p className="text-xs text-primary mt-2 flex items-center gap-1">
@@ -626,14 +624,14 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
                     </p>
                   </button>
                 ) : currentClient?.status === 'Assessment Submitted' ? (
-                  <div className="bg-white/5 rounded-md border border-white/10 p-3">
-                    <p className="text-xs text-primary mb-1">Under review</p>
-                    <p className="text-sm leading-relaxed text-white/75">
+                  <div className="bg-cream/40 rounded-md border border-sand p-3">
+                    <p className="text-xs text-primary mb-1 font-medium">Under review</p>
+                    <p className="text-sm leading-relaxed text-muted">
                       Your clinical team is reviewing your assessment. You'll be notified when feedback is ready.
                     </p>
                   </div>
                 ) : (
-                  <p className="text-sm text-white/60">No clinical updates yet.</p>
+                  <p className="text-sm text-muted">No clinical updates yet.</p>
                 )}
               </UICard>
             </div>

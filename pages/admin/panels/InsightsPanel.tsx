@@ -321,30 +321,30 @@ function InsightsPanel() {
 
       {/* ── What changed — auto-narrated insights from the period comparison ── */}
       {whatChanged.length > 0 && (
-        <Card className="!bg-gradient-to-br !from-obsidian !to-[#27272A] !text-white !border-obsidian">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-md bg-primary/15 flex items-center justify-center text-primary">
-                <Sparkles size={14} />
+        <Card accent="gold">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-md bg-gold-soft text-gold-dim flex items-center justify-center shrink-0">
+                <Sparkles size={15} />
               </div>
               <div>
-                <h3 className="text-sm font-medium text-white">What changed this period</h3>
-                <p className="text-xs text-white/60">Last 30 days vs the prior 30</p>
+                <p className="eyebrow">What changed this period</p>
+                <p className="text-sm font-medium text-obsidian mt-0.5">Last 30 days vs the prior 30</p>
               </div>
             </div>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
             {whatChanged.map(i => (
-              <div key={i.id} className="bg-white/5 rounded-md p-3 border border-white/10">
+              <div key={i.id} className="bg-cream/40 rounded-md p-3 border border-sand">
                 <div className="flex items-start gap-2">
-                  <div className={`w-1 h-full self-stretch rounded-full ${
+                  <div className={`w-1 self-stretch rounded-full shrink-0 ${
                     i.tone === 'positive' ? 'bg-success' :
                     i.tone === 'warning'  ? 'bg-warning' :
                                             'bg-primary'
                   }`} />
                   <div>
-                    <p className="text-sm font-medium text-white">{i.title}</p>
-                    <p className="text-xs text-white/60 mt-1 leading-relaxed">{i.detail}</p>
+                    <p className="text-sm font-medium text-obsidian">{i.title}</p>
+                    <p className="text-xs text-muted mt-1 leading-relaxed">{i.detail}</p>
                   </div>
                 </div>
               </div>

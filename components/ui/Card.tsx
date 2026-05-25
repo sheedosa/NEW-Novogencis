@@ -1,6 +1,6 @@
 import React from 'react';
 
-type Tone = 'default' | 'dark' | 'subtle' | 'elevated';
+type Tone = 'default' | 'subtle' | 'elevated';
 
 interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
   tone?: Tone;
@@ -11,7 +11,6 @@ interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
 
 const toneClass: Record<Tone, string> = {
   default: 'card',
-  dark: 'card-dark',
   subtle: 'card',
   elevated: 'card card-elevated',
 };

@@ -322,20 +322,20 @@ function TodayPanel() {
 
         return (
           <div className="lg:hidden">
-            <Card tone="dark" className="!p-0 overflow-hidden">
+            <Card accent="gold" className="!p-0 overflow-hidden">
               <div className="p-4 flex flex-col gap-3">
                 <div className="flex items-center justify-between gap-2">
                   <span className="inline-flex items-center gap-1.5 text-xs text-primary font-medium">
                     <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse-gold" />
                     Up next · {timing}
                   </span>
-                  <span className="text-xs text-white/60">{next.time}</span>
+                  <span className="text-xs text-muted">{next.time}</span>
                 </div>
                 <div className="flex items-center gap-3">
                   <div className="avatar avatar-lg">{getInitials(next.clientName)}</div>
                   <div className="min-w-0 flex-grow">
-                    <p className="text-base font-medium text-white truncate">{next.clientName}</p>
-                    <p className="text-xs text-white/70 truncate">{next.type}</p>
+                    <p className="text-base font-medium text-obsidian truncate">{next.clientName}</p>
+                    <p className="text-xs text-muted truncate">{next.type}</p>
                   </div>
                 </div>
                 {flags.length > 0 && (
@@ -343,7 +343,7 @@ function TodayPanel() {
                     {flags.map(f => (
                       <span
                         key={f.id}
-                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-sm text-xs bg-white/10 text-white"
+                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-sm text-xs bg-cream text-obsidian"
                       >
                         {f.icon} {f.label}
                       </span>
@@ -354,7 +354,7 @@ function TodayPanel() {
                   {client?.phone && (
                     <a
                       href={`tel:${client.phone}`}
-                      className="btn btn-secondary btn-sm flex-1 !border-white/30 !text-white hover:!bg-white/10"
+                      className="btn btn-secondary btn-sm flex-1"
                     >
                       <Phone size={13} /> Call
                     </a>
@@ -489,7 +489,7 @@ function TodayPanel() {
                 <Sparkles size={15} />
               </div>
               <div>
-                <p className="eyebrow">Clinic radar</p>
+                <p className="eyebrow">Today's signals</p>
                 <p className="text-sm font-medium text-obsidian mt-0.5">
                   {radar.length} signal{radar.length !== 1 ? 's' : ''} worth your attention
                 </p>

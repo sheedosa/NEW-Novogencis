@@ -8,7 +8,7 @@ import { FORMS } from '../../constants';
 import {
   Camera, Upload, X, Plus, Image as ImageIcon, Loader2, ArrowLeft, CheckCircle,
   History, CalendarClock, FileText, CreditCard, ChevronDown, Send, GitCompare,
-  ClipboardList, Stethoscope, Pencil,
+  ClipboardList, Stethoscope, Pencil, Check,
   User as UserIcon, MessageSquare, Images, Activity, Receipt, Ban, Bell,
   Phone, Mail, MapPin, StickyNote, ArrowRight, Siren, Calendar as CalendarIcon,
 } from 'lucide-react';
@@ -348,8 +348,8 @@ const ClientRecord: React.FC = () => {
             </dl>
           </UICard>
 
-          <UICard tone="dark">
-            <CardHeader title={<span className="text-white">Lifecycle</span>} />
+          <UICard accent="gold">
+            <CardHeader title="Lifecycle" />
             <select
               value={selectedClient.status}
               onChange={async (e) => {
@@ -359,19 +359,19 @@ const ClientRecord: React.FC = () => {
                   console.error('Failed to update client status:', error);
                 }
               }}
-              className="w-full bg-white/5 border-white/10 text-white text-sm rounded-md px-2.5 py-1.5 focus:ring-2 focus:ring-primary/30 cursor-pointer [&>option]:bg-obsidian"
+              className="w-full bg-cream border border-sand text-obsidian text-base sm:text-sm rounded-md px-3 py-2 focus:ring-2 focus:ring-primary/20 cursor-pointer"
             >
               {['New Inquiry', 'Assessment Submitted', 'Reviewed', 'Contacted', 'Converted', 'Not Suitable', 'Active', 'Ongoing'].map(s => (
                 <option key={s} value={s}>{s}</option>
               ))}
             </select>
-            <div className="flex justify-between items-center mt-3 pt-3 border-t border-white/10">
-              <span className="text-xs text-white/60">Sessions completed</span>
-              <span className="text-sm font-medium text-primary">{completedSessions}</span>
+            <div className="flex justify-between items-center mt-3 pt-3 border-t border-sand">
+              <span className="text-xs text-muted">Sessions completed</span>
+              <span className="text-sm font-medium text-obsidian">{completedSessions}</span>
             </div>
             <div className="flex justify-between items-center mt-1">
-              <span className="text-xs text-white/60">Upcoming</span>
-              <span className="text-sm font-medium text-primary">{upcomingAppointments.length}</span>
+              <span className="text-xs text-muted">Upcoming</span>
+              <span className="text-sm font-medium text-obsidian">{upcomingAppointments.length}</span>
             </div>
           </UICard>
 
@@ -469,16 +469,14 @@ const ClientRecord: React.FC = () => {
             )}
 
             {/* Decision support — clinical feedback editor */}
-            <UICard tone="dark">
+            <UICard accent="gold">
               <CardHeader
-                title={<span className="text-white">Clinical feedback</span>}
+                title="Clinical feedback"
                 subtitle={
                   selectedClient.assessmentData?.clinicalFeedback ? (
-                    <span className="text-white/60">
-                      Last updated {selectedClient.assessmentData.reviewDate ? new Date(selectedClient.assessmentData.reviewDate).toLocaleDateString('en-GB') : 'recently'}
-                    </span>
+                    `Last updated ${selectedClient.assessmentData.reviewDate ? new Date(selectedClient.assessmentData.reviewDate).toLocaleDateString('en-GB') : 'recently'}`
                   ) : (
-                    <span className="text-white/60">Not yet submitted — client is waiting</span>
+                    'Not yet submitted — client is waiting'
                   )
                 }
               />
@@ -626,8 +624,10 @@ const ClientRecord: React.FC = () => {
                 <div className="flex-grow overflow-y-auto space-y-4 md:space-y-6 pr-2 no-scrollbar">
                   {(messages.filter(m => m.senderId === selectedClientId || m.recipientId === selectedClientId) || []).map((msg) => (
                     <div key={msg.id} className={`flex ${msg.senderId === 'admin' ? 'justify-end' : 'justify-start'}`}>
-                      <div className={`max-w-[90%] md:max-w-[80%] p-3 md:p-4 rounded-2xl ${
-                        msg.senderId === 'admin' ? 'bg-obsidian text-white' : 'bg-cream text-obsidian'
+                      <div className={`max-w-[90%] md:max-w-[80%] p-3 md:p-4 rounded-lg ${
+                        msg.senderId === 'admin'
+                          ? 'bg-primary/10 text-obsidian border border-primary/20'
+                          : 'bg-cream text-obsidian border border-sand'
                       }`}>
                         {msg.type === 'form' ? (
                           <div className="space-y-2">
@@ -757,9 +757,9 @@ const ClientRecord: React.FC = () => {
                     <div key={msg.id} className="bg-white p-5 rounded-2xl border border-black/5 shadow-sm space-y-3">
                       <div className="flex justify-between items-start">
                         <p className="text-xs font-medium text-obsidian pr-4">{form?.title || msg.subject}</p>
-                        <span className={`px-2 py-0.5 rounded-full text-2xs font-medium shrink-0 ${msg.isSigned ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                        <UIBadge variant={msg.isSigned ? 'active' : 'pending'}>
                           {msg.isSigned ? 'Signed' : 'Pending'}
-                        </span>
+                        </UIBadge>
                       </div>
                       <div className="grid grid-cols-2 gap-4">
                         <div>
@@ -809,9 +809,9 @@ const ClientRecord: React.FC = () => {
                             <td className="px-8 py-6">
                               <div className="flex flex-col items-start gap-2">
                                 <span className="font-medium text-sm text-obsidian">{form?.title || msg.subject}</span>
-                                <span className={`px-3 py-1 rounded-full text-xs text-muted ${msg.isSigned ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                                <UIBadge variant={msg.isSigned ? 'active' : 'pending'}>
                                   {msg.isSigned ? 'Signed' : 'Pending'}
-                                </span>
+                                </UIBadge>
                               </div>
                             </td>
                             <td className="px-8 py-6">
@@ -870,11 +870,11 @@ const ClientRecord: React.FC = () => {
 
               {/* Before/After Comparison view */}
               {compareMode && (
-                <div className="bg-obsidian rounded-lg p-6 md:p-8 text-white space-y-6">
-                  <div className="flex items-center gap-3 mb-2">
-                    <GitCompare size={20} className="text-primary" />
-                    <h4 className="text-xs text-muted text-gray-300">Before / After Comparison</h4>
-                    <span className="text-2xs text-gray-500 font-medium ml-auto">Select two photos below</span>
+                <UICard accent="gold">
+                  <div className="flex items-center gap-3 mb-4">
+                    <GitCompare size={18} className="text-primary" />
+                    <h4 className="text-sm font-medium text-obsidian">Before / After Comparison</h4>
+                    <span className="text-xs text-muted ml-auto">Select two photos below</span>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     {['Before', 'After'].map((label, idx) => {
@@ -882,8 +882,8 @@ const ClientRecord: React.FC = () => {
                       const selectedImg = gallery.find(g => g.id === selectedId);
                       return (
                         <div key={label} className="space-y-2">
-                          <p className="text-xs text-muted text-primary">{label}</p>
-                          <div className="aspect-square rounded-2xl overflow-hidden border-2 border-dashed border-white/10 bg-white/5 flex items-center justify-center relative">
+                          <p className="text-xs font-medium text-muted uppercase tracking-wider">{label}</p>
+                          <div className="aspect-square rounded-lg overflow-hidden border-2 border-dashed border-sand bg-cream flex items-center justify-center relative">
                             {selectedImg ? (
                               <>
                                 <img src={selectedImg.url} alt={selectedImg.label} className="w-full h-full object-cover" />
@@ -906,13 +906,13 @@ const ClientRecord: React.FC = () => {
                     const imgB = gallery.find(g => g.id === compareB)!;
                     const daysDiff = imgA && imgB ? Math.round(Math.abs(new Date(imgB.uploadedAt).getTime() - new Date(imgA.uploadedAt).getTime()) / (1000 * 60 * 60 * 24)) : 0;
                     return (
-                      <div className="p-4 bg-white/5 rounded-2xl border border-white/10 text-center">
-                        <p className="text-2xs font-medium text-gray-400 uppercase">Timeline gap between selected photos</p>
-                        <p className="text-2xl font-medium text-primary mt-1">{daysDiff} days</p>
+                      <div className="p-4 bg-cream rounded-md border border-sand text-center">
+                        <p className="text-xs font-medium text-muted uppercase tracking-wider">Timeline gap between selected photos</p>
+                        <p className="text-xl font-medium text-obsidian mt-1">{daysDiff} days</p>
                       </div>
                     );
                   })()}
-                </div>
+                </UICard>
               )}
 
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 md:gap-6">
@@ -944,13 +944,13 @@ const ClientRecord: React.FC = () => {
                         />
                         <div className="absolute top-2 right-2 flex gap-1">
                           {compareMode && (isSelectedA || isSelectedB) && (
-                            <span className={`px-1.5 py-0.5 rounded-full text-2xs font-medium ${isSelectedA ? 'bg-primary text-obsidian' : 'bg-obsidian text-white'}`}>
+                            <UIBadge variant={isSelectedA ? 'active' : 'new'}>
                               {isSelectedA ? 'Before' : 'After'}
-                            </span>
+                            </UIBadge>
                           )}
-                          <span className={`px-2 py-0.5 rounded-full text-2xs font-medium ${img.source === 'Clinical' ? 'bg-obsidian text-white' : 'bg-primary text-white'}`}>
+                          <UIBadge variant={img.source === 'Clinical' ? 'review' : 'inactive'}>
                             {img.source}
-                          </span>
+                          </UIBadge>
                         </div>
                       </div>
                       <div className="px-1">
@@ -1040,19 +1040,19 @@ const ClientRecord: React.FC = () => {
           const totalSessions = plan?.phases.reduce((s, p) => s + p.sessionsPlanned, 0) || 0;
           const completedSessions = plan?.phases.reduce((s, p) => s + p.sessionsCompleted, 0) || 0;
           return (
-            <div className="animate-fade-up space-y-8">
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 md:gap-8">
+            <div className="animate-fade-up space-y-4">
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
                 {/* Left: Plan phases */}
-                <div className="lg:col-span-8 space-y-6">
-                  <Card className="p-6 md:p-8">
+                <div className="lg:col-span-8 space-y-4">
+                  <UICard>
                     <div className="flex items-center justify-between mb-6">
                       <div>
-                        <h3 className="text-xs text-muted">Treatment Plan</h3>
-                        {plan?.title && <p className="text-lg font-medium text-obsidian mt-1">{plan.title}</p>}
+                        <h3 className="text-sm font-medium text-obsidian">Treatment plan</h3>
+                        {plan?.title && <p className="text-base font-medium text-obsidian mt-1">{plan.title}</p>}
                       </div>
-                      <button onClick={() => { setPlanTitle(plan?.title || ''); setShowAddPhase(true); }} className="flex items-center gap-2 bg-primary text-obsidian px-4 py-2 rounded-full text-xs text-muted transition-transform">
-                        <Plus size={16} /> Add Phase
-                      </button>
+                      <UIButton variant="primary" size="sm" leadingIcon={<Plus size={13} />} onClick={() => { setPlanTitle(plan?.title || ''); setShowAddPhase(true); }}>
+                        Add phase
+                      </UIButton>
                     </div>
 
                     {!plan?.phases?.length ? (
@@ -1065,21 +1065,23 @@ const ClientRecord: React.FC = () => {
                       <div className="space-y-4">
                         {plan.phases.map((phase, i) => {
                           const pct = phase.sessionsPlanned > 0 ? Math.round((phase.sessionsCompleted / phase.sessionsPlanned) * 100) : 0;
-                          const statusColor: Record<string, string> = { Active: 'bg-primary text-obsidian', Completed: 'bg-green-100 text-green-700', Planned: 'bg-cream text-muted', 'On Hold': 'bg-yellow-100 text-yellow-700' };
+                          const phaseStatusVariant: Record<string, 'active' | 'pending' | 'new' | 'inactive'> = {
+                            Active: 'active', Completed: 'new', Planned: 'inactive', 'On Hold': 'pending',
+                          };
                           return (
-                            <div key={phase.id} className="p-6 rounded-2xl border border-black/5 bg-cream/30">
+                            <div key={phase.id} className="p-4 md:p-5 rounded-md border border-sand bg-white">
                               <div className="flex items-start justify-between mb-3">
                                 <div className="flex items-center gap-3">
-                                  <div className="w-8 h-8 rounded-full bg-obsidian text-white flex items-center justify-center text-2xs font-medium shrink-0">{i + 1}</div>
+                                  <div className="w-8 h-8 rounded-md bg-gold-soft text-gold-dim flex items-center justify-center text-xs font-medium shrink-0">{i + 1}</div>
                                   <div>
                                     <p className="text-sm font-medium text-obsidian">{phase.name}</p>
-                                    {phase.description && <p className="text-2xs text-muted font-medium mt-0.5">{phase.description}</p>}
+                                    {phase.description && <p className="text-xs text-muted mt-0.5">{phase.description}</p>}
                                   </div>
                                 </div>
                                 <div className="flex items-center gap-2 shrink-0">
-                                  <span className={`text-xs text-muted px-2 py-1 rounded-full ${statusColor[phase.status]}`}>{phase.status}</span>
-                                  <button onClick={() => { setEditingPhaseId(phase.id); setEditPhaseForm({ status: phase.status, sessionsCompleted: phase.sessionsCompleted, notes: phase.notes }); }} className="w-7 h-7 rounded-full bg-white border border-black/10 flex items-center justify-center text-muted hover:text-primary transition-colors">
-                                    <Pencil size={14} />
+                                  <UIBadge variant={phaseStatusVariant[phase.status] || 'inactive'}>{phase.status}</UIBadge>
+                                  <button onClick={() => { setEditingPhaseId(phase.id); setEditPhaseForm({ status: phase.status, sessionsCompleted: phase.sessionsCompleted, notes: phase.notes }); }} className="btn-icon" aria-label="Edit phase">
+                                    <Pencil size={13} />
                                   </button>
                                 </div>
                               </div>
@@ -1119,7 +1121,7 @@ const ClientRecord: React.FC = () => {
                                       await onSaveTreatmentPlan(selectedClient.id, { ...plan, phases: updatedPhases, updatedAt: new Date().toISOString() });
                                       setEditingPhaseId(null);
                                       setTreatmentPlanSaving(false);
-                                    }} disabled={treatmentPlanSaving} className="bg-obsidian text-white px-4 py-1.5 rounded-lg text-xs text-muted disabled:opacity-50">
+                                    }} disabled={treatmentPlanSaving} className="bg-obsidian text-white px-4 py-1.5 rounded-md text-xs font-medium disabled:opacity-50">
                                       {treatmentPlanSaving ? 'Saving…' : 'Save'}
                                     </button>
                                   </div>
@@ -1130,39 +1132,44 @@ const ClientRecord: React.FC = () => {
                         })}
                       </div>
                     )}
-                  </Card>
+                  </UICard>
 
                   {/* Prescriptions */}
-                  <Card className="p-6 md:p-8">
-                    <div className="flex items-center justify-between mb-6">
-                      <h3 className="text-xs text-muted">Prescriptions</h3>
-                      <button onClick={() => setShowAddRx(true)} className="flex items-center gap-2 bg-cream text-muted px-4 py-2 rounded-full text-xs text-muted hover:bg-primary hover:text-obsidian transition-all">
-                        <Plus size={16} /> Add Rx
-                      </button>
+                  <UICard>
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-sm font-medium text-obsidian">Prescriptions</h3>
+                      <UIButton variant="primary" size="sm" leadingIcon={<Plus size={13} />} onClick={() => setShowAddRx(true)}>
+                        Add prescription
+                      </UIButton>
                     </div>
                     {!rxList.length ? (
-                      <div className="py-10 text-center border-2 border-dashed border-black/5 rounded-2xl">
-                        <p className="text-2xs text-muted">No prescriptions recorded</p>
-                      </div>
+                      <UIEmptyState
+                        icon={<FileText size={16} />}
+                        title="No prescriptions"
+                        description="Add a prescription to track patient medications."
+                        compact
+                      />
                     ) : (
-                      <div className="space-y-3">
+                      <div className="space-y-2">
                         {rxList.map(rx => {
-                          const statusColors: Record<string, string> = { Active: 'bg-green-100 text-green-700', Completed: 'bg-blue-100 text-blue-700', Discontinued: 'bg-gray-100 text-gray-500' };
+                          const rxStatusVariant: Record<string, 'active' | 'new' | 'inactive'> = {
+                            Active: 'active', Completed: 'new', Discontinued: 'inactive',
+                          };
                           return (
-                            <div key={rx.id} className="flex items-center justify-between p-4 rounded-xl border border-black/5 bg-white">
+                            <div key={rx.id} className="flex items-center justify-between p-4 rounded-md border border-sand bg-white hover:bg-cream/40 transition-colors">
                               <div>
                                 <p className="text-sm font-medium text-obsidian">{rx.drugName}</p>
-                                <p className="text-2xs font-medium text-muted">{rx.dosage} — {rx.instructions}</p>
-                                <p className="text-2xs font-medium text-muted/60 mt-1 uppercase">
+                                <p className="text-xs text-muted mt-0.5">{rx.dosage} — {rx.instructions}</p>
+                                <p className="text-xs text-hint mt-1">
                                   From {new Date(rx.startDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
                                   {rx.endDate ? ` → ${new Date(rx.endDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}` : ''}
                                 </p>
                               </div>
                               <div className="flex items-center gap-2 shrink-0">
-                                <span className={`text-xs text-muted px-2 py-1 rounded-full ${statusColors[rx.status]}`}>{rx.status}</span>
+                                <UIBadge variant={rxStatusVariant[rx.status] || 'inactive'}>{rx.status}</UIBadge>
                                 {rx.status === 'Active' && (
-                                  <button onClick={async () => { await onUpdatePrescription(selectedClient.id, rx.id, { status: 'Discontinued' }); }} className="w-7 h-7 rounded-full bg-red-50 border border-red-100 flex items-center justify-center text-red-400 hover:bg-red-100 transition-colors" title="Discontinue">
-                                    <Ban size={12} />
+                                  <button onClick={async () => { await onUpdatePrescription(selectedClient.id, rx.id, { status: 'Discontinued' }); }} className="btn-icon hover:!text-danger" title="Discontinue">
+                                    <Ban size={13} />
                                   </button>
                                 )}
                               </div>
@@ -1171,38 +1178,38 @@ const ClientRecord: React.FC = () => {
                         })}
                       </div>
                     )}
-                  </Card>
+                  </UICard>
                 </div>
 
                 {/* Right: Summary card */}
-                <div className="lg:col-span-4 space-y-6">
-                  <Card className="p-6 md:p-8 bg-obsidian text-white border-none shadow-xl shadow-obsidian/20">
-                    <h3 className="text-xs text-muted text-gray-400 mb-6">Plan Overview</h3>
+                <div className="lg:col-span-4 space-y-4">
+                  <UICard accent="gold">
+                    <CardHeader title="Plan overview" />
                     <div className="space-y-5">
                       <div>
-                        <p className="text-2xs text-muted mb-1">Total Phases</p>
-                        <p className="text-2xl font-medium">{totalPhases}</p>
-                        <p className="text-2xs text-gray-400 font-medium">{completedPhases} completed</p>
+                        <p className="text-xs text-muted mb-1">Total phases</p>
+                        <p className="text-xl font-medium text-obsidian">{totalPhases}</p>
+                        <p className="text-xs text-muted mt-0.5">{completedPhases} completed</p>
                       </div>
                       <div>
-                        <p className="text-2xs font-medium text-gray-400 uppercase mb-2">Sessions Progress</p>
-                        <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
+                        <p className="text-xs font-medium text-muted uppercase tracking-wider mb-2">Sessions progress</p>
+                        <div className="h-1.5 bg-sand rounded-full overflow-hidden">
                           <div className="bg-primary h-full rounded-full" style={{ width: totalSessions > 0 ? `${Math.round((completedSessions / totalSessions) * 100)}%` : '0%' }} />
                         </div>
-                        <p className="text-2xs text-right mt-1 font-medium text-primary">{completedSessions}/{totalSessions}</p>
+                        <p className="text-xs text-right mt-1 font-medium text-obsidian">{completedSessions}/{totalSessions}</p>
                       </div>
                       <div>
-                        <p className="text-2xs text-muted mb-1">Active Prescriptions</p>
-                        <p className="text-2xl font-medium">{rxList.filter(r => r.status === 'Active').length}</p>
+                        <p className="text-xs text-muted mb-1">Active prescriptions</p>
+                        <p className="text-xl font-medium text-obsidian">{rxList.filter(r => r.status === 'Active').length}</p>
                       </div>
                       {plan?.adminNotes && (
-                        <div className="p-4 bg-white/5 rounded-xl border border-white/10">
-                          <p className="text-2xs font-medium text-gray-400 uppercase mb-1">Plan Notes</p>
-                          <p className="text-xs leading-relaxed text-gray-300">"{plan.adminNotes}"</p>
+                        <div className="p-4 bg-cream rounded-md border border-sand">
+                          <p className="text-xs font-medium text-muted uppercase tracking-wider mb-1">Plan notes</p>
+                          <p className="text-sm leading-relaxed text-obsidian">"{plan.adminNotes}"</p>
                         </div>
                       )}
                     </div>
-                  </Card>
+                  </UICard>
                 </div>
               </div>
 
@@ -1351,9 +1358,11 @@ const ClientRecord: React.FC = () => {
           const totalPaid = payList.filter(p => p.status === 'Paid').reduce((s, p) => s + p.amount, 0);
           const totalPending = payList.filter(p => p.status === 'Pending' || p.status === 'Overdue').reduce((s, p) => s + p.amount, 0);
           const formatAmount = (amount: number, currency = 'GBP') => new Intl.NumberFormat('en-GB', { style: 'currency', currency }).format(amount);
-          const statusColor: Record<string, string> = { Paid: 'bg-green-100 text-green-700', Pending: 'bg-yellow-100 text-yellow-700', Overdue: 'bg-red-100 text-red-700', Refunded: 'bg-gray-100 text-gray-500' };
+          const payStatusVariant: Record<string, 'active' | 'pending' | 'danger' | 'inactive'> = {
+            Paid: 'active', Pending: 'pending', Overdue: 'danger', Refunded: 'inactive',
+          };
           return (
-            <div className="animate-fade-up space-y-8">
+            <div className="animate-fade-up space-y-4">
               {/* Summary cards */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 {([
@@ -1376,43 +1385,50 @@ const ClientRecord: React.FC = () => {
               </div>
 
               {/* Payment list */}
-              <Card className="p-6 md:p-8">
-                <div className="flex items-center justify-between mb-6">
-                  <h3 className="text-xs text-muted">Payment History</h3>
-                  <button onClick={() => setShowAddPayment(true)} className="flex items-center gap-2 bg-primary text-obsidian px-4 py-2 rounded-full text-xs text-muted transition-transform">
-                    <Plus size={16} /> Add Entry
-                  </button>
+              <UICard>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-sm font-medium text-obsidian">Payment history</h3>
+                  <UIButton variant="primary" size="sm" leadingIcon={<Plus size={13} />} onClick={() => setShowAddPayment(true)}>
+                    Add entry
+                  </UIButton>
                 </div>
                 {!payList.length ? (
-                  <div className="py-16 text-center border-2 border-dashed border-black/5 rounded-2xl">
-                    <CreditCard size={40} className="text-primary/20 mb-3 mx-auto" />
-                    <p className="text-2xs text-muted">No payment records yet</p>
-                  </div>
+                  <UIEmptyState
+                    icon={<CreditCard size={16} />}
+                    title="No payment records"
+                    description="Add a payment to start the financial trail for this patient."
+                    compact
+                  />
                 ) : (
-                  <div className="space-y-3">
-                    {payList.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).map(pay => (
-                      <div key={pay.id} className="flex items-center justify-between p-4 md:p-5 rounded-2xl border border-black/5 bg-white hover:bg-cream/40 transition-colors">
+                  <div className="flex flex-col">
+                    {payList.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).map((pay, idx) => (
+                      <div key={pay.id} className={`flex items-center justify-between gap-3 py-3 hover:bg-cream/30 transition-colors ${idx > 0 ? 'border-t border-sand' : ''}`}>
                         <div className="min-w-0">
                           <p className="text-sm font-medium text-obsidian truncate">{pay.description}</p>
-                          <p className="text-2xs text-muted mt-0.5">
+                          <p className="text-xs text-muted mt-0.5">
                             {pay.reference && <span className="font-mono mr-2">Ref: {pay.reference}</span>}
                             {pay.paidDate ? `Paid ${new Date(pay.paidDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}` : pay.dueDate ? `Due ${new Date(pay.dueDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}` : new Date(pay.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
                           </p>
                         </div>
-                        <div className="flex items-center gap-3 shrink-0 ml-3">
-                          <p className="text-base font-medium text-obsidian">{formatAmount(pay.amount, pay.currency)}</p>
-                          <div className="flex items-center gap-2">
-                            <span className={`text-xs text-muted px-2 py-1 rounded-full ${statusColor[pay.status]}`}>{pay.status}</span>
-                            {pay.status === 'Pending' && (
-                              <button onClick={async () => { await onUpdatePayment(selectedClient.id, pay.id, { status: 'Paid', paidDate: new Date().toISOString().split('T')[0] }); }} className="text-2xs font-medium text-green-600 hover:underline uppercase" title="Mark as paid">Mark Paid</button>
-                            )}
-                          </div>
+                        <div className="flex items-center gap-2 shrink-0 ml-2">
+                          <p className="text-sm font-medium text-obsidian">{formatAmount(pay.amount, pay.currency)}</p>
+                          <UIBadge variant={payStatusVariant[pay.status] || 'inactive'}>{pay.status}</UIBadge>
+                          {pay.status === 'Pending' && (
+                            <UIButton
+                              variant="ghost"
+                              size="sm"
+                              leadingIcon={<Check size={13} />}
+                              onClick={async () => { await onUpdatePayment(selectedClient.id, pay.id, { status: 'Paid', paidDate: new Date().toISOString().split('T')[0] }); }}
+                            >
+                              Mark paid
+                            </UIButton>
+                          )}
                         </div>
                       </div>
                     ))}
                   </div>
                 )}
-              </Card>
+              </UICard>
 
               {/* Add Payment Modal */}
               <UIModal

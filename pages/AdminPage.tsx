@@ -802,30 +802,32 @@ const AdminPage: React.FC<AdminPageProps> = ({
           {showMorningBriefing && (() => {
             const todayAppts = filteredAppointments.filter(a => a.date === new Date().toISOString().split('T')[0] && a.status !== 'Cancelled');
             return (
-              <div className="fixed bottom-5 right-3 sm:right-5 z-[100] w-[calc(100vw-1.5rem)] sm:w-[340px] bg-obsidian text-white rounded-lg shadow-modal overflow-hidden animate-fade-up">
-                <div className="px-4 py-3 border-b border-white/10 flex items-center justify-between">
+              <div className="fixed bottom-5 right-3 sm:right-5 z-[100] w-[calc(100vw-1.5rem)] sm:w-[340px] bg-white border border-sand rounded-lg shadow-modal overflow-hidden animate-fade-up">
+                <div className="px-4 py-3 border-b border-sand flex items-center justify-between bg-cream/40">
                   <div className="flex items-center gap-2.5">
-                    <Sun size={15} className="text-primary" />
-                    <p className="text-sm font-medium">Good morning</p>
+                    <div className="w-7 h-7 rounded-md bg-gold-soft text-gold-dim flex items-center justify-center">
+                      <Sun size={14} />
+                    </div>
+                    <p className="text-sm font-medium text-obsidian">Good morning</p>
                   </div>
-                  <button onClick={() => setShowMorningBriefing(false)} className="text-white/60 hover:text-white transition-colors">
+                  <button onClick={() => setShowMorningBriefing(false)} className="btn-icon">
                     <X size={14} />
                   </button>
                 </div>
                 <div className="p-4 space-y-2">
-                  <p className="text-xs text-white/60">{todayAppts.length} appointment{todayAppts.length !== 1 ? 's' : ''} today</p>
+                  <p className="text-xs text-muted">{todayAppts.length} appointment{todayAppts.length !== 1 ? 's' : ''} today</p>
                   {todayAppts.slice(0, 4).map(apt => (
-                    <div key={apt.id} className="flex items-center gap-2.5 bg-white/5 rounded-md p-2">
+                    <div key={apt.id} className="flex items-center gap-2.5 bg-cream rounded-md p-2">
                       <CalendarDays size={13} className="text-primary shrink-0" />
                       <div className="min-w-0 flex-1">
-                        <p className="text-xs font-medium truncate">{apt.clientName}</p>
-                        <p className="text-xs text-white/50">{apt.type} · {apt.time}</p>
+                        <p className="text-xs font-medium text-obsidian truncate">{apt.clientName}</p>
+                        <p className="text-xs text-muted">{apt.type} · {apt.time}</p>
                       </div>
                     </div>
                   ))}
-                  {todayAppts.length > 4 && <p className="text-xs text-primary text-center">+{todayAppts.length - 4} more</p>}
+                  {todayAppts.length > 4 && <p className="text-xs text-primary text-center mt-1">+{todayAppts.length - 4} more</p>}
                 </div>
-                <button onClick={() => { setShowMorningBriefing(false); setActiveTab('schedule'); }} className="w-full px-4 py-2.5 bg-white/5 hover:bg-white/10 text-sm font-medium transition-colors">
+                <button onClick={() => { setShowMorningBriefing(false); setActiveTab('schedule'); }} className="w-full px-4 py-2.5 bg-cream/40 hover:bg-cream text-sm font-medium text-obsidian transition-colors border-t border-sand">
                   View full schedule
                 </button>
               </div>

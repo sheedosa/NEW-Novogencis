@@ -4,7 +4,7 @@ import type { Appointment } from '../../../types';
 import {
   ChevronLeft, ChevronRight, Plus, Calendar as CalendarIcon,
   List, LayoutGrid, Users as UsersIcon, User as UserIcon, Filter,
-  Clock, CheckCircle, X as XIcon, Trash2, BarChart3, StickyNote,
+  Clock, CheckCircle, X as XIcon, Trash2, StickyNote,
 } from 'lucide-react';
 import AppointmentNotesDrawer from '../AppointmentNotesDrawer';
 import {
@@ -256,55 +256,8 @@ function CalendarPanel() {
         </div>
       </div>
 
-      {/* ── Workload heatmap (week-view only) — quick read of utilisation ── */}
-      {view === 'week' && (() => {
-        const SLOTS_PER_DAY = HOURS.length;  // 14 hours (09:00–22:00) = 14 slots per day
-        const todayStr = new Date().toISOString().split('T')[0];
-        const days = weekDates.map(d => {
-          const ds = d.toISOString().split('T')[0];
-          const count = (byDate[ds] || []).filter(a => a.status !== 'Cancelled').length;
-          const pct = Math.min(100, Math.round((count / SLOTS_PER_DAY) * 100));
-          return { date: d, dateStr: ds, count, pct };
-        });
-        const totalWeek = days.reduce((s, d) => s + d.count, 0);
-        const weekCap = SLOTS_PER_DAY * 7;
-        const weekPct = Math.round((totalWeek / weekCap) * 100);
-        return (
-          <Card>
-            <div className="flex items-center justify-between mb-2.5">
-              <div className="flex items-center gap-2">
-                <BarChart3 size={14} className="text-muted" />
-                <h3 className="text-sm font-medium text-obsidian">This week's workload</h3>
-              </div>
-              <p className="text-xs text-muted">
-                <span className="text-obsidian font-medium">{totalWeek}</span> session{totalWeek !== 1 ? 's' : ''} · <span className="text-obsidian font-medium">{weekPct}%</span> capacity
-              </p>
-            </div>
-            <div className="grid grid-cols-7 gap-1.5">
-              {days.map(d => {
-                const isToday = d.dateStr === todayStr;
-                const tone = d.pct >= 90 ? 'bg-danger'  :
-                             d.pct >= 60 ? 'bg-warning' :
-                             d.pct >= 30 ? 'bg-primary' :
-                             d.pct > 0   ? 'bg-success/60' : 'bg-cream';
-                return (
-                  <div key={d.dateStr} className="flex flex-col items-center gap-1">
-                    <span className={`text-xs ${isToday ? 'text-obsidian font-medium' : 'text-hint'}`}>
-                      {d.date.toLocaleDateString('en-GB', { weekday: 'short' })}
-                    </span>
-                    <div className="w-full h-12 bg-cream/60 rounded-md overflow-hidden relative">
-                      <div className={`absolute bottom-0 left-0 right-0 ${tone} transition-all`} style={{ height: `${Math.max(d.pct, 6)}%` }} />
-                      <span className="absolute inset-0 flex items-center justify-center text-xs font-medium text-obsidian">
-                        {d.count || ''}
-                      </span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </Card>
-        );
-      })()}
+      {/* Workload heatmap moved to Practice → Operations (single source of truth).
+          Schedule is for scheduling; Operations is for measuring capacity. */}
 
       {/* ── Week view (desktop only) ───────────────────────────────────── */}
       {view === 'week' && (

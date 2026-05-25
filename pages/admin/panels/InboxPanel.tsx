@@ -539,8 +539,8 @@ function InboxPanel() {
                               key={m.id}
                               className={`text-sm px-3 py-2 rounded-md max-w-[85%] ${
                                 m.senderId === 'admin'
-                                  ? 'self-end bg-obsidian text-white ml-auto'
-                                  : 'self-start bg-cream text-obsidian'
+                                  ? 'self-end bg-primary/10 text-obsidian ml-auto border border-primary/20'
+                                  : 'self-start bg-cream text-obsidian border border-sand'
                               }`}
                             >
                               {m.body}

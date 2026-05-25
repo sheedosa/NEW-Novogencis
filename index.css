@@ -393,15 +393,8 @@ input:focus, textarea:focus  {
 }
 .ai-surface > * { position: relative; z-index: 2; }
 
-.card-dark {
-  background: linear-gradient(135deg, #1A1916 0%, #2A2724 100%);
-  border: none;
-  border-radius: var(--radius-lg);
-  padding: 16px 18px;
-  box-shadow:
-    0 1px 2px 0 rgba(15, 15, 16, 0.08),
-    0 8px 24px -8px rgba(15, 15, 16, 0.20);
-}
+/* .card-dark removed — the design now uses light surfaces with accent stripes
+   (Card accent="gold|sage|info|danger|warning") for visual hierarchy. */
 
 .card-title {
   font-size: 13px;
@@ -796,7 +789,6 @@ input:focus, textarea:focus  {
 /* Applies when <body data-density="compact"> is set via the Settings panel.
    Tightens padding, slightly shrinks line-height, hides large gutters. */
 body[data-density="compact"] .card,
-body[data-density="compact"] .card-dark,
 body[data-density="compact"] .stat-card {
   padding: 11px 13px;
 }
