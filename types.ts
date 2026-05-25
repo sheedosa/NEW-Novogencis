@@ -86,6 +86,22 @@ export interface AITriage {
   error?: string;
 }
 
+/**
+ * A single entry in a patient's internal-notes log.
+ * Notes are append-only — never overwrite an existing entry. Each entry
+ * captures the author + time so the log functions as a clinical audit trail.
+ */
+export interface InternalNoteEntry {
+  id: string;
+  body: string;
+  /** ISO timestamp when this note was written. */
+  createdAt: string;
+  /** Firebase UID of the clinician who wrote the note. */
+  authorId: string;
+  /** Display name (snapshotted at write time so changing display names later doesn't rewrite history). */
+  authorName?: string;
+}
+
 export interface Client {
   id: string;
   name: string;
@@ -109,7 +125,10 @@ export interface Client {
     formData: Record<string, unknown>;
     signature: string;
   }[];
+  /** Legacy single-string note (kept for migration; new writes go to `internalNoteEntries`). */
   internalNotes?: string;
+  /** Append-only log of timestamped clinical notes. Doctors add entries; nothing is ever overwritten. */
+  internalNoteEntries?: InternalNoteEntry[];
   treatmentPlan?: TreatmentPlan;
   prescriptions?: Prescription[];
   payments?: Payment[];

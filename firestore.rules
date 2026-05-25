@@ -131,6 +131,7 @@ service cloud.firestore {
                     (isOwner(clientId) && isValidClient(request.resource.data));
       // Clients can update their own contact info but cannot touch:
       //   status, treatmentPlan, prescriptions, payments, internalNotes,
+      //   internalNoteEntries (admin-only timestamped log),
       //   assessmentData.clinicalFeedback (clinical data is admin-controlled)
       allow update: if isAdmin() ||
                     (isOwner(clientId) && isValidClient(request.resource.data) &&

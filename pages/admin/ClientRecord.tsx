@@ -7,10 +7,10 @@ import { InternalNotesEditor, FeedbackEditor, MessageInputForm } from './AdminCo
 import { FORMS } from '../../constants';
 import {
   Camera, Upload, X, Plus, Image as ImageIcon, Loader2, ArrowLeft, CheckCircle,
-  History, CalendarClock, FileText, CreditCard, ChevronDown, Send, GitCompare,
+  CalendarClock, FileText, CreditCard, ChevronDown, Send, GitCompare,
   ClipboardList, Stethoscope, Pencil, Check,
-  User as UserIcon, MessageSquare, Images, Activity, Receipt, Ban, Bell,
-  Phone, Mail, MapPin, StickyNote, ArrowRight, Siren, Calendar as CalendarIcon,
+  User as UserIcon, MessageSquare, Activity, Receipt, Ban,
+  Phone, Mail, MapPin, Siren, Calendar as CalendarIcon,
 } from 'lucide-react';
 import { Card as UICard, CardHeader, Button as UIButton, Badge as UIBadge, StatusBadge as UIStatusBadge, EmptyState as UIEmptyState, useToast, Modal as UIModal } from '../../components/ui';
 
@@ -384,10 +384,14 @@ const ClientRecord: React.FC = () => {
           </UICard>
 
           <InternalNotesEditor
-            initialNotes={selectedClient.internalNotes || ''}
-            onSave={async (notes) => {
-              await onUpdateClient(selectedClient.id, { internalNotes: notes });
-              await logClinicalAction(user?.id || 'admin', 'update_internal_notes', selectedClient.id, 'Updated internal clinical notes');
+            entries={selectedClient.internalNoteEntries || []}
+            legacyNote={selectedClient.internalNotes}
+            authorId={user?.id || 'admin'}
+            authorName={user?.fullName}
+            onAddEntry={async (entry) => {
+              const next = [...(selectedClient.internalNoteEntries || []), entry];
+              await onUpdateClient(selectedClient.id, { internalNoteEntries: next });
+              await logClinicalAction(user?.id || 'admin', 'add_internal_note', selectedClient.id, `Added internal note: "${entry.body.slice(0, 80)}${entry.body.length > 80 ? '…' : ''}"`);
             }}
           />
         </aside>
@@ -455,94 +459,50 @@ const ClientRecord: React.FC = () => {
               />
             </UICard>
 
-            {/* Two-up: Upcoming bookings + Recent activity */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 order-5">
-              <UICard>
-                <CardHeader
-                  title="Upcoming bookings"
-                  leadingIcon={<CalendarClock size={14} />}
-                  trailing={
-                    <UIButton variant="ghost" size="sm" onClick={() => openBookingModal(selectedClient.id)}>
-                      <Plus size={13} />
-                    </UIButton>
-                  }
+            {/* Upcoming bookings — single card (Recent activity removed since
+                it duplicated the Activity tab's whole purpose). */}
+            <UICard className="order-5">
+              <CardHeader
+                title="Upcoming bookings"
+                leadingIcon={<CalendarClock size={14} />}
+                trailing={
+                  <UIButton variant="ghost" size="sm" onClick={() => openBookingModal(selectedClient.id)}>
+                    <Plus size={13} />
+                  </UIButton>
+                }
+              />
+              {upcomingAppointments.length === 0 ? (
+                <UIEmptyState
+                  icon={<CalendarClock size={16} />}
+                  title="No bookings"
+                  description="Schedule the next session."
+                  compact
+                  action={<UIButton variant="primary" size="sm" onClick={() => openBookingModal(selectedClient.id)}>Book</UIButton>}
                 />
-                {upcomingAppointments.length === 0 ? (
-                  <UIEmptyState
-                    icon={<CalendarClock size={16} />}
-                    title="No bookings"
-                    description="Schedule the next session."
-                    compact
-                    action={<UIButton variant="primary" size="sm" onClick={() => openBookingModal(selectedClient.id)}>Book</UIButton>}
-                  />
-                ) : (
-                  <div className="flex flex-col gap-2">
-                    {upcomingAppointments.slice(0, 4).map(apt => (
-                      <div key={apt.id} className="flex items-center justify-between gap-2 p-2.5 rounded-md hover:bg-cream/60 transition-colors">
-                        <div className="flex items-center gap-3 min-w-0">
-                          <div className="text-center shrink-0 w-10">
-                            <p className="text-xs text-hint leading-none">{new Date(apt.date).toLocaleString('default', { month: 'short' })}</p>
-                            <p className="text-base font-medium text-obsidian leading-tight">{new Date(apt.date).getDate()}</p>
-                          </div>
-                          <div className="divider-v h-7" />
-                          <div className="min-w-0">
-                            <p className="text-sm font-medium text-obsidian truncate">{apt.type}</p>
-                            <p className="text-xs text-muted">{apt.time}</p>
-                          </div>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  {upcomingAppointments.slice(0, 4).map(apt => (
+                    <div key={apt.id} className="flex items-center justify-between gap-2 p-2.5 rounded-md hover:bg-cream/60 transition-colors">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="text-center shrink-0 w-10">
+                          <p className="text-xs text-hint leading-none">{new Date(apt.date).toLocaleString('default', { month: 'short' })}</p>
+                          <p className="text-base font-medium text-obsidian leading-tight">{new Date(apt.date).getDate()}</p>
                         </div>
-                        <UIButton variant="ghost" size="sm" onClick={() => openReschedule(apt)}>Move</UIButton>
+                        <div className="divider-v h-7" />
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-obsidian truncate">{apt.type}</p>
+                          <p className="text-xs text-muted">{apt.time}</p>
+                        </div>
                       </div>
-                    ))}
-                  </div>
-                )}
-              </UICard>
-
-              <UICard>
-                <CardHeader
-                  title="Recent activity"
-                  leadingIcon={<History size={14} />}
-                  trailing={
-                    <UIButton variant="ghost" size="sm" trailingIcon={<ArrowRight size={13} />} onClick={() => setViewTab('activity')}>
-                      View all
-                    </UIButton>
-                  }
-                />
-                {(() => {
-                  const events: { id: string; when: string; label: string; sub: string }[] = [
-                    ...clientAppointments.map(a => ({
-                      id: `apt-${a.id}`,
-                      when: a.date,
-                      label: `${a.status}: ${a.type}`,
-                      sub: `${a.date} · ${a.time}`,
-                    })),
-                    ...clientMessages.map(m => ({
-                      id: `msg-${m.id}`,
-                      when: m.createdAt,
-                      label: m.senderId === 'admin' || m.senderId === 'system' ? `Message to client` : `Message from client`,
-                      sub: m.body?.slice(0, 60) || m.subject || '',
-                    })),
-                  ]
-                    .sort((a, b) => new Date(b.when).getTime() - new Date(a.when).getTime())
-                    .slice(0, 5);
-                  if (events.length === 0) {
-                    return <UIEmptyState icon={<History size={16} />} title="No activity yet" compact />;
-                  }
-                  return (
-                    <div className="flex flex-col gap-2">
-                      {events.map(e => (
-                        <div key={e.id} className="flex flex-col gap-0.5 p-2 rounded-md hover:bg-cream/60 transition-colors">
-                          <div className="flex items-center justify-between gap-2">
-                            <p className="text-sm font-medium text-obsidian truncate">{e.label}</p>
-                            <span className="text-xs text-hint shrink-0">{new Date(e.when).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}</span>
-                          </div>
-                          <p className="text-xs text-muted truncate">{e.sub}</p>
-                        </div>
-                      ))}
+                      <UIButton variant="ghost" size="sm" onClick={() => openReschedule(apt)}>Move</UIButton>
                     </div>
-                  );
-                })()}
-              </UICard>
-            </div>
+                  ))}
+                </div>
+              )}
+            </UICard>
+
+            {/* "Recent activity" card removed — it duplicated the Activity tab.
+                Doctors who want activity click the Activity tab; Snapshot stays focused. */}
 
             {/* Mobile-only: contact + notes accordion (since identity rail is hidden) */}
             <details className="lg:hidden">
@@ -561,10 +521,14 @@ const ClientRecord: React.FC = () => {
                   </dl>
                 </UICard>
                 <InternalNotesEditor
-                  initialNotes={selectedClient.internalNotes || ''}
-                  onSave={async (notes) => {
-                    await onUpdateClient(selectedClient.id, { internalNotes: notes });
-                    await logClinicalAction(user?.id || 'admin', 'update_internal_notes', selectedClient.id, 'Updated internal clinical notes');
+                  entries={selectedClient.internalNoteEntries || []}
+                  legacyNote={selectedClient.internalNotes}
+                  authorId={user?.id || 'admin'}
+                  authorName={user?.fullName}
+                  onAddEntry={async (entry) => {
+                    const next = [...(selectedClient.internalNoteEntries || []), entry];
+                    await onUpdateClient(selectedClient.id, { internalNoteEntries: next });
+                    await logClinicalAction(user?.id || 'admin', 'add_internal_note', selectedClient.id, `Added internal note: "${entry.body.slice(0, 80)}${entry.body.length > 80 ? '…' : ''}"`);
                   }}
                 />
               </div>
