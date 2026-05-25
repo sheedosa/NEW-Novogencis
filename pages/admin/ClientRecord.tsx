@@ -131,7 +131,6 @@ const ClientRecord: React.FC = () => {
   const upcomingAppointments = clientAppointments
     .filter(a => (a.status === 'Confirmed' || a.status === 'Pending') && new Date(a.date) >= new Date(new Date().toDateString()))
     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-  const nextAppointment = upcomingAppointments[0];
   const completedSessions = clientAppointments.filter(a => a.status === 'Completed').length;
   const clientMessages = messages.filter(m => m.senderId === selectedClient.id || m.recipientId === selectedClient.id);
   const redFlags: string[] = (() => {
@@ -250,49 +249,31 @@ const ClientRecord: React.FC = () => {
   return (
     <div className="animate-fade-up flex flex-col">
       {/* ── Sticky patient bar (always visible) ───────────────────────────── */}
-      <div className="sticky top-[52px] z-30 -mx-4 sm:-mx-6 lg:-mx-4 px-4 sm:px-6 lg:px-4 py-2.5 bg-ivory/95 backdrop-blur border-b border-sand">
-        <div className="flex items-center gap-2 md:gap-3">
+      <div className="sticky top-[52px] z-30 -mx-4 sm:-mx-6 lg:-mx-4 px-4 sm:px-6 lg:px-4 py-3 bg-ivory/95 backdrop-blur border-b border-sand">
+        <div className="flex items-center gap-3">
           <UIButton variant="ghost" size="sm" onClick={() => setSelectedClientId(null)} aria-label="Back to list">
             <ArrowLeft size={14} />
           </UIButton>
           <div className="avatar avatar-md shrink-0">{getInitials(selectedClient.name)}</div>
           <div className="min-w-0 flex-grow">
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-2">
               <h2 className="text-base font-medium text-obsidian truncate">{selectedClient.name}</h2>
               {selectedClient.policiesAccepted && (
                 <CheckCircle size={13} className="text-success shrink-0" />
               )}
+              <div className="hidden md:block shrink-0">
+                <UIStatusBadge status={selectedClient.status || 'Active'} />
+              </div>
             </div>
-            <p className="text-xs text-muted truncate">
+            <p className="text-xs text-muted truncate mt-0.5">
               <span className="font-mono">{selectedClient.id}</span>
               <span className="hidden xs:inline"> · {String(calculateAge(selectedClient.dob)).replace('(', '').replace(')', '').trim() || 'No DOB'}</span>
               <span className="hidden sm:inline capitalize"> · {selectedClient.gender}</span>
             </p>
           </div>
-          {/* Outstanding £ — surfaces unpaid balance inline so doctors
-              don't have to open the Money tab to know if a patient owes. */}
-          {(() => {
-            const outstanding = (selectedClient.payments || [])
-              .filter(p => p.status === 'Pending' || p.status === 'Overdue')
-              .reduce((s, p) => s + (p.amount || 0), 0);
-            if (outstanding <= 0) return null;
-            return (
-              <button
-                onClick={() => setClientRecordTab('financials')}
-                className="hidden md:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-warning-bg text-warning-text hover:bg-warning/20 transition-colors shrink-0"
-                title="View payments"
-              >
-                <span className="text-xs font-medium">£{outstanding.toFixed(2)}</span>
-                <span className="text-xs">outstanding</span>
-              </button>
-            );
-          })()}
-          <div className="hidden md:block shrink-0">
-            <UIStatusBadge status={selectedClient.status || 'Active'} />
-          </div>
           <div className="flex items-center gap-1 shrink-0">
-            <UIButton variant="ghost" size="sm" leadingIcon={<Pencil size={13} />} onClick={openQuickEdit}>
-              <span className="hidden md:inline">Quick edit</span>
+            <UIButton variant="ghost" size="sm" onClick={openQuickEdit} aria-label="Quick edit">
+              <Pencil size={13} />
             </UIButton>
             <UIButton variant="primary" size="sm" leadingIcon={<CalendarClock size={13} />} onClick={() => openBookingModal(selectedClient.id)}>
               <span className="hidden md:inline">Book appointment</span>
@@ -329,67 +310,76 @@ const ClientRecord: React.FC = () => {
       </div>
 
       {/* ── 2-column layout: Identity rail (left, desktop only) + main content (right) ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-3 items-start mt-3">
+      <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-5 items-start mt-4">
         {/* Identity rail */}
-        <aside className="hidden lg:flex flex-col gap-3 lg:sticky lg:top-[160px]">
+        <aside className="hidden lg:flex flex-col gap-4 lg:sticky lg:top-[160px]">
+          {/* Single combined "Patient details" card — replaces two separate
+              Contact + Lifecycle cards. Less stacking, more breathing room. */}
           <UICard>
-            <CardHeader title="Contact" />
-            <dl className="flex flex-col gap-2.5">
-              <div className="flex items-start gap-2">
-                <Mail size={12} className="text-hint mt-1 shrink-0" />
-                <div className="min-w-0">
-                  <dt className="text-xs text-muted">Email</dt>
-                  <dd className="text-sm text-obsidian break-all">{selectedClient.email || '—'}</dd>
-                </div>
+            <div className="flex flex-col gap-4">
+              {/* Lifecycle status */}
+              <div>
+                <label className="text-xs text-muted block mb-1.5">Lifecycle</label>
+                <select
+                  value={selectedClient.status}
+                  onChange={async (e) => {
+                    try {
+                      await onUpdateClient(selectedClient.id, { status: e.target.value });
+                    } catch (error) {
+                      console.error('Failed to update client status:', error);
+                    }
+                  }}
+                  className="w-full bg-cream border border-sand text-obsidian text-base sm:text-sm rounded-md px-3 py-2 focus:ring-2 focus:ring-primary/20 cursor-pointer"
+                >
+                  {['New Inquiry', 'Assessment Submitted', 'Reviewed', 'Contacted', 'Converted', 'Not Suitable', 'Active', 'Ongoing'].map(s => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                </select>
               </div>
-              <div className="flex items-start gap-2">
-                <Phone size={12} className="text-hint mt-1 shrink-0" />
-                <div className="min-w-0">
-                  <dt className="text-xs text-muted">Phone</dt>
-                  <dd className="text-sm text-obsidian">{selectedClient.phone || '—'}</dd>
-                </div>
-              </div>
-              <div className="flex items-start gap-2">
-                <CalendarIcon size={12} className="text-hint mt-1 shrink-0" />
-                <div className="min-w-0">
-                  <dt className="text-xs text-muted">Date of birth</dt>
-                  <dd className="text-sm text-obsidian">{formatDOB(selectedClient.dob)}</dd>
-                </div>
-              </div>
-              <div className="flex items-start gap-2">
-                <MapPin size={12} className="text-hint mt-1 shrink-0" />
-                <div className="min-w-0">
-                  <dt className="text-xs text-muted">Address</dt>
-                  <dd className="text-sm text-obsidian leading-relaxed">{selectedClient.address || '—'}</dd>
-                </div>
-              </div>
-            </dl>
-          </UICard>
 
-          <UICard accent="gold">
-            <CardHeader title="Lifecycle" />
-            <select
-              value={selectedClient.status}
-              onChange={async (e) => {
-                try {
-                  await onUpdateClient(selectedClient.id, { status: e.target.value });
-                } catch (error) {
-                  console.error('Failed to update client status:', error);
-                }
-              }}
-              className="w-full bg-cream border border-sand text-obsidian text-base sm:text-sm rounded-md px-3 py-2 focus:ring-2 focus:ring-primary/20 cursor-pointer"
-            >
-              {['New Inquiry', 'Assessment Submitted', 'Reviewed', 'Contacted', 'Converted', 'Not Suitable', 'Active', 'Ongoing'].map(s => (
-                <option key={s} value={s}>{s}</option>
-              ))}
-            </select>
-            <div className="flex justify-between items-center mt-3 pt-3 border-t border-sand">
-              <span className="text-xs text-muted">Sessions completed</span>
-              <span className="text-sm font-medium text-obsidian">{completedSessions}</span>
-            </div>
-            <div className="flex justify-between items-center mt-1">
-              <span className="text-xs text-muted">Upcoming</span>
-              <span className="text-sm font-medium text-obsidian">{upcomingAppointments.length}</span>
+              {/* Sessions + upcoming compact strap */}
+              <div className="grid grid-cols-2 gap-3 py-3 border-y border-sand">
+                <div>
+                  <p className="text-xs text-muted">Sessions</p>
+                  <p className="text-base font-medium text-obsidian mt-0.5">{completedSessions}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted">Upcoming</p>
+                  <p className="text-base font-medium text-obsidian mt-0.5">{upcomingAppointments.length}</p>
+                </div>
+              </div>
+
+              {/* Contact details */}
+              <dl className="flex flex-col gap-2.5">
+                <div className="flex items-start gap-2">
+                  <Mail size={12} className="text-hint mt-1 shrink-0" />
+                  <div className="min-w-0">
+                    <dt className="text-xs text-muted">Email</dt>
+                    <dd className="text-sm text-obsidian break-all">{selectedClient.email || '—'}</dd>
+                  </div>
+                </div>
+                <div className="flex items-start gap-2">
+                  <Phone size={12} className="text-hint mt-1 shrink-0" />
+                  <div className="min-w-0">
+                    <dt className="text-xs text-muted">Phone</dt>
+                    <dd className="text-sm text-obsidian">{selectedClient.phone || '—'}</dd>
+                  </div>
+                </div>
+                <div className="flex items-start gap-2">
+                  <CalendarIcon size={12} className="text-hint mt-1 shrink-0" />
+                  <div className="min-w-0">
+                    <dt className="text-xs text-muted">Date of birth</dt>
+                    <dd className="text-sm text-obsidian">{formatDOB(selectedClient.dob)}</dd>
+                  </div>
+                </div>
+                <div className="flex items-start gap-2">
+                  <MapPin size={12} className="text-hint mt-1 shrink-0" />
+                  <div className="min-w-0">
+                    <dt className="text-xs text-muted">Address</dt>
+                    <dd className="text-sm text-obsidian leading-relaxed">{selectedClient.address || '—'}</dd>
+                  </div>
+                </div>
+              </dl>
             </div>
           </UICard>
 
@@ -405,71 +395,17 @@ const ClientRecord: React.FC = () => {
         {/* Main content column */}
         <div className="min-w-0">
         {viewTab === 'snapshot' && (
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-5">
             {/* Mobile: contact + status compressed into a single line shown only when rail is hidden */}
             <div className="lg:hidden flex items-center gap-2 px-1 order-1">
               <UIStatusBadge status={selectedClient.status || 'Active'} />
               <span className="text-xs text-muted truncate">{selectedClient.email}</span>
             </div>
 
-            {/* Top stat row — moved AFTER Clinical Feedback since the feedback is the doctor's primary deliverable */}
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-3 order-4">
-              <UICard>
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <p className="text-xs text-muted">Next session</p>
-                    {nextAppointment ? (
-                      <>
-                        <p className="text-base font-medium text-obsidian mt-1">
-                          {new Date(nextAppointment.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
-                        </p>
-                        <p className="text-xs text-muted truncate">{nextAppointment.time} · {nextAppointment.type}</p>
-                      </>
-                    ) : (
-                      <>
-                        <p className="text-base font-medium text-obsidian mt-1">—</p>
-                        <button onClick={() => openBookingModal(selectedClient.id)} className="text-xs text-obsidian hover:underline">
-                          Book now
-                        </button>
-                      </>
-                    )}
-                  </div>
-                  <div className="w-8 h-8 rounded-md bg-cream flex items-center justify-center text-muted shrink-0">
-                    <CalendarClock size={14} />
-                  </div>
-                </div>
-              </UICard>
-
-              <UICard>
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <p className="text-xs text-muted">Sessions completed</p>
-                    <p className="text-base font-medium text-obsidian mt-1">{completedSessions}</p>
-                    <p className="text-xs text-muted truncate">{selectedClient.package || 'No package set'}</p>
-                  </div>
-                  <div className="w-8 h-8 rounded-md bg-cream flex items-center justify-center text-muted shrink-0">
-                    <Activity size={14} />
-                  </div>
-                </div>
-              </UICard>
-
-              <UICard className="col-span-2 md:col-span-1">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <p className="text-xs text-muted">Pending forms</p>
-                    <p className="text-base font-medium text-obsidian mt-1">
-                      {clientMessages.filter(m => m.type === 'form' && !m.isSigned).length}
-                    </p>
-                    <p className="text-xs text-muted truncate">
-                      {clientMessages.filter(m => m.type === 'form' && m.isSigned).length} signed
-                    </p>
-                  </div>
-                  <div className="w-8 h-8 rounded-md bg-cream flex items-center justify-center text-muted shrink-0">
-                    <FileText size={14} />
-                  </div>
-                </div>
-              </UICard>
-            </div>
+            {/* 3-stat row removed — Sessions completed is in the left rail;
+                Next session is inside Upcoming bookings card below; Pending
+                forms is in the Files tab. The duplication was crowding the
+                snapshot. */}
 
             {/* Red flags (only if any) — appear right after status so doctors see them immediately */}
             {redFlags.length > 0 && (
@@ -1109,13 +1045,13 @@ const ClientRecord: React.FC = () => {
                                 </div>
                               </div>
                               <div className="flex items-center gap-3 mt-4">
-                                <div className="flex-grow h-1.5 bg-black/5 rounded-full overflow-hidden">
+                                <div className="flex-grow h-1.5 bg-sand rounded-full overflow-hidden">
                                   <div className="bg-primary h-full rounded-full transition-all" style={{ width: `${pct}%` }} />
                                 </div>
-                                <span className="text-2xs font-medium text-primary shrink-0">{phase.sessionsCompleted}/{phase.sessionsPlanned} sessions</span>
+                                <span className="text-xs font-medium text-obsidian shrink-0">{phase.sessionsCompleted}/{phase.sessionsPlanned} sessions</span>
                               </div>
-                              {phase.notes && <p className="text-2xs text-muted font-medium mt-3">"{phase.notes}"</p>}
-                              {phase.startDate && <p className="text-2xs text-muted font-medium mt-2 uppercase">Started: {new Date(phase.startDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</p>}
+                              {phase.notes && <p className="text-xs text-muted mt-3 leading-relaxed">"{phase.notes}"</p>}
+                              {phase.startDate && <p className="text-xs text-hint mt-2">Started {new Date(phase.startDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</p>}
                               {/* Inline edit panel */}
                               {editingPhaseId === phase.id && (
                                 <div className="mt-4 pt-4 border-t border-black/5 space-y-3">
