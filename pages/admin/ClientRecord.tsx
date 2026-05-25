@@ -98,6 +98,10 @@ const ClientRecord: React.FC = () => {
   const [compareMode, setCompareMode] = useState(false);
   const [compareA, setCompareA] = useState<string | null>(null);
   const [compareB, setCompareB] = useState<string | null>(null);
+  /** Sub-tab inside the Files tab — forms vs photo gallery. */
+  const [filesSubTab, setFilesSubTab] = useState<'forms' | 'photos'>('forms');
+  /** Click-toggle "Send new form" dropdown (was hover-only, broken on touch). */
+  const [showSendFormMenu, setShowSendFormMenu] = useState(false);
 
   if (!selectedClient) return null;
 
@@ -685,26 +689,60 @@ const ClientRecord: React.FC = () => {
         )}
 
         {viewTab === 'files' && (
+          <div className="space-y-3">
+            {/* Sub-tab bar: Forms vs Photos — split because they're unrelated. */}
+            <div className="flex gap-1 bg-cream p-0.5 rounded-md w-fit">
+              <button
+                onClick={() => setFilesSubTab('forms')}
+                className={`px-3 py-1.5 rounded-sm text-sm transition-colors inline-flex items-center gap-1.5 ${
+                  filesSubTab === 'forms' ? 'bg-white text-obsidian shadow-sm font-medium' : 'text-muted hover:text-obsidian'
+                }`}
+              >
+                <FileText size={13} />
+                Forms
+              </button>
+              <button
+                onClick={() => setFilesSubTab('photos')}
+                className={`px-3 py-1.5 rounded-sm text-sm transition-colors inline-flex items-center gap-1.5 ${
+                  filesSubTab === 'photos' ? 'bg-white text-obsidian shadow-sm font-medium' : 'text-muted hover:text-obsidian'
+                }`}
+              >
+                <Camera size={13} />
+                Photos
+              </button>
+            </div>
+          </div>
+        )}
+
+        {viewTab === 'files' && filesSubTab === 'forms' && (
           <div className="space-y-6">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
               <h3 className="text-xl font-medium text-obsidian">Sent & Signed Forms</h3>
-              <div className="relative group w-full sm:w-auto">
-                <button className="w-full bg-primary text-obsidian px-6 py-2 rounded-full text-xs text-muted flex items-center justify-center gap-2">
+              <div className="relative w-full sm:w-auto">
+                <button
+                  onClick={() => setShowSendFormMenu(!showSendFormMenu)}
+                  className="w-full bg-primary text-obsidian px-6 py-2 rounded-full text-xs font-medium flex items-center justify-center gap-2"
+                >
                   Send New Form
-                  <ChevronDown size={16} />
+                  <ChevronDown size={16} className={showSendFormMenu ? 'rotate-180 transition-transform' : 'transition-transform'} />
                 </button>
-                <div className="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-panel border border-black/5 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 p-2 space-y-1">
-                  {FORMS.map(form => (
-                    <button
-                      key={form.id}
-                      onClick={() => handleSendForm(form.id)}
-                      className="w-full text-left px-4 py-3 hover:bg-cream rounded-md text-2xs font-medium text-obsidian flex items-center justify-between group/item"
-                    >
-                      {form.title}
-                      <Send size={14} className="text-primary opacity-0 group-hover/item:opacity-100" />
-                    </button>
-                  ))}
-                </div>
+                {showSendFormMenu && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setShowSendFormMenu(false)} />
+                    <div className="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-panel border border-black/5 z-50 p-2 space-y-1">
+                      {FORMS.map(form => (
+                        <button
+                          key={form.id}
+                          onClick={() => { handleSendForm(form.id); setShowSendFormMenu(false); }}
+                          className="w-full text-left px-4 py-3 hover:bg-cream rounded-md text-sm font-medium text-obsidian flex items-center justify-between"
+                        >
+                          {form.title}
+                          <Send size={14} className="text-primary" />
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
               </div>
             </div>
 
@@ -806,7 +844,7 @@ const ClientRecord: React.FC = () => {
           </div>
         )}
 
-        {viewTab === 'files' && (() => {
+        {viewTab === 'files' && filesSubTab === 'photos' && (() => {
           const gallery = selectedClient.gallery || [];
           return (
             <div className="space-y-6 md:space-y-8">

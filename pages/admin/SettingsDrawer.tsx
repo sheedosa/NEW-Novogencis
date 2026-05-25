@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import {
   X, Plus, Pencil, Trash2, Save, FileText, MessageSquare, Mail,
   Sliders, Users as UsersIcon, BookText, LayoutGrid, Maximize2, Minimize2,
-  Copy, Check,
+  Copy, Check, UserCheck, ExternalLink,
 } from 'lucide-react';
 import { Button, Input, Select, Textarea, EmptyState } from '../../components/ui';
 import { useAdminContext } from './context';
@@ -27,6 +27,7 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({ open, onClose })
   const {
     templates, onAddTemplate, onUpdateTemplate, onDeleteTemplate,
     user, effectiveAdminType, setEffectiveAdminType,
+    onSetViewAsTestPatient,
   } = useAdminContext();
 
   const [tab, setTab] = useState<SettingsTab>('preferences');
@@ -187,6 +188,28 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({ open, onClose })
                         <ShortcutRow keys={['Esc']}    label="Close any modal or drawer" />
                         <ShortcutRow keys={['↑', '↓']} label="Navigate in command palette" />
                       </div>
+                    </div>
+
+                    <div className="divider" />
+
+                    {/* Developer tools — moved here from the user menu so doctors
+                        don't trigger it accidentally. */}
+                    <div>
+                      <p className="text-xs uppercase tracking-wider text-hint mb-2">Developer</p>
+                      <h3 className="text-sm font-medium text-obsidian mb-2 flex items-center gap-1.5">
+                        <UserCheck size={14} /> Preview patient portal
+                      </h3>
+                      <p className="text-xs text-muted mb-3 leading-relaxed">
+                        Opens the patient dashboard using the clinic's demo account. You stay signed in as yourself.
+                        Use this to see what your patients see.
+                      </p>
+                      <Button
+                        variant="ghost"
+                        leadingIcon={<ExternalLink size={13} />}
+                        onClick={() => { onSetViewAsTestPatient?.(true); onClose(); }}
+                      >
+                        Open test patient view
+                      </Button>
                     </div>
                   </motion.div>
                 )}

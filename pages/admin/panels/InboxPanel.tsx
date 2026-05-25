@@ -26,6 +26,8 @@ interface InboxItem {
   primaryAction: { label: string; onClick: () => void };
   secondaryAction?: { label: string; onClick: () => void };
   task?: Task;
+  /** For message-type items: the original message ID for inline reply expansion. */
+  messageId?: string;
 }
 
 const filterChips: { id: InboxFilter; label: string; icon: React.ReactNode }[] = [
@@ -63,6 +65,7 @@ function InboxPanel() {
   } = useAdminContext();
 
   const { confirm, ConfirmHost } = useConfirm();
+  const { onSendMessage, onMarkMessageRead } = useAdminContext();
 
   const handleDeleteTask = async (id: string, title: string) => {
     const ok = await confirm({
@@ -77,6 +80,10 @@ function InboxPanel() {
   const [filter, setFilter] = useState<InboxFilter>('all');
   const [showNewTask, setShowNewTask] = useState(false);
   const [warmingUp, setWarmingUp] = useState(true);
+  /** Which message item is expanded for inline reply (id of the InboxItem). */
+  const [expandedReplyId, setExpandedReplyId] = useState<string | null>(null);
+  const [replyDraft, setReplyDraft] = useState('');
+  const [replySending, setReplySending] = useState(false);
   useEffect(() => {
     const t = setTimeout(() => setWarmingUp(false), 400);
     return () => clearTimeout(t);
@@ -122,8 +129,9 @@ function InboxPanel() {
       .filter(m => !m.read && m.recipientId === 'admin')
       .forEach(m => {
         const client = clients.find(c => c.id === m.senderId);
+        const itemId = `message-${m.id}`;
         out.push({
-          id: `message-${m.id}`,
+          id: itemId,
           type: 'message',
           title: `Message from ${client?.name || 'client'}`,
           subtitle: m.body?.slice(0, 80) || m.subject || '',
@@ -131,8 +139,18 @@ function InboxPanel() {
           patientId: client?.id,
           when: m.createdAt,
           priority: 'normal',
+          messageId: m.id,
+          // Primary action toggles inline reply expansion — no navigation.
           primaryAction: {
             label: 'Reply',
+            onClick: () => {
+              setExpandedReplyId(prev => prev === itemId ? null : itemId);
+              setReplyDraft('');
+            },
+          },
+          // Secondary action: jump to full thread inside the patient record.
+          secondaryAction: {
+            label: 'Open thread',
             onClick: () => {
               if (client) {
                 setSelectedClientId(client.id);
@@ -498,6 +516,88 @@ function InboxPanel() {
                     </Button>
                   </div>
                 </div>
+
+                {/* ── Inline reply expansion (message-type items only) ─────────── */}
+                <AnimatePresence>
+                  {item.type === 'message' && expandedReplyId === item.id && item.messageId && (() => {
+                    // Find last 3 messages in this thread (between admin and patient).
+                    const threadMessages = messages
+                      .filter(m => m.senderId === item.patientId || m.recipientId === item.patientId)
+                      .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+                    const recentThread = threadMessages.slice(-3);
+                    return (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
+                        className="mt-3 border-t border-cream pt-3"
+                      >
+                        <div className="flex flex-col gap-2 mb-3">
+                          {recentThread.map(m => (
+                            <div
+                              key={m.id}
+                              className={`text-sm px-3 py-2 rounded-md max-w-[85%] ${
+                                m.senderId === 'admin'
+                                  ? 'self-end bg-obsidian text-white ml-auto'
+                                  : 'self-start bg-cream text-obsidian'
+                              }`}
+                            >
+                              {m.body}
+                            </div>
+                          ))}
+                        </div>
+                        <div className="flex gap-2">
+                          <textarea
+                            value={replyDraft}
+                            onChange={(e) => setReplyDraft(e.target.value)}
+                            placeholder="Reply to patient..."
+                            rows={2}
+                            className="flex-1 bg-cream border-transparent rounded-md px-3 py-2 text-base sm:text-sm focus:ring-2 focus:ring-primary/20 resize-none"
+                            autoFocus
+                          />
+                          <div className="flex flex-col gap-1">
+                            <Button
+                              variant="primary"
+                              size="sm"
+                              onClick={async () => {
+                                if (!replyDraft.trim() || !item.patientId) return;
+                                setReplySending(true);
+                                try {
+                                  await onSendMessage({
+                                    senderId: 'admin',
+                                    recipientId: item.patientId,
+                                    subject: 'Reply',
+                                    body: replyDraft.trim(),
+                                    type: 'message',
+                                    createdAt: new Date().toISOString(),
+                                    read: false,
+                                  });
+                                  // Mark the original message as read so it leaves the inbox.
+                                  if (item.messageId) await onMarkMessageRead(item.messageId);
+                                  setReplyDraft('');
+                                  setExpandedReplyId(null);
+                                } finally {
+                                  setReplySending(false);
+                                }
+                              }}
+                              disabled={!replyDraft.trim() || replySending}
+                            >
+                              {replySending ? 'Sending…' : 'Send'}
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => { setExpandedReplyId(null); setReplyDraft(''); }}
+                            >
+                              Cancel
+                            </Button>
+                          </div>
+                        </div>
+                      </motion.div>
+                    );
+                  })()}
+                </AnimatePresence>
               </motion.div>
             ))}
             </AnimatePresence>

@@ -7,7 +7,7 @@ import {
   Sparkles, Lightbulb, TrendingUp, TrendingDown, Hourglass, UserX, PackageCheck,
 } from 'lucide-react';
 import {
-  PageHeader, Stat, Card, CardHeader, Button, StatusBadge, EmptyState, Badge,
+  PageHeader, Card, CardHeader, Button, StatusBadge, EmptyState, Badge,
   Skeleton, AISurface,
 } from '../../../components/ui';
 import { Appointment } from '../../../types';
@@ -228,7 +228,7 @@ function TodayPanel() {
           icon: delta >= 0 ? <TrendingUp size={14} /> : <TrendingDown size={14} />,
           title: `Conversions ${delta >= 0 ? 'up' : 'down'} ${Math.abs(pct)}% over the last 14 days`,
           detail: `${conv14} converted vs ${conv14prev} in the prior fortnight.`,
-          action: { label: 'See insights', onClick: () => handleSidebarClick('insights') },
+          action: { label: 'See insights', onClick: () => handleSidebarClick('practice') },
         });
       }
     }
@@ -372,33 +372,32 @@ function TodayPanel() {
         );
       })()}
 
-      {/* Top stat row */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <Stat
-          label="Sessions today"
-          value={todayAppointments.length}
-          icon={<CalendarDays size={16} />}
-          accent="info"
-        />
-        <Stat
-          label="Revenue today"
-          value={formatGBP(revenueToday)}
-          icon={<CreditCard size={16} />}
-          accent="sage"
-        />
-        <Stat
-          label="New patients · 7d"
-          value={newPatientsWeek}
-          icon={<UsersIcon size={16} />}
-          accent="gold"
-        />
-        <Stat
-          label="Open tasks"
-          value={openTasks.length}
-          icon={<ListChecksIcon />}
-          accent="warning"
+      {/* Compact today strap-line — replaces the 4-up KPI row.
+          Doctors scan this once, then move on to the run sheet below. */}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted px-1">
+        <span className="inline-flex items-center gap-1.5">
+          <CalendarDays size={14} className="text-info" />
+          <span className="text-obsidian font-medium">{todayAppointments.length}</span>
+          <span>session{todayAppointments.length !== 1 ? 's' : ''}</span>
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <CreditCard size={14} className="text-success-text" />
+          <span className="text-obsidian font-medium">{formatGBP(revenueToday)}</span>
+          <span>today</span>
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <UsersIcon size={14} className="text-primary" />
+          <span className="text-obsidian font-medium">{newPatientsWeek}</span>
+          <span>new this week</span>
+        </span>
+        <button
           onClick={() => handleSidebarClick('inbox')}
-        />
+          className="inline-flex items-center gap-1.5 hover:text-obsidian transition-colors"
+        >
+          <ListChecksIcon className="text-warning-text" />
+          <span className="text-obsidian font-medium">{openTasks.length}</span>
+          <span>need{openTasks.length === 1 ? 's' : ''} you</span>
+        </button>
       </div>
 
       {/* ── AI: Today's briefing (Claude-generated each morning at 07:00) ── */}
@@ -455,16 +454,19 @@ function TodayPanel() {
       )}
 
       {/* ── AI: Follow-up suggestions for cold leads ── */}
+      {/* Unified light-AISurface treatment so all 3 AI cards read as one cohesive section. */}
       {followUps.length > 0 && (
-        <Card accent="warning">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-md bg-warning-bg text-warning-text flex items-center justify-center">
-                <Hourglass size={14} />
+        <AISurface className="p-5 md:p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-md bg-gold-soft text-gold-dim flex items-center justify-center shrink-0">
+                <Hourglass size={15} />
               </div>
               <div>
-                <h3 className="text-sm font-medium text-obsidian">AI-drafted follow-ups ready</h3>
-                <p className="text-xs text-muted">{followUps.length} cold lead{followUps.length > 1 ? 's' : ''} have a draft ready to send</p>
+                <p className="eyebrow">Follow-ups ready</p>
+                <p className="text-sm font-medium text-obsidian mt-0.5">
+                  {followUps.length} cold lead{followUps.length > 1 ? 's' : ''} with a draft ready to send
+                </p>
               </div>
             </div>
             <Badge variant="ai" icon={<Sparkles size={9} />}>AI</Badge>
@@ -474,79 +476,50 @@ function TodayPanel() {
               <FollowUpRow key={f.clientId} suggestion={f} onOpenClient={(id) => { setSelectedClientId(id); handleSidebarClick('patients'); }} />
             ))}
           </div>
-        </Card>
+        </AISurface>
       )}
 
       {/* ── Clinic Radar — forward-thinking signals (only renders if there's anything to flag) ── */}
+      {/* Unified light-AISurface treatment so all 3 AI cards read as one cohesive section. */}
       {radar.length > 0 && (
-        <Card
-          className="!text-white !border-obsidian relative overflow-hidden"
-          style={{
-            // Premium dark gradient + radial accent overlays (gold top-right,
-            // sage bottom-left). Matches the new design's signature feel.
-            background: 'linear-gradient(135deg, #1A1916 0%, #28251f 100%)',
-          }}
-        >
-          <div
-            aria-hidden
-            className="absolute inset-0 pointer-events-none"
-            style={{
-              backgroundImage:
-                'radial-gradient(circle at 100% 0%, rgba(201,168,106,0.15) 0%, transparent 50%), radial-gradient(circle at 0% 100%, rgba(127,162,136,0.08) 0%, transparent 40%)',
-            }}
-          />
-          <div className="relative flex items-center justify-between mb-4">
+        <AISurface className="p-5 md:p-6">
+          <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
-              <div
-                className="relative w-8 h-8 rounded-md flex items-center justify-center"
-                style={{ background: 'rgba(255,255,255,0.06)', color: 'var(--color-gold)' }}
-              >
+              <div className="w-8 h-8 rounded-md bg-gold-soft text-gold-dim flex items-center justify-center shrink-0">
                 <Sparkles size={15} />
-                <span
-                  aria-hidden
-                  className="absolute inset-0 rounded-md animate-pulse-ring"
-                />
               </div>
               <div>
-                <p className="eyebrow" style={{ color: 'var(--color-gold)' }}>Clinic radar</p>
-                <p className="text-sm font-medium text-white mt-0.5">
+                <p className="eyebrow">Clinic radar</p>
+                <p className="text-sm font-medium text-obsidian mt-0.5">
                   {radar.length} signal{radar.length !== 1 ? 's' : ''} worth your attention
                 </p>
               </div>
             </div>
             <Badge variant="ai" icon={<Lightbulb size={11} />}>Auto-detected</Badge>
           </div>
-          <div className="relative grid grid-cols-1 md:grid-cols-2 gap-2.5">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
             {radar.map(item => (
               <button
                 key={item.id}
                 onClick={item.action?.onClick}
-                className="text-left transition-colors rounded-[10px] p-3 border group"
-                style={{
-                  background: 'rgba(255,255,255,0.04)',
-                  borderColor: 'rgba(255,255,255,0.06)',
-                }}
-                onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.07)')}
-                onMouseLeave={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.04)')}
+                className="text-left transition-colors rounded-[10px] p-3 border border-sand bg-white hover:bg-cream/40 group"
               >
                 <div className="flex items-center gap-2 mb-1.5">
                   <span
-                    className="w-1.5 h-1.5 rounded-full shrink-0"
-                    style={{
-                      background:
-                        item.tone === 'danger'   ? 'var(--color-danger)' :
-                        item.tone === 'warning'  ? 'var(--color-warning)' :
-                        item.tone === 'positive' ? 'var(--color-success)' :
-                                                    'var(--color-gold)',
-                    }}
+                    className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                      item.tone === 'danger'   ? 'bg-danger' :
+                      item.tone === 'warning'  ? 'bg-warning' :
+                      item.tone === 'positive' ? 'bg-success' :
+                                                  'bg-primary'
+                    }`}
                   />
-                  <span className="text-[10px] uppercase tracking-[0.06em] text-white/55 font-medium">
+                  <span className="text-[10px] uppercase tracking-[0.06em] text-hint font-medium">
                     {item.tone === 'positive' ? 'Opportunity' : item.tone === 'danger' ? 'Attention' : item.tone === 'warning' ? 'Lapsed' : 'Signal'}
                   </span>
                 </div>
-                <p className="text-[13px] text-white leading-snug">{item.title}</p>
+                <p className="text-[13px] text-obsidian leading-snug">{item.title}</p>
                 {item.detail && (
-                  <p className="text-xs text-white/55 mt-1 leading-relaxed">{item.detail}</p>
+                  <p className="text-xs text-muted mt-1 leading-relaxed">{item.detail}</p>
                 )}
                 {item.action && (
                   <p className="text-xs text-primary mt-2 inline-flex items-center gap-1 group-hover:gap-1.5 transition-all">
@@ -556,7 +529,7 @@ function TodayPanel() {
               </button>
             ))}
           </div>
-        </Card>
+        </AISurface>
       )}
 
       {/* Main: schedule + side panel */}
@@ -573,7 +546,7 @@ function TodayPanel() {
                 variant="ghost"
                 size="sm"
                 trailingIcon={<ArrowRight size={13} />}
-                onClick={() => handleSidebarClick('calendar')}
+                onClick={() => handleSidebarClick('schedule')}
               >
                 Full calendar
               </Button>
@@ -780,9 +753,9 @@ function TodayPanel() {
 }
 
 // Inline ListChecks icon wrapper to avoid extra lucide import in stat row
-function ListChecksIcon() {
+function ListChecksIcon({ className }: { className?: string }) {
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
       <path d="m3 17 2 2 4-4" /><path d="m3 7 2 2 4-4" /><path d="M13 6h8" /><path d="M13 12h8" /><path d="M13 18h8" />
     </svg>
   );

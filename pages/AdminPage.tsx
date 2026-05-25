@@ -26,6 +26,7 @@ import {
   AdminPageProps,
   AdminTab,
   ClientRecordTab,
+  PracticeTab,
   CalendarDay,
 } from './admin/context';
 import SettingsDrawer from './admin/SettingsDrawer';
@@ -33,9 +34,7 @@ import TodayPanel from './admin/panels/TodayPanel';
 import InboxPanel from './admin/panels/InboxPanel';
 import CalendarPanel from './admin/panels/CalendarPanel';
 import ClientsPanel from './admin/panels/ClientsPanel';
-import MoneyPanel from './admin/panels/MoneyPanel';
-import InsightsPanel from './admin/panels/InsightsPanel';
-import MarketingPanel from './admin/panels/MarketingPanel';
+import PracticePanel from './admin/panels/PracticePanel';
 import PlatformHealthPanel from './admin/panels/PlatformHealthPanel';
 
 const AdminPage: React.FC<AdminPageProps> = ({
@@ -50,7 +49,8 @@ const AdminPage: React.FC<AdminPageProps> = ({
 }) => {
   const { toast } = useToast();
   // ── UI state ───────────────────────────────────────────────────────────────
-  const [activeTab, setActiveTab]                   = useState<AdminTab>('overview');
+  const [activeTab, setActiveTab]                   = useState<AdminTab>('today');
+  const [practiceTab, setPracticeTab]               = useState<PracticeTab>('overview');
   const [effectiveAdminType, setEffectiveAdminType] = useState<AdminType | 'all'>(user?.adminType || 'all');
   const [selectedClientId, setSelectedClientId]     = useState<string | null>(null);
   const [clientRecordTab, setClientRecordTab]       = useState<ClientRecordTab>('overview');
@@ -266,9 +266,9 @@ const AdminPage: React.FC<AdminPageProps> = ({
     // (avoids stale memoization across day boundaries during long sessions).
     const todayIso = new Date().toISOString().split('T')[0];
     return [
-      { label: 'Assessments Today', value: filteredClients.filter(c => c.status === 'Assessment Submitted').length.toString(), trend: 'New', icon: 'assignment', tab: 'assessments' as AdminTab },
-      { label: 'Appointments Today', value: filteredAppointments.filter(a => a.date === todayIso).length.toString(), icon: 'event', tab: 'appointments' as AdminTab },
-      { label: 'Active Clients', value: filteredClients.filter(c => c.status === 'Active' || c.status === 'Ongoing' || c.status === 'Converted').length.toString(), trend: 'Total', icon: 'groups', tab: 'clients' as AdminTab },
+      { label: 'Assessments Today', value: filteredClients.filter(c => c.status === 'Assessment Submitted').length.toString(), trend: 'New', icon: 'assignment', tab: 'inbox' as AdminTab },
+      { label: 'Appointments Today', value: filteredAppointments.filter(a => a.date === todayIso).length.toString(), icon: 'event', tab: 'schedule' as AdminTab },
+      { label: 'Active Clients', value: filteredClients.filter(c => c.status === 'Active' || c.status === 'Ongoing' || c.status === 'Converted').length.toString(), trend: 'Total', icon: 'groups', tab: 'patients' as AdminTab },
     ];
   }, [filteredClients, filteredAppointments, today]);
 
@@ -276,11 +276,11 @@ const AdminPage: React.FC<AdminPageProps> = ({
   const handleNotificationClick = (notification: AppNotification) => {
     onMarkNotificationRead(notification.id);
     if (notification.type === 'new_assessment' && notification.metadata?.clientId) {
-      setSelectedClientId(notification.metadata.clientId); setActiveTab('clients'); setClientRecordTab('assessment');
+      setSelectedClientId(notification.metadata.clientId); setActiveTab('patients'); setClientRecordTab('assessment');
     } else if (notification.type === 'new_message' && notification.metadata?.clientId) {
-      setSelectedClientId(notification.metadata.clientId); setActiveTab('clients'); setClientRecordTab('communications');
+      setSelectedClientId(notification.metadata.clientId); setActiveTab('patients'); setClientRecordTab('communications');
     } else if (notification.type === 'form_signed' && notification.metadata?.clientId) {
-      setSelectedClientId(notification.metadata.clientId); setActiveTab('clients'); setClientRecordTab('forms');
+      setSelectedClientId(notification.metadata.clientId); setActiveTab('patients'); setClientRecordTab('forms');
     }
     setShowNotifications(false);
   };
@@ -519,10 +519,12 @@ const AdminPage: React.FC<AdminPageProps> = ({
     const items: CommandItem[] = [
       { id: 'nav-today',     group: 'Navigate', icon: <Sun size={13} />,              label: 'Go to Today',                onSelect: () => setActiveTab('today') },
       { id: 'nav-inbox',     group: 'Navigate', icon: <Inbox size={13} />,            label: 'Go to Inbox',                onSelect: () => setActiveTab('inbox') },
-      { id: 'nav-calendar',  group: 'Navigate', icon: <CalendarIcon size={13} />,     label: 'Go to Calendar',             onSelect: () => setActiveTab('calendar') },
+      { id: 'nav-schedule',  group: 'Navigate', icon: <CalendarIcon size={13} />,     label: 'Go to Schedule',             onSelect: () => setActiveTab('schedule') },
       { id: 'nav-patients',  group: 'Navigate', icon: <Users size={13} />,            label: 'Go to Patients',             onSelect: () => setActiveTab('patients') },
-      { id: 'nav-money',     group: 'Navigate', icon: <Receipt size={13} />,          label: 'Go to Money',                onSelect: () => setActiveTab('money') },
-      { id: 'nav-insights',  group: 'Navigate', icon: <BarChart3 size={13} />,        label: 'Go to Insights',             onSelect: () => setActiveTab('insights') },
+      { id: 'nav-practice',  group: 'Navigate', icon: <BarChart3 size={13} />,        label: 'Go to Practice',             onSelect: () => setActiveTab('practice') },
+      { id: 'nav-money',     group: 'Navigate', icon: <Receipt size={13} />,          label: 'Go to Money',                onSelect: () => { setActiveTab('practice'); setPracticeTab('money'); } },
+      { id: 'nav-insights',  group: 'Navigate', icon: <BarChart3 size={13} />,        label: 'Go to Insights',             onSelect: () => { setActiveTab('practice'); setPracticeTab('insights'); } },
+      { id: 'nav-marketing', group: 'Navigate', icon: <TrendingUp size={13} />,       label: 'Go to Marketing',            onSelect: () => { setActiveTab('practice'); setPracticeTab('marketing'); } },
       { id: 'act-book',      group: 'Actions',  icon: <CalendarDays size={13} />,     label: 'Book a new appointment',     onSelect: () => setShowBookingModal(true) },
       { id: 'act-settings',  group: 'Actions',  icon: <Settings size={13} />,         label: 'Open settings',              onSelect: () => setShowSettings(true) },
       { id: 'act-notifs',    group: 'Actions',  icon: <Bell size={13} />,             label: 'Open notifications',         onSelect: () => setShowNotifications(true) },
@@ -560,6 +562,7 @@ const AdminPage: React.FC<AdminPageProps> = ({
     onAddPayment, onUpdatePayment,
     // State
     activeTab, setActiveTab,
+    practiceTab, setPracticeTab,
     effectiveAdminType, setEffectiveAdminType,
     selectedClientId, setSelectedClientId,
     clientRecordTab, setClientRecordTab,
@@ -607,7 +610,7 @@ const AdminPage: React.FC<AdminPageProps> = ({
     onMarkNotificationRead, tasks, onAddTask, onUpdateTask, onDeleteTask,
     onSaveTreatmentPlan, onAddPrescription, onUpdatePrescription,
     onAddPayment, onUpdatePayment,
-    activeTab, effectiveAdminType, selectedClientId, clientRecordTab,
+    activeTab, practiceTab, effectiveAdminType, selectedClientId, clientRecordTab,
     isSidebarOpen, isSidebarCollapsed, lightboxImage, showNotifications,
     uploadProgress, showBookingModal, appointmentView, currentCalendarDate,
     viewingForm, bookingForm, threadSearch, showQuickActions, selectedThreadId,
@@ -624,26 +627,13 @@ const AdminPage: React.FC<AdminPageProps> = ({
   ]);
 
   // ── Panel selector ─────────────────────────────────────────────────────────
-  // Map legacy tab IDs onto the new structure so external setActiveTab() calls
-  // (e.g. notifications, panels deep-linking back into the admin) keep working.
-  const legacyToNewTab: Record<string, AdminTab> = {
-    overview: 'today',
-    assessments: 'inbox',
-    messages: 'inbox',
-    clients: 'patients',
-    appointments: 'calendar',
-  };
-  const resolvedTab: AdminTab = legacyToNewTab[activeTab as string] || activeTab;
-
   const renderPanel = () => {
-    switch (resolvedTab) {
+    switch (activeTab) {
       case 'today':           return <TodayPanel />;
       case 'inbox':           return <InboxPanel />;
-      case 'calendar':        return <CalendarPanel />;
+      case 'schedule':        return <CalendarPanel />;
       case 'patients':        return <ClientsPanel />;
-      case 'money':           return <MoneyPanel />;
-      case 'insights':        return <InsightsPanel />;
-      case 'marketing':       return <MarketingPanel />;
+      case 'practice':        return <PracticePanel />;
       case 'platform-health': return <PlatformHealthPanel />;
       default: return (
         <div className="py-20 md:py-32 text-center">
@@ -688,7 +678,7 @@ const AdminPage: React.FC<AdminPageProps> = ({
               icon={<Sun size={15} />}
               label="Today"
               badge={todayBadge}
-              active={resolvedTab === 'today' && !selectedClientId}
+              active={activeTab === 'today' && !selectedClientId}
               collapsed={isSidebarCollapsed}
               onClick={() => handleSidebarClick('today')}
             />
@@ -696,57 +686,44 @@ const AdminPage: React.FC<AdminPageProps> = ({
               icon={<Inbox size={15} />}
               label="Inbox"
               badge={inboxBadge}
-              active={resolvedTab === 'inbox' && !selectedClientId}
+              active={activeTab === 'inbox' && !selectedClientId}
               collapsed={isSidebarCollapsed}
               onClick={() => handleSidebarClick('inbox')}
             />
             <UISidebarItem
               icon={<CalendarIcon size={15} />}
-              label="Calendar"
-              active={resolvedTab === 'calendar' && !selectedClientId}
+              label="Schedule"
+              active={activeTab === 'schedule' && !selectedClientId}
               collapsed={isSidebarCollapsed}
-              onClick={() => handleSidebarClick('calendar')}
+              onClick={() => handleSidebarClick('schedule')}
             />
             <UISidebarItem
               icon={<Users size={15} />}
               label="Patients"
-              active={resolvedTab === 'patients' && !selectedClientId}
+              active={activeTab === 'patients' && !selectedClientId}
               collapsed={isSidebarCollapsed}
               onClick={() => handleSidebarClick('patients')}
             />
-            <UISidebarItem
-              icon={<Receipt size={15} />}
-              label="Money"
-              badge={moneyBadge}
-              active={resolvedTab === 'money' && !selectedClientId}
-              collapsed={isSidebarCollapsed}
-              onClick={() => handleSidebarClick('money')}
-            />
+          </nav>
+
+          {!isSidebarCollapsed && <p className="nav-section-label mt-3">Practice</p>}
+          <nav className="flex flex-col gap-0.5">
             <UISidebarItem
               icon={<BarChart3 size={15} />}
-              label="Insights"
-              active={resolvedTab === 'insights' && !selectedClientId}
+              label="Practice"
+              badge={moneyBadge}
+              active={activeTab === 'practice' && !selectedClientId}
               collapsed={isSidebarCollapsed}
-              onClick={() => handleSidebarClick('insights')}
-            />
-            <UISidebarItem
-              icon={<TrendingUp size={15} />}
-              label="Marketing"
-              active={resolvedTab === 'marketing' && !selectedClientId}
-              collapsed={isSidebarCollapsed}
-              onClick={() => handleSidebarClick('marketing')}
+              onClick={() => handleSidebarClick('practice')}
             />
             {user?.adminType === 'technical' && (
-              <>
-                {!isSidebarCollapsed && <p className="nav-section-label">System</p>}
-                <UISidebarItem
-                  icon={<HeartPulse size={15} />}
-                  label="Platform health"
-                  active={resolvedTab === 'platform-health' && !selectedClientId}
-                  collapsed={isSidebarCollapsed}
-                  onClick={() => handleSidebarClick('platform-health')}
-                />
-              </>
+              <UISidebarItem
+                icon={<HeartPulse size={15} />}
+                label="Platform health"
+                active={activeTab === 'platform-health' && !selectedClientId}
+                collapsed={isSidebarCollapsed}
+                onClick={() => handleSidebarClick('platform-health')}
+              />
             )}
           </nav>
 
@@ -792,20 +769,9 @@ const AdminPage: React.FC<AdminPageProps> = ({
                     <div className="h-px bg-sand my-1.5" />
                   </>
                 )}
-                {/* All admins can preview the patient portal via the dummy account */}
-                <p className="text-xs font-medium text-muted px-2 py-1 flex items-center gap-1.5">
-                  <UserCheck size={13} /> Test the patient portal
-                </p>
-                <button
-                  onClick={() => { onSetViewAsTestPatient?.(true); setShowAccountSwitcher(false); }}
-                  className="w-full text-left px-2 py-1.5 rounded-sm text-sm transition-colors text-obsidian hover:bg-cream flex items-center gap-2"
-                >
-                  <span className="w-1.5 h-1.5 rounded-full bg-primary" />
-                  View as test patient
-                </button>
-                <p className="text-xs text-hint px-2 py-1 leading-relaxed">
-                  Opens the patient dashboard using the clinic's demo account. You stay signed in as yourself.
-                </p>
+                {/* "View as test patient" moved to Settings → Preferences (Developer tools).
+                    It used to live here, but doctors mis-clicked it and ended up in the patient
+                    portal wondering what happened. */}
               </motion.div>
             )}
             <button
@@ -859,7 +825,7 @@ const AdminPage: React.FC<AdminPageProps> = ({
                   ))}
                   {todayAppts.length > 4 && <p className="text-xs text-primary text-center">+{todayAppts.length - 4} more</p>}
                 </div>
-                <button onClick={() => { setShowMorningBriefing(false); setActiveTab('appointments'); }} className="w-full px-4 py-2.5 bg-white/5 hover:bg-white/10 text-sm font-medium transition-colors">
+                <button onClick={() => { setShowMorningBriefing(false); setActiveTab('schedule'); }} className="w-full px-4 py-2.5 bg-white/5 hover:bg-white/10 text-sm font-medium transition-colors">
                   View full schedule
                 </button>
               </div>
@@ -875,25 +841,40 @@ const AdminPage: React.FC<AdminPageProps> = ({
               <span className="text-muted hidden sm:inline">Admin</span>
               <span className="text-hint hidden sm:inline">/</span>
               <span className="text-obsidian font-medium capitalize">
-                {resolvedTab.replace('-', ' ')}
+                {activeTab.replace('-', ' ')}
               </span>
             </div>
-            {/* Cmd+K trigger button (hidden on smallest screens) */}
+            {/* Always-visible patient search — primary entry point.
+                On mobile this is icon-only to save space; on desktop it shows
+                the full search input + ⌘K hint. */}
             <button
               onClick={() => setShowCommandPalette(true)}
-              className="hidden md:inline-flex items-center gap-2 px-2.5 py-1 ml-4 rounded-md border border-sand bg-white hover:bg-cream text-muted hover:text-obsidian transition-colors"
-              aria-label="Open command palette"
+              className="hidden sm:inline-flex items-center gap-2 px-3 py-1.5 ml-4 rounded-md border border-sand bg-white hover:bg-cream text-muted hover:text-obsidian transition-colors min-w-[200px] md:min-w-[240px]"
+              aria-label="Search patients & navigate"
             >
-              <Search size={13} />
-              <span className="text-xs">Quick find…</span>
-              <span className="text-xs text-hint border border-sand rounded px-1 ml-2">⌘K</span>
+              <Search size={14} />
+              <span className="text-sm text-hint flex-grow text-left">Search patients…</span>
+              <span className="text-xs text-hint border border-sand rounded px-1 ml-auto">⌘K</span>
+            </button>
+            <button
+              onClick={() => setShowCommandPalette(true)}
+              className="sm:hidden btn-icon ml-2"
+              aria-label="Search"
+            >
+              <Search size={15} />
             </button>
             <div className="ml-auto flex items-center gap-1">
               <div className="relative">
                 <button
-                  onClick={() => setShowNotifications(!showNotifications)}
-                  className={`btn-icon relative ${showNotifications ? 'bg-cream text-obsidian' : ''}`}
-                  aria-label="Notifications"
+                  onClick={() => {
+                    // Notification bell now navigates to Inbox — the single
+                    // source of truth for "things needing my attention."
+                    setActiveTab('inbox');
+                    setShowNotifications(false);
+                  }}
+                  className="btn-icon relative"
+                  aria-label="Open inbox (notifications)"
+                  title="Open inbox"
                 >
                   <Bell size={15} />
                   {unreadCount > 0 && (
@@ -963,7 +944,7 @@ const AdminPage: React.FC<AdminPageProps> = ({
             </div>
           </header>
 
-          <div className="portal-content mx-auto pb-20 lg:pb-4" data-scroll key={`${resolvedTab}-${selectedClientId || 'list'}`}>
+          <div className="portal-content mx-auto pb-20 lg:pb-4" data-scroll key={`${activeTab}-${selectedClientId || 'list'}`}>
             {/* Each panel applies its own `animate-fade-up` for a soft enter.
                 AnimatePresence-wrapped transitions caused stuck opacity:0 states
                 when rapid tab clicks interrupted mid-flight animations. */}
@@ -972,12 +953,12 @@ const AdminPage: React.FC<AdminPageProps> = ({
 
           {/* Mobile-only bottom nav — 4 most-used surfaces in thumb zone. */}
           <BottomNav
-            active={resolvedTab}
+            active={activeTab}
             onChange={(id) => handleSidebarClick(id as AdminTab)}
             items={[
               { id: 'today',        label: 'Today',     icon: <Sun size={18} />,          badge: todayBadge },
               { id: 'inbox',        label: 'Inbox',     icon: <Inbox size={18} />,        badge: inboxBadge },
-              { id: 'calendar',     label: 'Calendar',  icon: <CalendarIcon size={18} /> },
+              { id: 'schedule',     label: 'Schedule',  icon: <CalendarIcon size={18} /> },
               { id: 'patients',     label: 'Patients',  icon: <Users size={18} /> },
             ]}
           />

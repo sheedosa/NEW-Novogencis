@@ -7,16 +7,13 @@ import {
 export type AdminTab =
   | 'today'
   | 'inbox'
-  | 'calendar'
+  | 'schedule'      // was: 'calendar' — renamed for clarity (industry terminology)
   | 'patients'
-  | 'money'
-  | 'insights'
-  | 'marketing'
-  | 'platform-health'
-  // legacy aliases (resolved to the new tabs in AdminPage). Kept so existing
-  // setActiveTab('overview' | 'assessments' | 'clients' | 'appointments' | 'messages')
-  // call sites don't break.
-  | 'overview' | 'assessments' | 'clients' | 'appointments' | 'messages';
+  | 'practice'      // new — absorbs former 'money' / 'insights' / 'marketing'
+  | 'platform-health';
+
+/** Sub-tabs inside the Practice section. */
+export type PracticeTab = 'overview' | 'money' | 'insights' | 'marketing' | 'operations';
 export type ClientRecordTab = 'overview' | 'communications' | 'forms' | 'gallery' | 'assessment' | 'treatment' | 'financials';
 export type NotifFilter = 'all' | 'assessment' | 'message' | 'appointment';
 export type AppointmentView = 'list' | 'calendar';
@@ -61,6 +58,8 @@ export interface AdminContextValue extends AdminPageProps {
   // UI state
   activeTab: AdminTab;
   setActiveTab: (tab: AdminTab) => void;
+  practiceTab: PracticeTab;
+  setPracticeTab: (tab: PracticeTab) => void;
   effectiveAdminType: AdminType | 'all';
   setEffectiveAdminType: (t: AdminType | 'all') => void;
   selectedClientId: string | null;

@@ -4,8 +4,9 @@ import type { Appointment } from '../../../types';
 import {
   ChevronLeft, ChevronRight, Plus, Calendar as CalendarIcon,
   List, LayoutGrid, Users as UsersIcon, User as UserIcon, Filter,
-  Clock, CheckCircle, X as XIcon, Trash2, BarChart3,
+  Clock, CheckCircle, X as XIcon, Trash2, BarChart3, StickyNote,
 } from 'lucide-react';
+import AppointmentNotesDrawer from '../AppointmentNotesDrawer';
 import {
   PageHeader, Card, Button, StatusBadge, EmptyState, Badge, useConfirm,
 } from '../../../components/ui';
@@ -57,6 +58,7 @@ function CalendarPanel() {
   } = useAdminContext();
 
   const { confirm, ConfirmHost } = useConfirm();
+  const [notesAppt, setNotesAppt] = useState<Appointment | null>(null);
 
   const handleDelete = async (id: string, clientName: string) => {
     const ok = await confirm({
@@ -547,6 +549,13 @@ function CalendarPanel() {
                   </select>
                   <div className="flex items-center gap-1 shrink-0">
                     <button
+                      onClick={() => setNotesAppt(apt)}
+                      className="btn-icon"
+                      title="Notes & status"
+                    >
+                      <StickyNote size={13} />
+                    </button>
+                    <button
                       onClick={() => handleDelete(apt.id, apt.clientName)}
                       className="btn-icon hover:!text-danger"
                       title="Delete"
@@ -576,6 +585,13 @@ function CalendarPanel() {
           Unassigned
         </span>
       </div>
+
+      {/* Appointment notes + status drawer (modal) */}
+      <AppointmentNotesDrawer
+        appointment={notesAppt}
+        onClose={() => setNotesAppt(null)}
+        onSave={(id, updates) => onUpdateAppointment(id, updates)}
+      />
     </div>
   );
 }
