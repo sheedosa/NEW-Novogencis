@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import { Card as UICard, CardHeader, Button as UIButton, Badge as UIBadge, StatusBadge as UIStatusBadge, EmptyState as UIEmptyState, useToast, Modal as UIModal } from '../../components/ui';
 
-type ViewTab = 'snapshot' | 'plan' | 'files' | 'activity' | 'money';
+type ViewTab = 'snapshot' | 'assessment' | 'plan' | 'files' | 'activity' | 'money';
 import { storage } from '../../firebase';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { processImageForUpload, validateImageFile, ACCEPTED_IMAGE_TYPES } from '../../imageUtils';
@@ -109,7 +109,7 @@ const ClientRecord: React.FC = () => {
   // into a 5-tab view used by this component.
   const incomingToView: Record<ClientRecordTab, ViewTab> = {
     overview: 'snapshot',
-    assessment: 'snapshot',
+    assessment: 'assessment',
     treatment: 'plan',
     forms: 'files',
     gallery: 'files',
@@ -118,6 +118,7 @@ const ClientRecord: React.FC = () => {
   };
   const viewToCanonical: Record<ViewTab, ClientRecordTab> = {
     snapshot: 'overview',
+    assessment: 'assessment',
     plan: 'treatment',
     files: 'forms',
     activity: 'communications',
@@ -283,16 +284,19 @@ const ClientRecord: React.FC = () => {
         </div>
       </div>
 
-      {/* ── Tab bar (5 tabs, sticky just below patient bar) ───────────────── */}
+      {/* ── Tab bar (sticky just below patient bar) ─────────────────────────
+          Assessment tab only appears when the patient has assessment data —
+          walk-in patients don't see an empty assessment tab. */}
       <div className="sticky top-[108px] z-20 -mx-4 sm:-mx-6 lg:-mx-4 px-4 sm:px-6 lg:px-4 py-2 bg-ivory/95 backdrop-blur border-b border-sand">
         <div className="flex gap-1 overflow-x-auto no-scrollbar">
           {([
-            { id: 'snapshot', label: 'Snapshot', icon: <UserIcon size={13} /> },
-            { id: 'plan',     label: 'Plan',     icon: <Activity size={13} /> },
-            { id: 'files',    label: 'Files',    icon: <FileText size={13} /> },
-            { id: 'activity', label: 'Activity', icon: <MessageSquare size={13} /> },
-            { id: 'money',    label: 'Money',    icon: <Receipt size={13} /> },
-          ] as const).map(tab => (
+            { id: 'snapshot',   label: 'Snapshot',   icon: <UserIcon size={13} />,        show: true },
+            { id: 'assessment', label: 'Assessment', icon: <ClipboardList size={13} />,   show: !!selectedClient.assessmentData?.answers },
+            { id: 'plan',       label: 'Plan',       icon: <Activity size={13} />,        show: true },
+            { id: 'files',      label: 'Files',      icon: <FileText size={13} />,        show: true },
+            { id: 'activity',   label: 'Activity',   icon: <MessageSquare size={13} />,   show: true },
+            { id: 'money',      label: 'Money',      icon: <Receipt size={13} />,         show: true },
+          ] as const).filter(tab => tab.show).map(tab => (
             <button
               key={tab.id}
               onClick={() => setViewTab(tab.id)}
@@ -383,6 +387,46 @@ const ClientRecord: React.FC = () => {
             </div>
           </UICard>
 
+          {/* Compact upcoming bookings — moved out of Snapshot main column to
+              keep Snapshot focused on Clinical Feedback. */}
+          <UICard>
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <CalendarClock size={14} className="text-muted" />
+                <h3 className="text-sm font-medium text-obsidian">Upcoming</h3>
+              </div>
+              <UIButton variant="ghost" size="sm" onClick={() => openBookingModal(selectedClient.id)} aria-label="Book appointment">
+                <Plus size={13} />
+              </UIButton>
+            </div>
+            {upcomingAppointments.length === 0 ? (
+              <button
+                onClick={() => openBookingModal(selectedClient.id)}
+                className="w-full text-xs text-muted hover:text-obsidian text-left py-1 transition-colors"
+              >
+                No bookings — tap + to schedule
+              </button>
+            ) : (
+              <div className="flex flex-col gap-2">
+                {upcomingAppointments.slice(0, 3).map(apt => (
+                  <button
+                    key={apt.id}
+                    onClick={() => openReschedule(apt)}
+                    className="text-left p-2 -mx-2 rounded-md hover:bg-cream/60 transition-colors"
+                  >
+                    <p className="text-sm font-medium text-obsidian truncate">{apt.type}</p>
+                    <p className="text-xs text-muted mt-0.5">
+                      {new Date(apt.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })} · {apt.time}
+                    </p>
+                  </button>
+                ))}
+                {upcomingAppointments.length > 3 && (
+                  <p className="text-xs text-hint mt-1">+ {upcomingAppointments.length - 3} more</p>
+                )}
+              </div>
+            )}
+          </UICard>
+
           <InternalNotesEditor
             entries={selectedClient.internalNoteEntries || []}
             legacyNote={selectedClient.internalNotes}
@@ -459,50 +503,10 @@ const ClientRecord: React.FC = () => {
               />
             </UICard>
 
-            {/* Upcoming bookings — single card (Recent activity removed since
-                it duplicated the Activity tab's whole purpose). */}
-            <UICard className="order-5">
-              <CardHeader
-                title="Upcoming bookings"
-                leadingIcon={<CalendarClock size={14} />}
-                trailing={
-                  <UIButton variant="ghost" size="sm" onClick={() => openBookingModal(selectedClient.id)}>
-                    <Plus size={13} />
-                  </UIButton>
-                }
-              />
-              {upcomingAppointments.length === 0 ? (
-                <UIEmptyState
-                  icon={<CalendarClock size={16} />}
-                  title="No bookings"
-                  description="Schedule the next session."
-                  compact
-                  action={<UIButton variant="primary" size="sm" onClick={() => openBookingModal(selectedClient.id)}>Book</UIButton>}
-                />
-              ) : (
-                <div className="flex flex-col gap-2">
-                  {upcomingAppointments.slice(0, 4).map(apt => (
-                    <div key={apt.id} className="flex items-center justify-between gap-2 p-2.5 rounded-md hover:bg-cream/60 transition-colors">
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className="text-center shrink-0 w-10">
-                          <p className="text-xs text-hint leading-none">{new Date(apt.date).toLocaleString('default', { month: 'short' })}</p>
-                          <p className="text-base font-medium text-obsidian leading-tight">{new Date(apt.date).getDate()}</p>
-                        </div>
-                        <div className="divider-v h-7" />
-                        <div className="min-w-0">
-                          <p className="text-sm font-medium text-obsidian truncate">{apt.type}</p>
-                          <p className="text-xs text-muted">{apt.time}</p>
-                        </div>
-                      </div>
-                      <UIButton variant="ghost" size="sm" onClick={() => openReschedule(apt)}>Move</UIButton>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </UICard>
-
-            {/* "Recent activity" card removed — it duplicated the Activity tab.
-                Doctors who want activity click the Activity tab; Snapshot stays focused. */}
+            {/* Upcoming bookings moved to the left rail.
+                Recent activity removed (lives in Activity tab).
+                Snapshot is now purely: status → red flags → clinical feedback
+                — the doctor's primary clinical workspace. */}
 
             {/* Mobile-only: contact + notes accordion (since identity rail is hidden) */}
             <details className="lg:hidden">
@@ -902,58 +906,64 @@ const ClientRecord: React.FC = () => {
           );
         })()}
 
-        {/* Intake questionnaire — moved from Activity to Snapshot so messages and
-            intake data don't share one tab. Snapshot is "everything about who this
-            patient is"; Activity is "the conversation with them". */}
-        {viewTab === 'snapshot' && selectedClient.assessmentData?.answers && (
-          <details className="group order-6">
-            <summary className="cursor-pointer list-none">
-              <UICard>
-                <CardHeader
-                  title="Intake questionnaire"
-                  subtitle={`Submitted ${selectedClient.createdAt ? new Date(selectedClient.createdAt).toLocaleDateString('en-GB') : 'recently'} · tap to expand`}
-                  leadingIcon={<ClipboardList size={14} />}
-                  trailing={<ChevronDown size={14} className="text-muted group-open:rotate-180 transition-transform" />}
-                />
-              </UICard>
-            </summary>
-            <div className="mt-2 flex flex-col gap-3">
-              <UICard>
-                <CardHeader title="Hair concerns & goals" />
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3">
-                  {Object.entries(selectedClient.assessmentData?.answers || {})
-                    .filter(([key]) => ['f1','f2','f3','f4','f5','m1','m2','m3','m4','m5'].includes(key))
-                    .map(([key, val]: [string, any]) => (
-                      <div key={key}>
+        {/* ── Assessment tab — full intake questionnaire view ──────────────
+            Tab is only shown when selectedClient.assessmentData?.answers exists
+            (controlled by the `show: !!selectedClient.assessmentData?.answers`
+            filter in the tab bar above), so the section below is unconditional
+            on data presence — it's already gated. */}
+        {viewTab === 'assessment' && selectedClient.assessmentData?.answers && (
+          <div className="animate-fade-up flex flex-col gap-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-base font-medium text-obsidian">Intake assessment</h2>
+                <p className="text-xs text-muted mt-0.5">
+                  Submitted {selectedClient.createdAt
+                    ? new Date(selectedClient.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+                    : 'recently'}
+                </p>
+              </div>
+            </div>
+
+            <UICard>
+              <CardHeader title="Hair concerns & goals" />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+                {Object.entries(selectedClient.assessmentData?.answers || {})
+                  .filter(([key]) => ['f1','f2','f3','f4','f5','m1','m2','m3','m4','m5'].includes(key))
+                  .map(([key, val]: [string, any]) => (
+                    <div key={key}>
+                      <p className="text-xs text-muted leading-tight">{val.text}</p>
+                      <p className="text-sm text-obsidian leading-relaxed mt-1">
+                        {Array.isArray(val.value) ? val.value.join(', ') : val.value || '—'}
+                      </p>
+                    </div>
+                  ))}
+              </div>
+            </UICard>
+
+            <UICard>
+              <CardHeader
+                title="Medical & safety screening"
+                subtitle="Significant answers are highlighted"
+              />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3">
+                {Object.entries(selectedClient.assessmentData?.answers || {})
+                  .filter(([key]) => !['f1','f2','f3','f4','f5','m1','m2','m3','m4','m5','f26','m22'].includes(key))
+                  .map(([key, val]: [string, any]) => {
+                    const isSignificant = val.value && val.value !== 'No' && val.value !== 'None' && !String(val.value).includes('None');
+                    return (
+                      <div key={key} className={`p-2 -m-2 rounded-sm ${isSignificant ? 'bg-danger-bg' : ''}`}>
                         <p className="text-xs text-muted leading-tight">{val.text}</p>
-                        <p className="text-sm text-obsidian leading-relaxed mt-0.5">
+                        <p className={`text-sm leading-relaxed mt-1 ${isSignificant ? 'text-danger-text font-medium' : 'text-obsidian'}`}>
                           {Array.isArray(val.value) ? val.value.join(', ') : val.value || '—'}
                         </p>
                       </div>
-                    ))}
-                </div>
-              </UICard>
-              <UICard>
-                <CardHeader title="Medical & safety screening" />
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3">
-                  {Object.entries(selectedClient.assessmentData?.answers || {})
-                    .filter(([key]) => !['f1','f2','f3','f4','f5','m1','m2','m3','m4','m5','f26','m22'].includes(key))
-                    .map(([key, val]: [string, any]) => {
-                      const isSignificant = val.value && val.value !== 'No' && val.value !== 'None' && !String(val.value).includes('None');
-                      return (
-                        <div key={key} className={`p-1.5 -m-1.5 rounded-sm ${isSignificant ? 'bg-danger-bg' : ''}`}>
-                          <p className="text-xs text-muted leading-tight">{val.text}</p>
-                          <p className={`text-sm leading-relaxed mt-0.5 ${isSignificant ? 'text-danger-text font-medium' : 'text-obsidian'}`}>
-                            {Array.isArray(val.value) ? val.value.join(', ') : val.value || '—'}
-                          </p>
-                        </div>
-                      );
-                    })}
-                </div>
-              </UICard>
-            </div>
-          </details>
+                    );
+                  })}
+              </div>
+            </UICard>
+          </div>
         )}
+
         {/* ── Treatment Plan tab ────────────────────────────────────────── */}
         {viewTab === 'plan' && (() => {
           const plan = selectedClient.treatmentPlan;
