@@ -7,7 +7,7 @@
 
 import React, { memo, useMemo } from 'react';
 import { useAdminContext } from '../context';
-import { PageHeader, Stat, Card } from '../../../components/ui';
+import { PageHeader, Stat } from '../../../components/ui';
 import { TrendingUp, Users, Receipt, ClipboardList } from 'lucide-react';
 
 const PracticeOverviewSubPanel: React.FC = () => {
@@ -93,18 +93,6 @@ const PracticeOverviewSubPanel: React.FC = () => {
         />
       </div>
 
-      <Card>
-        <div className="flex flex-col gap-2">
-          <h3 className="text-sm font-medium text-obsidian">What this view tells you</h3>
-          <p className="text-sm text-muted leading-relaxed">
-            This is the high-level snapshot. For deeper analytics — funnel,
-            cohort retention, treatment-mix breakdown, marketing attribution —
-            open the <span className="font-medium text-obsidian">Insights</span> or{' '}
-            <span className="font-medium text-obsidian">Marketing</span> sub-tabs above.
-            For payment-by-payment details, see <span className="font-medium text-obsidian">Money</span>.
-          </p>
-        </div>
-      </Card>
     </div>
   );
 };

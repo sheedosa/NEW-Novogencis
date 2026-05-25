@@ -269,6 +269,24 @@ const ClientRecord: React.FC = () => {
               <span className="hidden sm:inline capitalize"> · {selectedClient.gender}</span>
             </p>
           </div>
+          {/* Outstanding £ — surfaces unpaid balance inline so doctors
+              don't have to open the Money tab to know if a patient owes. */}
+          {(() => {
+            const outstanding = (selectedClient.payments || [])
+              .filter(p => p.status === 'Pending' || p.status === 'Overdue')
+              .reduce((s, p) => s + (p.amount || 0), 0);
+            if (outstanding <= 0) return null;
+            return (
+              <button
+                onClick={() => setClientRecordTab('financials')}
+                className="hidden md:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-warning-bg text-warning-text hover:bg-warning/20 transition-colors shrink-0"
+                title="View payments"
+              >
+                <span className="text-xs font-medium">£{outstanding.toFixed(2)}</span>
+                <span className="text-xs">outstanding</span>
+              </button>
+            );
+          })()}
           <div className="hidden md:block shrink-0">
             <UIStatusBadge status={selectedClient.status || 'Active'} />
           </div>
@@ -389,13 +407,13 @@ const ClientRecord: React.FC = () => {
         {viewTab === 'snapshot' && (
           <div className="flex flex-col gap-3">
             {/* Mobile: contact + status compressed into a single line shown only when rail is hidden */}
-            <div className="lg:hidden flex items-center gap-2 px-1">
+            <div className="lg:hidden flex items-center gap-2 px-1 order-1">
               <UIStatusBadge status={selectedClient.status || 'Active'} />
               <span className="text-xs text-muted truncate">{selectedClient.email}</span>
             </div>
 
-            {/* Top stat row */}
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            {/* Top stat row — moved AFTER Clinical Feedback since the feedback is the doctor's primary deliverable */}
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3 order-4">
               <UICard>
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
@@ -453,9 +471,9 @@ const ClientRecord: React.FC = () => {
               </UICard>
             </div>
 
-            {/* Red flags (only if any) */}
+            {/* Red flags (only if any) — appear right after status so doctors see them immediately */}
             {redFlags.length > 0 && (
-              <UICard className="!bg-danger-bg !border-danger/20">
+              <UICard className="!bg-danger-bg !border-danger/20 order-2">
                 <div className="flex items-start gap-3">
                   <Siren size={16} className="text-danger mt-0.5 shrink-0" />
                   <div className="min-w-0">
@@ -468,8 +486,10 @@ const ClientRecord: React.FC = () => {
               </UICard>
             )}
 
-            {/* Decision support — clinical feedback editor */}
-            <UICard accent="gold">
+            {/* Decision support — clinical feedback editor.
+                Promoted to the top of Snapshot (after status + red flags) because
+                this is the doctor's primary deliverable for each patient. */}
+            <UICard accent="gold" className="order-3">
               <CardHeader
                 title="Clinical feedback"
                 subtitle={
@@ -500,7 +520,7 @@ const ClientRecord: React.FC = () => {
             </UICard>
 
             {/* Two-up: Upcoming bookings + Recent activity */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 order-5">
               <UICard>
                 <CardHeader
                   title="Upcoming bookings"
@@ -982,13 +1002,16 @@ const ClientRecord: React.FC = () => {
           );
         })()}
 
-        {viewTab === 'activity' && selectedClient.assessmentData?.answers && (
-          <details className="group">
+        {/* Intake questionnaire — moved from Activity to Snapshot so messages and
+            intake data don't share one tab. Snapshot is "everything about who this
+            patient is"; Activity is "the conversation with them". */}
+        {viewTab === 'snapshot' && selectedClient.assessmentData?.answers && (
+          <details className="group order-6">
             <summary className="cursor-pointer list-none">
               <UICard>
                 <CardHeader
                   title="Intake questionnaire"
-                  subtitle={`Submitted ${selectedClient.createdAt ? new Date(selectedClient.createdAt).toLocaleDateString('en-GB') : 'recently'}`}
+                  subtitle={`Submitted ${selectedClient.createdAt ? new Date(selectedClient.createdAt).toLocaleDateString('en-GB') : 'recently'} · tap to expand`}
                   leadingIcon={<ClipboardList size={14} />}
                   trailing={<ChevronDown size={14} className="text-muted group-open:rotate-180 transition-transform" />}
                 />

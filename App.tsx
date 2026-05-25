@@ -459,6 +459,45 @@ const App: React.FC = () => {
     const path = `appointments/${id}`;
     try {
       await setDoc(doc(db, 'appointments', id), cleanData(updates), { merge: true });
+
+      // Auto-sync: when an appointment is marked Completed, increment the
+      // active treatment-plan phase's sessionsCompleted counter for the patient.
+      // Closes the silent-drift bug where doctors had to remember to bump
+      // the phase counter manually.
+      if (updates.status === 'Completed') {
+        const appt = appointments.find(a => a.id === id);
+        if (appt) {
+          const wasNotCompleted = appt.status !== 'Completed';
+          if (wasNotCompleted) {
+            const client = clients.find(c => c.id === appt.clientId);
+            const plan = client?.treatmentPlan;
+            if (plan && plan.phases?.length) {
+              // Active phase = first 'Active' phase, else first non-'Completed' phase
+              const activeIdx = plan.phases.findIndex(p => p.status === 'Active');
+              const phaseIdx = activeIdx >= 0
+                ? activeIdx
+                : plan.phases.findIndex(p => p.status !== 'Completed');
+              if (phaseIdx >= 0) {
+                const phase = plan.phases[phaseIdx];
+                const newCompleted = (phase.sessionsCompleted || 0) + 1;
+                const updatedPhases = [...plan.phases];
+                updatedPhases[phaseIdx] = {
+                  ...phase,
+                  sessionsCompleted: newCompleted,
+                  // Auto-mark phase Completed if all planned sessions are done
+                  status: newCompleted >= phase.sessionsPlanned ? 'Completed' : phase.status,
+                };
+                const updatedPlan = { ...plan, phases: updatedPhases, updatedAt: new Date().toISOString() };
+                await setDoc(
+                  doc(db, 'clients', appt.clientId),
+                  cleanData({ treatmentPlan: updatedPlan }),
+                  { merge: true },
+                );
+              }
+            }
+          }
+        }
+      }
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, path);
     }

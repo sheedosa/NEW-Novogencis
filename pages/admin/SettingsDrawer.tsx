@@ -190,27 +190,30 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({ open, onClose })
                       </div>
                     </div>
 
-                    <div className="divider" />
-
-                    {/* Developer tools — moved here from the user menu so doctors
-                        don't trigger it accidentally. */}
-                    <div>
-                      <p className="text-xs uppercase tracking-wider text-hint mb-2">Developer</p>
-                      <h3 className="text-sm font-medium text-obsidian mb-2 flex items-center gap-1.5">
-                        <UserCheck size={14} /> Preview patient portal
-                      </h3>
-                      <p className="text-xs text-muted mb-3 leading-relaxed">
-                        Opens the patient dashboard using the clinic's demo account. You stay signed in as yourself.
-                        Use this to see what your patients see.
-                      </p>
-                      <Button
-                        variant="ghost"
-                        leadingIcon={<ExternalLink size={13} />}
-                        onClick={() => { onSetViewAsTestPatient?.(true); onClose(); }}
-                      >
-                        Open test patient view
-                      </Button>
-                    </div>
+                    {/* Developer tools — only visible to technical admins so
+                        clinical doctors don't see (or accidentally trigger) it. */}
+                    {user?.adminType === 'technical' && (
+                      <>
+                        <div className="divider" />
+                        <div>
+                          <p className="text-xs uppercase tracking-wider text-hint mb-2">Developer</p>
+                          <h3 className="text-sm font-medium text-obsidian mb-2 flex items-center gap-1.5">
+                            <UserCheck size={14} /> Preview patient portal
+                          </h3>
+                          <p className="text-xs text-muted mb-3 leading-relaxed">
+                            Opens the patient dashboard using the clinic's demo account. You stay signed in as yourself.
+                            Use this to see what your patients see.
+                          </p>
+                          <Button
+                            variant="ghost"
+                            leadingIcon={<ExternalLink size={13} />}
+                            onClick={() => { onSetViewAsTestPatient?.(true); onClose(); }}
+                          >
+                            Open test patient view
+                          </Button>
+                        </div>
+                      </>
+                    )}
                   </motion.div>
                 )}
 

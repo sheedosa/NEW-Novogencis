@@ -321,7 +321,7 @@ function TodayPanel() {
         if (!timing) return null;        // not "imminent enough" to surface as a hero
 
         return (
-          <div className="lg:hidden">
+          <div className="lg:hidden order-0">
             <Card accent="gold" className="!p-0 overflow-hidden">
               <div className="p-4 flex flex-col gap-3">
                 <div className="flex items-center justify-between gap-2">
@@ -374,7 +374,7 @@ function TodayPanel() {
 
       {/* Compact today strap-line — replaces the 4-up KPI row.
           Doctors scan this once, then move on to the run sheet below. */}
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted px-1">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted px-1 order-1">
         <span className="inline-flex items-center gap-1.5">
           <CalendarDays size={14} className="text-info" />
           <span className="text-obsidian font-medium">{todayAppointments.length}</span>
@@ -390,19 +390,29 @@ function TodayPanel() {
           <span className="text-obsidian font-medium">{newPatientsWeek}</span>
           <span>new this week</span>
         </span>
-        <button
-          onClick={() => handleSidebarClick('inbox')}
-          className="inline-flex items-center gap-1.5 hover:text-obsidian transition-colors"
-        >
-          <ListChecksIcon className="text-warning-text" />
-          <span className="text-obsidian font-medium">{openTasks.length}</span>
-          <span>need{openTasks.length === 1 ? 's' : ''} you</span>
-        </button>
+        {openTasks.length > 0 ? (
+          <button
+            onClick={() => handleSidebarClick('inbox')}
+            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-warning-bg text-warning-text hover:bg-warning/20 transition-colors -my-1"
+          >
+            <ListChecksIcon />
+            <span className="font-medium">{openTasks.length}</span>
+            <span>need{openTasks.length === 1 ? 's' : ''} you</span>
+            <ArrowRight size={12} />
+          </button>
+        ) : (
+          <span className="inline-flex items-center gap-1.5 text-success-text">
+            <ListChecksIcon />
+            <span className="font-medium">All caught up</span>
+          </span>
+        )}
       </div>
 
       {/* ── AI: Today's briefing (Claude-generated each morning at 07:00) ── */}
+      {/* AI surfaces render BELOW the run sheet — Run sheet is what doctors
+          actually scan when they open the dashboard. AI insights are secondary. */}
       {briefing && (briefing.summary || briefing.bullets.length > 0) && (
-        <AISurface strong className="p-5 md:p-6">
+        <AISurface strong className="p-5 md:p-6 order-3">
           <div className="flex items-start gap-3">
             {/* Stronger AI mark — gold-on-obsidian with a soft drop-shadow,
                 matches the designer's signature icon treatment. */}
@@ -456,7 +466,7 @@ function TodayPanel() {
       {/* ── AI: Follow-up suggestions for cold leads ── */}
       {/* Unified light-AISurface treatment so all 3 AI cards read as one cohesive section. */}
       {followUps.length > 0 && (
-        <AISurface className="p-5 md:p-6">
+        <AISurface className="p-5 md:p-6 order-4">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 rounded-md bg-gold-soft text-gold-dim flex items-center justify-center shrink-0">
@@ -479,10 +489,10 @@ function TodayPanel() {
         </AISurface>
       )}
 
-      {/* ── Clinic Radar — forward-thinking signals (only renders if there's anything to flag) ── */}
+      {/* ── Today's signals — forward-thinking signals (only renders if there's anything to flag) ── */}
       {/* Unified light-AISurface treatment so all 3 AI cards read as one cohesive section. */}
       {radar.length > 0 && (
-        <AISurface className="p-5 md:p-6">
+        <AISurface className="p-5 md:p-6 order-5">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 rounded-md bg-gold-soft text-gold-dim flex items-center justify-center shrink-0">
@@ -532,8 +542,9 @@ function TodayPanel() {
         </AISurface>
       )}
 
-      {/* Main: schedule + side panel */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+      {/* Main: schedule + side panel — primary content, rendered ABOVE the
+          AI surfaces because this is what doctors scan first thing in the morning. */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 order-2">
         {/* Run sheet (2/3) */}
         <div className="lg:col-span-2">
           <Card padded={false}>

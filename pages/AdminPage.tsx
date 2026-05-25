@@ -8,14 +8,12 @@ import { storage, db } from '../firebase';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { collection, onSnapshot, query, where, doc, updateDoc, arrayUnion } from 'firebase/firestore';
 import {
-  Camera, Upload, X, PanelLeftClose, PanelLeftOpen, Menu, Search, Bell, BellOff,
+  Camera, Upload, X, PanelLeftClose, PanelLeftOpen, Menu, Search, Bell,
   LogOut, Sun, CalendarDays, Settings, ChevronsUpDown, Eye,
-  LayoutDashboard, ClipboardList, Users, Calendar as CalendarIcon,
-  HeartPulse, MessageSquare, Inbox, FileText, BadgeCheck, CalendarCheck,
-  StickyNote, CreditCard, Star, ChevronDown, UserCheck,
+  Users, Calendar as CalendarIcon, HeartPulse, Inbox,
   Receipt, BarChart3, ListChecks, TrendingUp,
 } from 'lucide-react';
-import { Button, Modal, Input, Select, Textarea, SidebarItem as UISidebarItem, EmptyState, CommandPalette, useToast, BottomNav } from '../components/ui';
+import { Button, Modal, Input, Select, Textarea, SidebarItem as UISidebarItem, CommandPalette, useToast, BottomNav } from '../components/ui';
 import type { CommandItem } from '../components/ui';
 import { processImageForUpload, validateImageFile, ACCEPTED_IMAGE_TYPES } from '../imageUtils';
 import { logClinicalAction } from '../utils/auditLogger';
@@ -886,59 +884,9 @@ const AdminPage: React.FC<AdminPageProps> = ({
                   )}
                 </button>
 
-                {showNotifications && (
-                  <>
-                    <div className="fixed inset-0 z-40" onClick={() => setShowNotifications(false)} />
-                    <div className="fixed inset-x-3 top-14 sm:absolute sm:inset-x-auto sm:top-auto sm:right-0 mt-2 w-auto sm:w-[340px] md:w-[400px] bg-white rounded-lg shadow-modal border border-sand z-50 overflow-hidden animate-fade-up origin-top-right">
-                      <div className="px-4 py-3 border-b border-sand">
-                        <div className="flex justify-between items-center mb-3">
-                          <h3 className="text-sm font-medium text-obsidian">Notifications</h3>
-                          <button onClick={clearAll} className="text-xs text-muted hover:text-obsidian transition-colors">Mark all read</button>
-                        </div>
-                        <div className="flex gap-1">
-                          {(['all', 'assessment', 'message', 'appointment'] as const).map(f => (
-                            <button key={f} onClick={() => setNotifFilter(f)} className={`px-2.5 py-1 rounded-sm text-xs transition-colors ${notifFilter === f ? 'bg-obsidian text-white' : 'text-muted hover:bg-cream'}`}>
-                              {f === 'all' ? 'All' : f === 'assessment' ? 'Assessments' : f === 'message' ? 'Messages' : 'Appointments'}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                      <div className="max-h-[420px] overflow-y-auto">
-                        {filteredNotifications.length > 0 ? filteredNotifications.map((n) => {
-                          const iconFor = (t: string) => {
-                            if (t.includes('assessment')) return <ClipboardList size={14} />;
-                            if (t.includes('message')) return <MessageSquare size={14} />;
-                            if (t.includes('form_signed')) return <BadgeCheck size={14} />;
-                            if (t.includes('form_sent')) return <FileText size={14} />;
-                            if (t.includes('appointment')) return <CalendarCheck size={14} />;
-                            if (t.includes('payment')) return <CreditCard size={14} />;
-                            if (t.includes('feedback')) return <Star size={14} />;
-                            if (t.includes('welcome')) return <BadgeCheck size={14} />;
-                            if (t.includes('briefing')) return <Sun size={14} />;
-                            return <Bell size={14} />;
-                          };
-                          const diff = n.createdAt ? Date.now() - new Date(n.createdAt).getTime() : -1;
-                          const timeAgo = diff < 0 ? 'Recently' : diff < 60000 ? 'Just now' : diff < 3600000 ? `${Math.floor(diff / 60000)}m ago` : diff < 86400000 ? `${Math.floor(diff / 3600000)}h ago` : `${Math.floor(diff / 86400000)}d ago`;
-                          return (
-                            <div key={n.id} onClick={() => handleNotificationClick(n)} className={`px-4 py-3 border-b border-cream flex gap-3 hover:bg-cream/50 transition-colors cursor-pointer relative ${!n.read ? 'bg-primary/5' : ''}`}>
-                              {!n.read && <div className="absolute left-0 top-0 bottom-0 w-[2px] bg-primary" />}
-                              <div className="w-7 h-7 rounded-md bg-cream flex items-center justify-center shrink-0 text-muted">
-                                {iconFor(n.type)}
-                              </div>
-                              <div className="min-w-0 flex-grow">
-                                <p className="text-sm font-medium text-obsidian">{n.title}</p>
-                                <p className="text-xs text-muted leading-relaxed mt-0.5 line-clamp-2">{n.body}</p>
-                                <p className="text-xs text-hint mt-1">{timeAgo}</p>
-                              </div>
-                            </div>
-                          );
-                        }) : (
-                          <EmptyState icon={<BellOff size={16} />} title="All caught up" compact />
-                        )}
-                      </div>
-                    </div>
-                  </>
-                )}
+                {/* Notification dropdown popover removed — bell click now routes
+                    directly to Inbox (the single source of truth for "things
+                    needing me"). */}
               </div>
               <button onClick={onLogout} className="btn-icon" aria-label="Sign out">
                 <LogOut size={15} />
@@ -1010,10 +958,30 @@ const AdminPage: React.FC<AdminPageProps> = ({
                     ))}
                   </Select>
 
-                  {/* Treatment summary — small confirmation strip */}
+                  {/* Treatment summary — duration, price, deposit shown so doctors
+                      don't have to leave the modal to check pricing. */}
                   {selectedTreatment && (
-                    <div className="rounded-md bg-cream/60 px-3 py-2.5 text-xs text-muted">
-                      Duration <span className="text-obsidian font-medium">{selectedTreatment.durationMin} min</span>
+                    <div className="rounded-md bg-cream/60 border border-sand px-3 py-2.5 text-xs">
+                      <div className="grid grid-cols-3 gap-2">
+                        <div>
+                          <p className="text-muted">Duration</p>
+                          <p className="text-obsidian font-medium mt-0.5">{selectedTreatment.durationMin} min</p>
+                        </div>
+                        <div>
+                          <p className="text-muted">Price</p>
+                          <p className="text-obsidian font-medium mt-0.5">
+                            £{(selectedTreatment.fullPricePence / 100).toFixed(2)}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-muted">Deposit</p>
+                          <p className="text-obsidian font-medium mt-0.5">
+                            {selectedTreatment.depositPct > 0
+                              ? `£${(depositPence / 100).toFixed(2)}`
+                              : 'None'}
+                          </p>
+                        </div>
+                      </div>
                     </div>
                   )}
 
