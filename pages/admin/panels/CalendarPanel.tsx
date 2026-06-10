@@ -532,7 +532,7 @@ function CalendarPanel() {
                         setNotesAppt({ ...apt, status: next });
                       }
                     }}
-                    className="text-xs bg-cream/60 border border-sand/40 rounded-lg px-2 py-1 font-medium focus:ring-2 focus:ring-primary/20 cursor-pointer"
+                    className="text-base sm:text-sm bg-cream/60 border border-sand/40 rounded-lg px-2 py-2 font-medium focus:ring-2 focus:ring-primary/20 cursor-pointer"
                   >
                     {['Confirmed','Pending','Awaiting deposit','Completed','Cancelled','No-Show'].map(s => (
                       <option key={s} value={s}>{s}</option>

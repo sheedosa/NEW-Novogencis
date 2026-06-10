@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { User, Client, Appointment, Message, GalleryItem, AdminType, AppNotification, TreatmentPlan, Prescription, Payment, Treatment } from '../types';
+import { User, Client, Appointment, Message, GalleryItem, AdminType, TreatmentPlan, Prescription, Payment, Treatment } from '../types';
 import { FORMS } from '../constants';
 import { InteractiveForm } from '../components/InteractiveForm';
 import Logo from '../components/Logo';
@@ -55,7 +55,6 @@ const AdminPage: React.FC<AdminPageProps> = ({
   const [isSidebarOpen, setIsSidebarOpen]           = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [lightboxImage, setLightboxImage]           = useState<GalleryItem | null>(null);
-  const [showNotifications, setShowNotifications]   = useState(false);
   const [uploadProgress, setUploadProgress]         = useState(0);
   const [showBookingModal, setShowBookingModal]     = useState(false);
   const [appointmentView, setAppointmentView]       = useState<'list' | 'calendar'>('list');
@@ -82,7 +81,6 @@ const AdminPage: React.FC<AdminPageProps> = ({
   const [showOnlyAssigned, setShowOnlyAssigned] = useState(false);
   const [showAccountSwitcher, setShowAccountSwitcher] = useState(false);
   const [triageSelectedId, setTriageSelectedId] = useState<string | null>(null);
-  const [notifFilter, setNotifFilter]           = useState<'all' | 'assessment' | 'message' | 'appointment'>('all');
   const [showMorningBriefing, setShowMorningBriefing] = useState(false);
   // Track network status so we can warn the doctor when they go offline.
   // Firestore handles offline persistence transparently; this is purely a UI hint.
@@ -250,10 +248,7 @@ const AdminPage: React.FC<AdminPageProps> = ({
     return threads;
   }, [messages, user, clients, effectiveAdminType, showOnlyAssigned, getEffectiveUser, isAssignedToUser]);
 
-  const unreadCount          = notifications.filter(n => !n.read).length;
-  const filteredNotifications = notifFilter === 'all'
-    ? notifications
-    : notifications.filter(n => n.type.includes(notifFilter));
+  const unreadCount = notifications.filter(n => !n.read).length;
 
   const selectedClient = filteredClients.find(c => c.id === selectedClientId);
 
@@ -288,23 +283,6 @@ const AdminPage: React.FC<AdminPageProps> = ({
   }, [filteredClients, filteredAppointments, today]);
 
   // ── Handlers ───────────────────────────────────────────────────────────────
-  const handleNotificationClick = (notification: AppNotification) => {
-    onMarkNotificationRead(notification.id);
-    if (notification.type === 'new_assessment' && notification.metadata?.clientId) {
-      setSelectedClientId(notification.metadata.clientId); setActiveTab('patients'); setClientRecordTab('assessment');
-    } else if (notification.type === 'new_message' && notification.metadata?.clientId) {
-      setSelectedClientId(notification.metadata.clientId); setActiveTab('patients'); setClientRecordTab('communications');
-    } else if (notification.type === 'form_signed' && notification.metadata?.clientId) {
-      setSelectedClientId(notification.metadata.clientId); setActiveTab('patients'); setClientRecordTab('forms');
-    }
-    setShowNotifications(false);
-  };
-
-  const clearAll = async () => {
-    await Promise.all(notifications.map(n => onMarkNotificationRead(n.id)));
-    setShowNotifications(false);
-  };
-
   const handleSidebarClick = (id: AdminTab) => {
     setActiveTab(id);
     setSelectedClientId(null);
@@ -569,7 +547,6 @@ const AdminPage: React.FC<AdminPageProps> = ({
       { id: 'nav-marketing', group: 'Navigate', icon: <TrendingUp size={13} />,       label: 'Go to Marketing',            onSelect: () => { setActiveTab('practice'); setPracticeTab('marketing'); } },
       { id: 'act-book',      group: 'Actions',  icon: <CalendarDays size={13} />,     label: 'Book a new appointment',     onSelect: () => setShowBookingModal(true) },
       { id: 'act-settings',  group: 'Actions',  icon: <Settings size={13} />,         label: 'Open settings',              onSelect: () => setShowSettings(true) },
-      { id: 'act-notifs',    group: 'Actions',  icon: <Bell size={13} />,             label: 'Open notifications',         onSelect: () => setShowNotifications(true) },
       { id: 'act-logout',    group: 'Actions',  icon: <LogOut size={13} />,           label: 'Sign out',                   onSelect: () => onLogout() },
     ];
     // Patients (limit to first 50 to keep the list snappy)
@@ -588,7 +565,7 @@ const AdminPage: React.FC<AdminPageProps> = ({
       });
     });
     return items;
-  }, [clients, setActiveTab, setShowBookingModal, setShowNotifications, onLogout, setSelectedClientId]);
+  }, [clients, setActiveTab, setShowBookingModal, onLogout, setSelectedClientId]);
 
   // ── Context value ──────────────────────────────────────────────────────────
   // Memoised so consumer panels don't re-render when AdminPage re-renders for
@@ -611,7 +588,6 @@ const AdminPage: React.FC<AdminPageProps> = ({
     isSidebarOpen, setIsSidebarOpen,
     isSidebarCollapsed, setIsSidebarCollapsed,
     lightboxImage, setLightboxImage,
-    showNotifications, setShowNotifications,
     uploadProgress, setUploadProgress,
     showBookingModal, setShowBookingModal,
     appointmentView, setAppointmentView,
@@ -624,7 +600,6 @@ const AdminPage: React.FC<AdminPageProps> = ({
     showOnlyAssigned, setShowOnlyAssigned,
     showAccountSwitcher, setShowAccountSwitcher,
     triageSelectedId, setTriageSelectedId,
-    notifFilter, setNotifFilter,
     showMorningBriefing, setShowMorningBriefing,
     isUploading, setIsUploading,
     showGalleryUpload, setShowGalleryUpload,
@@ -634,11 +609,11 @@ const AdminPage: React.FC<AdminPageProps> = ({
     fileInputRef, cameraInputRef,
     // Computed
     selectedClient, filteredClients, filteredAppointments,
-    filteredNotifications, messageThreads, unreadCount, mockStats,
+    messageThreads, unreadCount, mockStats,
     // Helpers
     formatDOB, calculateAge, getInitials, getFirstName, isAssignedToMe,
     // Handlers
-    handleFileSelect, handleNotificationClick, clearAll,
+    handleFileSelect,
     handleSidebarClick, openBookingModal, handleBookingSubmit,
     handleSendForm, changeMonth, getCalendarDays,
     // Templates
@@ -653,15 +628,15 @@ const AdminPage: React.FC<AdminPageProps> = ({
     onSaveTreatmentPlan, onAddPrescription, onUpdatePrescription,
     onAddPayment, onUpdatePayment,
     activeTab, practiceTab, effectiveAdminType, selectedClientId, clientRecordTab,
-    isSidebarOpen, isSidebarCollapsed, lightboxImage, showNotifications,
+    isSidebarOpen, isSidebarCollapsed, lightboxImage,
     uploadProgress, showBookingModal, appointmentView, currentCalendarDate,
     viewingForm, bookingForm, threadSearch, showQuickActions, selectedThreadId,
-    showOnlyAssigned, showAccountSwitcher, triageSelectedId, notifFilter,
+    showOnlyAssigned, showAccountSwitcher, triageSelectedId,
     showMorningBriefing, isUploading, showGalleryUpload, galleryUploadFile,
     galleryUploadLabel, galleryUploadPreview,
     selectedClient, filteredClients, filteredAppointments,
-    filteredNotifications, messageThreads, unreadCount, mockStats,
-    isAssignedToMe, handleFileSelect, handleNotificationClick, clearAll,
+    messageThreads, unreadCount, mockStats,
+    isAssignedToMe, handleFileSelect,
     handleSidebarClick, openBookingModal, handleBookingSubmit,
     handleSendForm, getCalendarDays,
     templates, onAddTemplate, onUpdateTemplate, onDeleteTemplate,
@@ -930,10 +905,9 @@ const AdminPage: React.FC<AdminPageProps> = ({
               <div className="relative">
                 <button
                   onClick={() => {
-                    // Notification bell now navigates to Inbox — the single
+                    // Notification bell navigates to Inbox — the single
                     // source of truth for "things needing my attention."
                     setActiveTab('inbox');
-                    setShowNotifications(false);
                   }}
                   className="btn-icon relative"
                   aria-label="Open inbox (notifications)"
@@ -946,10 +920,6 @@ const AdminPage: React.FC<AdminPageProps> = ({
                     </span>
                   )}
                 </button>
-
-                {/* Notification dropdown popover removed — bell click now routes
-                    directly to Inbox (the single source of truth for "things
-                    needing me"). */}
               </div>
               <button onClick={onLogout} className="btn-icon" aria-label="Sign out">
                 <LogOut size={15} />

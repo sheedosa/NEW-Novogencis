@@ -104,8 +104,9 @@ const ClientRecord: React.FC = () => {
   const [compareMode, setCompareMode] = useState(false);
   const [compareA, setCompareA] = useState<string | null>(null);
   const [compareB, setCompareB] = useState<string | null>(null);
-  /** Sub-tab inside the Files tab — forms vs photo gallery. */
-  const [filesSubTab, setFilesSubTab] = useState<'forms' | 'photos'>('forms');
+  /** Sub-tab inside the Files tab — photos default (doctors check results
+      far more often than paperwork); forms one tap away. */
+  const [filesSubTab, setFilesSubTab] = useState<'forms' | 'photos'>('photos');
   /** Click-toggle "Send new form" dropdown (was hover-only, broken on touch). */
   const [showSendFormMenu, setShowSendFormMenu] = useState(false);
 
@@ -598,10 +599,10 @@ const ClientRecord: React.FC = () => {
                               <FileText size={16} />
                               <span className="text-xs text-muted">Form Attachment</span>
                             </div>
-                            <p className="text-2xs md:text-xs leading-relaxed font-medium">{FORMS.find(f => f.id === msg.formId)?.title || msg.subject}</p>
+                            <p className="text-2xs md:text-xs leading-relaxed font-medium truncate">{FORMS.find(f => f.id === msg.formId)?.title || msg.subject}</p>
                             <button
                               onClick={() => setViewingForm(msg)}
-                              className="block w-full bg-primary text-obsidian text-center py-2 rounded-lg text-xs text-muted transition-transform"
+                              className="block w-full bg-primary text-obsidian text-center py-2 rounded-lg text-xs font-medium hover:opacity-90 transition-all"
                             >
                               {msg.isSigned ? 'View Signed Form' : 'View Sent Form'}
                             </button>
@@ -612,12 +613,12 @@ const ClientRecord: React.FC = () => {
                               <CreditCard size={16} />
                               <span className="text-xs text-muted">Payment Link Sent</span>
                             </div>
-                            <p className="text-2xs md:text-xs leading-relaxed font-medium">{msg.body?.split(': ')[0] || msg.body}</p>
+                            <p className="text-2xs md:text-xs leading-relaxed font-medium truncate">{msg.body?.split(': ')[0] || msg.body}</p>
                             <a
                               href={msg.paymentUrl}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="block w-full bg-primary text-obsidian text-center py-2 rounded-lg text-xs text-muted transition-transform"
+                              className="block w-full bg-primary text-obsidian text-center py-2 rounded-lg text-xs font-medium hover:opacity-90 transition-all"
                             >
                               View Stripe Link
                             </a>
@@ -656,15 +657,6 @@ const ClientRecord: React.FC = () => {
             {/* Sub-tab bar: Forms vs Photos — split because they're unrelated. */}
             <div className="flex gap-1 bg-cream p-0.5 rounded-md w-fit">
               <button
-                onClick={() => setFilesSubTab('forms')}
-                className={`px-3 py-1.5 rounded-sm text-sm transition-colors inline-flex items-center gap-1.5 ${
-                  filesSubTab === 'forms' ? 'bg-white text-obsidian shadow-sm font-medium' : 'text-muted hover:text-obsidian'
-                }`}
-              >
-                <FileText size={13} />
-                Forms
-              </button>
-              <button
                 onClick={() => setFilesSubTab('photos')}
                 className={`px-3 py-1.5 rounded-sm text-sm transition-colors inline-flex items-center gap-1.5 ${
                   filesSubTab === 'photos' ? 'bg-white text-obsidian shadow-sm font-medium' : 'text-muted hover:text-obsidian'
@@ -672,6 +664,15 @@ const ClientRecord: React.FC = () => {
               >
                 <Camera size={13} />
                 Photos
+              </button>
+              <button
+                onClick={() => setFilesSubTab('forms')}
+                className={`px-3 py-1.5 rounded-sm text-sm transition-colors inline-flex items-center gap-1.5 ${
+                  filesSubTab === 'forms' ? 'bg-white text-obsidian shadow-sm font-medium' : 'text-muted hover:text-obsidian'
+                }`}
+              >
+                <FileText size={13} />
+                Forms
               </button>
             </div>
           </div>

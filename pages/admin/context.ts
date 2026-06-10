@@ -15,7 +15,6 @@ export type AdminTab =
 /** Sub-tabs inside the Practice section. */
 export type PracticeTab = 'overview' | 'money' | 'insights' | 'marketing' | 'operations';
 export type ClientRecordTab = 'overview' | 'communications' | 'forms' | 'gallery' | 'assessment' | 'treatment' | 'financials';
-export type NotifFilter = 'all' | 'assessment' | 'message' | 'appointment';
 export type AppointmentView = 'list' | 'calendar';
 
 export type CalendarDay = { day: number; month: number; year: number; currentMonth: boolean };
@@ -72,8 +71,6 @@ export interface AdminContextValue extends AdminPageProps {
   setIsSidebarCollapsed: (v: boolean) => void;
   lightboxImage: GalleryItem | null;
   setLightboxImage: (item: GalleryItem | null) => void;
-  showNotifications: boolean;
-  setShowNotifications: (show: boolean) => void;
   uploadProgress: number;
   setUploadProgress: (n: number) => void;
   showBookingModal: boolean;
@@ -98,8 +95,6 @@ export interface AdminContextValue extends AdminPageProps {
   setShowAccountSwitcher: (show: boolean) => void;
   triageSelectedId: string | null;
   setTriageSelectedId: (id: string | null) => void;
-  notifFilter: NotifFilter;
-  setNotifFilter: (f: NotifFilter) => void;
   showMorningBriefing: boolean;
   setShowMorningBriefing: (show: boolean) => void;
   isUploading: boolean;
@@ -119,7 +114,6 @@ export interface AdminContextValue extends AdminPageProps {
   selectedClient: Client | undefined;
   filteredClients: Client[];
   filteredAppointments: Appointment[];
-  filteredNotifications: AppNotification[];
   messageThreads: Record<string, Message[]>;
   unreadCount: number;
   mockStats: Array<{ icon: string; value: string | number; label: string; tab: AdminTab }>;
@@ -133,8 +127,6 @@ export interface AdminContextValue extends AdminPageProps {
 
   // Handlers
   handleFileSelect: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  handleNotificationClick: (n: AppNotification) => void;
-  clearAll: () => void;
   handleSidebarClick: (id: AdminTab) => void;
   openBookingModal: (clientId?: string, prefill?: { date?: string; time?: string }) => void;
   handleBookingSubmit: (e: React.FormEvent) => void;
