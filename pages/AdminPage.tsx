@@ -106,6 +106,10 @@ const AdminPage: React.FC<AdminPageProps> = ({
   const [galleryUploadPreview, setGalleryUploadPreview] = useState<string | null>(null);
   const fileInputRef   = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
+  // "Book & add another" flag — set by the secondary submit button just before
+  // the form submits; the submit handler reads + resets it to decide whether
+  // to keep the booking modal open for the next patient.
+  const bookAnotherRef = useRef(false);
 
   // ── Helpers ────────────────────────────────────────────────────────────────
   const formatDOB = (dob: string | undefined) => {
@@ -332,6 +336,15 @@ const AdminPage: React.FC<AdminPageProps> = ({
     return h * 60 + min;
   };
 
+  /** Inverse of parseTime12h — render minutes-since-midnight as "h:mm AM/PM". */
+  const formatMinutes12h = (mins: number): string => {
+    const h24 = Math.floor(mins / 60) % 24;
+    const m = mins % 60;
+    const ampm = h24 >= 12 ? 'PM' : 'AM';
+    const h12 = h24 % 12 === 0 ? 12 : h24 % 12;
+    return `${h12}:${String(m).padStart(2, '0')} ${ampm}`;
+  };
+
   /**
    * Returns the conflicting appointment (if any) for a proposed booking.
    * Two appointments conflict when they share clinician + date and their
@@ -415,8 +428,26 @@ const AdminPage: React.FC<AdminPageProps> = ({
       clinicianId: bookingForm.clinicianId,
     };
     onAddAppointment(newAppointment);
-    setShowBookingModal(false);
-    setBookingForm({ type: 'Initial Consultation', status: 'Confirmed', date: new Date().toISOString().split('T')[0], time: '10:00 AM' });
+    if (bookAnotherRef.current) {
+      // Keep the modal open for back-to-back booking: same treatment +
+      // clinician, fresh patient/date/time.
+      bookAnotherRef.current = false;
+      setBookingForm(prev => ({
+        type: prev.type,
+        treatmentId: prev.treatmentId,
+        durationMin: prev.durationMin,
+        clinicianId: prev.clinicianId,
+        status: 'Confirmed',
+        date: new Date().toISOString().split('T')[0],
+        time: '10:00 AM',
+        notes: '',
+      }));
+      toast.success('Appointment booked', { description: `${client?.name || 'Patient'} booked — pick the next patient.` });
+    } else {
+      setShowBookingModal(false);
+      setBookingForm({ type: 'Initial Consultation', status: 'Confirmed', date: new Date().toISOString().split('T')[0], time: '10:00 AM' });
+      toast.success('Appointment booked', { description: `${client?.name || 'Patient'} — ${bookingForm.date} at ${bookingForm.time}.` });
+    }
   };
 
   // ── Treatment plan / prescriptions / payments ──────────────────────────────
@@ -1045,14 +1076,24 @@ const AdminPage: React.FC<AdminPageProps> = ({
                       value={bookingForm.date || ''}
                       onChange={(e) => setBookingForm(prev => ({ ...prev, date: e.target.value }))}
                     />
-                    <Select
-                      label="Time"
-                      required
-                      value={bookingForm.time || ''}
-                      onChange={(e) => setBookingForm(prev => ({ ...prev, time: e.target.value }))}
-                    >
-                      {['09:00 AM','09:30 AM','10:00 AM','10:30 AM','11:00 AM','11:30 AM','12:00 PM','12:30 PM','01:00 PM','01:30 PM','02:00 PM','02:30 PM','03:00 PM','03:30 PM','04:00 PM','04:30 PM','05:00 PM','05:30 PM','06:00 PM','06:30 PM','07:00 PM','07:30 PM','08:00 PM','08:30 PM','09:00 PM','09:30 PM','10:00 PM'].map(t => <option key={t} value={t}>{t}</option>)}
-                    </Select>
+                    <div>
+                      <Select
+                        label="Time"
+                        required
+                        value={bookingForm.time || ''}
+                        onChange={(e) => setBookingForm(prev => ({ ...prev, time: e.target.value }))}
+                      >
+                        {['09:00 AM','09:30 AM','10:00 AM','10:30 AM','11:00 AM','11:30 AM','12:00 PM','12:30 PM','01:00 PM','01:30 PM','02:00 PM','02:30 PM','03:00 PM','03:30 PM','04:00 PM','04:30 PM','05:00 PM','05:30 PM','06:00 PM','06:30 PM','07:00 PM','07:30 PM','08:00 PM','08:30 PM','09:00 PM','09:30 PM','10:00 PM'].map(t => <option key={t} value={t}>{t}</option>)}
+                      </Select>
+                      {/* End-time hint — treatments run 30-180 min, so the true
+                          blocked window isn't obvious from the start slot alone. */}
+                      {(() => {
+                        const startMin = bookingForm.time ? parseTime12h(bookingForm.time) : null;
+                        const dur = bookingForm.durationMin ?? selectedTreatment?.durationMin;
+                        if (startMin === null || !dur) return null;
+                        return <p className="text-xs text-muted mt-1">Ends {formatMinutes12h(startMin + dur)}</p>;
+                      })()}
+                    </div>
                   </div>
 
                   {/* Live conflict warning — appears when clinician+date+time picked overlaps an existing booking */}
@@ -1074,9 +1115,22 @@ const AdminPage: React.FC<AdminPageProps> = ({
                     placeholder="Add any specific instructions or prep notes…"
                   />
 
-                  <div className="flex items-center justify-end gap-2 pt-2">
+                  <div className="flex flex-wrap items-center justify-end gap-2 pt-2">
                     <Button variant="ghost" onClick={() => setShowBookingModal(false)}>Cancel</Button>
-                    <Button type="submit" variant="primary" disabled={!!liveConflict}>
+                    <Button
+                      type="submit"
+                      variant="secondary"
+                      disabled={!!liveConflict}
+                      onClick={() => { bookAnotherRef.current = true; }}
+                    >
+                      Book & add another
+                    </Button>
+                    <Button
+                      type="submit"
+                      variant="primary"
+                      disabled={!!liveConflict}
+                      onClick={() => { bookAnotherRef.current = false; }}
+                    >
                       Confirm appointment
                     </Button>
                   </div>
