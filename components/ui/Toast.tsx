@@ -16,18 +16,31 @@ import { CheckCircle2, AlertCircle, Info, X } from 'lucide-react';
 
 export type ToastTone = 'success' | 'error' | 'info';
 
+/** Optional inline action on a toast — e.g. "Undo" after marking a task done. */
+export interface ToastAction {
+  label: string;
+  onClick: () => void;
+}
+
 interface ToastItem {
   id: string;
   tone: ToastTone;
   title: string;
   description?: string;
   duration: number;
+  action?: ToastAction;
+}
+
+interface ToastOptions {
+  description?: string;
+  duration?: number;
+  action?: ToastAction;
 }
 
 interface ToastApi {
-  success: (title: string, opts?: { description?: string; duration?: number }) => void;
-  error: (title: string, opts?: { description?: string; duration?: number }) => void;
-  info: (title: string, opts?: { description?: string; duration?: number }) => void;
+  success: (title: string, opts?: ToastOptions) => void;
+  error: (title: string, opts?: ToastOptions) => void;
+  info: (title: string, opts?: ToastOptions) => void;
   dismiss: (id: string) => void;
 }
 
@@ -37,8 +50,9 @@ export function useToast(): { toast: ToastApi } {
   const ctx = useContext(ToastContext);
   if (!ctx) {
     // Safe fallback so calling toast.* before provider mounts won't crash.
-    const noop = () => { /* no-op */ };
-    return { toast: { success: noop, error: noop, info: noop, dismiss: noop } };
+    const noop: (title: string, opts?: ToastOptions) => void = () => { /* no-op */ };
+    const noopDismiss: (id: string) => void = () => { /* no-op */ };
+    return { toast: { success: noop, error: noop, info: noop, dismiss: noopDismiss } };
   }
   return ctx;
 }
@@ -48,12 +62,12 @@ export function useToast(): { toast: ToastApi } {
  * handlers, utility files) can call `notify.success(...)` without prop drilling.
  * Set inside the provider mount.
  */
-let externalDispatch: ((tone: ToastTone, title: string, opts?: { description?: string; duration?: number }) => void) | null = null;
+let externalDispatch: ((tone: ToastTone, title: string, opts?: ToastOptions) => void) | null = null;
 
 export const notify = {
-  success: (title: string, opts?: { description?: string; duration?: number }) => externalDispatch?.('success', title, opts),
-  error: (title: string, opts?: { description?: string; duration?: number }) => externalDispatch?.('error', title, opts),
-  info: (title: string, opts?: { description?: string; duration?: number }) => externalDispatch?.('info', title, opts),
+  success: (title: string, opts?: ToastOptions) => externalDispatch?.('success', title, opts),
+  error: (title: string, opts?: ToastOptions) => externalDispatch?.('error', title, opts),
+  info: (title: string, opts?: ToastOptions) => externalDispatch?.('info', title, opts),
 };
 
 export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -63,10 +77,10 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setItems((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
-  const push = useCallback((tone: ToastTone, title: string, opts?: { description?: string; duration?: number }) => {
+  const push = useCallback((tone: ToastTone, title: string, opts?: ToastOptions) => {
     const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const duration = opts?.duration ?? (tone === 'error' ? 6000 : 4000);
-    setItems((prev) => [...prev, { id, tone, title, description: opts?.description, duration }]);
+    setItems((prev) => [...prev, { id, tone, title, description: opts?.description, duration, action: opts?.action }]);
   }, []);
 
   // Expose imperative dispatch globally for non-React callers
@@ -141,6 +155,14 @@ const ToastBubble: React.FC<{ item: ToastItem; onDismiss: (id: string) => void }
             <p className="text-xs text-muted mt-0.5 leading-relaxed">{item.description}</p>
           )}
         </div>
+        {item.action && (
+          <button
+            onClick={() => { item.action!.onClick(); onDismiss(item.id); }}
+            className="shrink-0 px-3 py-1 text-xs font-medium text-obsidian bg-cream hover:bg-sand rounded-md transition-colors"
+          >
+            {item.action.label}
+          </button>
+        )}
         <button
           onClick={() => onDismiss(item.id)}
           className="shrink-0 -mr-1 -mt-1 w-9 h-9 inline-flex items-center justify-center text-muted hover:text-obsidian rounded-md"

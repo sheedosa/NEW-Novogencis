@@ -210,7 +210,7 @@ function TodayPanel() {
         tone: 'warning',
         icon: <Hourglass size={14} />,
         title: `${stuckReviewed.length} reviewed patient${stuckReviewed.length !== 1 ? 's' : ''} waiting for outreach`,
-        detail: `Feedback was submitted 3+ days ago. Convert them before they go cold.`,
+        detail: `Feedback was submitted 3+ days ago. Reach out before they lose momentum.`,
         action: { label: 'See list', onClick: () => handleSidebarClick('patients') },
       });
     }
@@ -463,7 +463,7 @@ function TodayPanel() {
         </AISurface>
       )}
 
-      {/* ── AI: Follow-up suggestions for cold leads ── */}
+      {/* ── AI: Follow-up suggestions — patients due for follow-up ── */}
       {/* Unified light-AISurface treatment so all 3 AI cards read as one cohesive section. */}
       {followUps.length > 0 && (
         <AISurface className="p-5 md:p-6 order-4">
@@ -475,7 +475,7 @@ function TodayPanel() {
               <div>
                 <p className="eyebrow">Follow-ups ready</p>
                 <p className="text-sm font-medium text-obsidian mt-0.5">
-                  {followUps.length} cold lead{followUps.length > 1 ? 's' : ''} with a draft ready to send
+                  {followUps.length} patient{followUps.length > 1 ? 's' : ''} due for follow-up — draft ready to send
                 </p>
               </div>
             </div>

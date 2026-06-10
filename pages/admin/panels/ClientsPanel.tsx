@@ -203,7 +203,7 @@ const ClientsPanel: React.FC = () => {
             <Stat label="Active protocols" value={stats.activeProtocols} icon={<Activity size={16} />} accent="sage" />
             <Stat label="Pending review" value={stats.pendingReview} icon={<Clock size={16} />} accent="warning" />
             <Stat
-              label="Conversion rate"
+              label="Booking rate"
               value={`${stats.conversionRate}%`}
               icon={<CheckCircle size={16} />}
               accent="gold"

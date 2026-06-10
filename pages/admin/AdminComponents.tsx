@@ -202,7 +202,10 @@ export const InternalNotesEditor: React.FC<InternalNotesEditorProps> = ({
   return (
     <Card>
       <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2">
+        <div
+          className="flex items-center gap-2"
+          title="Visible only to clinic staff. Use this for clinical observations, concerns, and reminders. Entries are permanent and timestamped."
+        >
           <StickyNote size={15} className="text-muted" />
           <h3 className="text-sm font-medium text-obsidian">Internal clinical notes</h3>
         </div>

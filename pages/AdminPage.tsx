@@ -84,6 +84,19 @@ const AdminPage: React.FC<AdminPageProps> = ({
   const [triageSelectedId, setTriageSelectedId] = useState<string | null>(null);
   const [notifFilter, setNotifFilter]           = useState<'all' | 'assessment' | 'message' | 'appointment'>('all');
   const [showMorningBriefing, setShowMorningBriefing] = useState(false);
+  // Track network status so we can warn the doctor when they go offline.
+  // Firestore handles offline persistence transparently; this is purely a UI hint.
+  const [isOnline, setIsOnline] = useState(() => typeof navigator !== 'undefined' ? navigator.onLine : true);
+  useEffect(() => {
+    const goOnline = () => setIsOnline(true);
+    const goOffline = () => setIsOnline(false);
+    window.addEventListener('online', goOnline);
+    window.addEventListener('offline', goOffline);
+    return () => {
+      window.removeEventListener('online', goOnline);
+      window.removeEventListener('offline', goOffline);
+    };
+  }, []);
   const [showCommandPalette, setShowCommandPalette]   = useState(false);
   const [showSettings, setShowSettings]               = useState(false);
   const [isUploading, setIsUploading]               = useState(false);
@@ -675,6 +688,7 @@ const AdminPage: React.FC<AdminPageProps> = ({
             <UISidebarItem
               icon={<Sun size={15} />}
               label="Today"
+              hint="Your daily landing — today's schedule and AI insights"
               badge={todayBadge}
               active={activeTab === 'today' && !selectedClientId}
               collapsed={isSidebarCollapsed}
@@ -683,6 +697,7 @@ const AdminPage: React.FC<AdminPageProps> = ({
             <UISidebarItem
               icon={<Inbox size={15} />}
               label="Inbox"
+              hint="Everything that needs your attention — new assessments, messages, unsigned forms, overdue payments"
               badge={inboxBadge}
               active={activeTab === 'inbox' && !selectedClientId}
               collapsed={isSidebarCollapsed}
@@ -691,6 +706,7 @@ const AdminPage: React.FC<AdminPageProps> = ({
             <UISidebarItem
               icon={<CalendarIcon size={15} />}
               label="Schedule"
+              hint="Your appointments — day, week, and list views with status controls"
               active={activeTab === 'schedule' && !selectedClientId}
               collapsed={isSidebarCollapsed}
               onClick={() => handleSidebarClick('schedule')}
@@ -698,6 +714,7 @@ const AdminPage: React.FC<AdminPageProps> = ({
             <UISidebarItem
               icon={<Users size={15} />}
               label="Patients"
+              hint="Patient registry — search, smart filters, and full clinical records"
               active={activeTab === 'patients' && !selectedClientId}
               collapsed={isSidebarCollapsed}
               onClick={() => handleSidebarClick('patients')}
@@ -709,6 +726,7 @@ const AdminPage: React.FC<AdminPageProps> = ({
             <UISidebarItem
               icon={<BarChart3 size={15} />}
               label="Practice"
+              hint="Business view — revenue, insights, marketing attribution, and clinic operations"
               badge={moneyBadge}
               active={activeTab === 'practice' && !selectedClientId}
               collapsed={isSidebarCollapsed}
@@ -718,6 +736,7 @@ const AdminPage: React.FC<AdminPageProps> = ({
               <UISidebarItem
                 icon={<HeartPulse size={15} />}
                 label="Platform health"
+                hint="Technical admin view — system status and developer tools"
                 active={activeTab === 'platform-health' && !selectedClientId}
                 collapsed={isSidebarCollapsed}
                 onClick={() => handleSidebarClick('platform-health')}
@@ -730,6 +749,7 @@ const AdminPage: React.FC<AdminPageProps> = ({
             <UISidebarItem
               icon={<Settings size={15} />}
               label="Settings"
+              hint="Account preferences, message templates, staff list"
               active={false}
               collapsed={isSidebarCollapsed}
               onClick={() => setShowSettings(true)}
@@ -796,6 +816,18 @@ const AdminPage: React.FC<AdminPageProps> = ({
 
         {/* Main content */}
         <main className={`portal-main ${isSidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
+          {/* Offline banner — clarifies that anything saved while offline will
+              sync once the connection returns. Firestore handles the actual
+              queuing transparently; this is purely a visual reassurance. */}
+          {!isOnline && (
+            <div
+              role="status"
+              className="sticky top-0 z-40 px-4 py-2 bg-warning-bg text-warning-text border-b border-warning/20 text-xs font-medium flex items-center justify-center gap-2"
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-warning-text animate-pulse" />
+              You're offline. Changes will sync automatically when you're back online.
+            </div>
+          )}
           {/* Morning briefing toast */}
           {showMorningBriefing && (() => {
             const todayAppts = filteredAppointments.filter(a => a.date === new Date().toISOString().split('T')[0] && a.status !== 'Cancelled');

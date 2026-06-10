@@ -55,7 +55,18 @@ function CalendarPanel() {
     onUpdateAppointment,
     onDeleteAppointment,
     getFirstName,
+    setSelectedClientId,
+    setClientRecordTab,
+    handleSidebarClick,
   } = useAdminContext();
+
+  // Jump straight to a patient's Money tab when their deposit-pending badge
+  // is clicked. Saves the doctor a navigation when chasing deposits.
+  const jumpToPatientMoney = (clientId: string) => {
+    setSelectedClientId(clientId);
+    setClientRecordTab('financials');
+    handleSidebarClick('patients');
+  };
 
   const { confirm, ConfirmHost } = useConfirm();
   const [notesAppt, setNotesAppt] = useState<Appointment | null>(null);
@@ -385,7 +396,16 @@ function CalendarPanel() {
                           <p className="text-sm font-medium text-obsidian truncate">{apt.clientName}</p>
                           <p className="text-xs text-muted truncate">{apt.type}</p>
                         </div>
-                        <StatusBadge status={apt.status} />
+                        {apt.status === 'Awaiting deposit' ? (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); jumpToPatientMoney(apt.clientId); }}
+                            title="Open this patient's Money tab to chase the deposit"
+                          >
+                            <StatusBadge status={apt.status} />
+                          </button>
+                        ) : (
+                          <StatusBadge status={apt.status} />
+                        )}
                       </div>
                     ))}
                   </div>
@@ -451,7 +471,16 @@ function CalendarPanel() {
                       <p className="text-sm font-medium text-obsidian truncate">{apt.time} · {apt.clientName}</p>
                       <p className="text-xs text-muted truncate">{apt.type} {apt.doctorName ? `· ${apt.doctorName}` : ''}</p>
                     </div>
-                    <StatusBadge status={apt.status} />
+                    {apt.status === 'Awaiting deposit' ? (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); jumpToPatientMoney(apt.clientId); }}
+                        title="Open this patient's Money tab to chase the deposit"
+                      >
+                        <StatusBadge status={apt.status} />
+                      </button>
+                    ) : (
+                      <StatusBadge status={apt.status} />
+                    )}
                   </div>
                 </div>
               );
@@ -493,7 +522,16 @@ function CalendarPanel() {
                   </div>
                   <select
                     value={apt.status}
-                    onChange={(e) => onUpdateAppointment(apt.id, { status: e.target.value as Appointment['status'] })}
+                    onChange={(e) => {
+                      const next = e.target.value as Appointment['status'];
+                      onUpdateAppointment(apt.id, { status: next });
+                      // When the doctor flips status to Completed, immediately
+                      // open the notes drawer so SOAP notes get captured in
+                      // the moment (closes the long-standing notes-skipped gap).
+                      if (next === 'Completed' && apt.status !== 'Completed') {
+                        setNotesAppt({ ...apt, status: next });
+                      }
+                    }}
                     className="text-xs bg-cream/60 border border-sand/40 rounded-lg px-2 py-1 font-medium focus:ring-2 focus:ring-primary/20 cursor-pointer"
                   >
                     {['Confirmed','Pending','Awaiting deposit','Completed','Cancelled','No-Show'].map(s => (

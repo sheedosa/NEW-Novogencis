@@ -3,6 +3,8 @@ import React from 'react';
 interface SidebarItemProps {
   icon: React.ReactNode;
   label: string;
+  /** Optional one-line explanation shown as a native tooltip on hover. */
+  hint?: string;
   active?: boolean;
   badge?: React.ReactNode;
   collapsed?: boolean;
@@ -12,6 +14,7 @@ interface SidebarItemProps {
 export const SidebarItem: React.FC<SidebarItemProps> = ({
   icon,
   label,
+  hint,
   active = false,
   badge,
   collapsed = false,
@@ -20,7 +23,7 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
   <button
     onClick={onClick}
     className={`nav-item ${active ? 'active' : ''} ${collapsed ? 'justify-center' : ''}`}
-    title={collapsed ? label : undefined}
+    title={collapsed ? label : hint}
   >
     <span className="nav-icon inline-flex items-center justify-center w-4 h-4 shrink-0">
       {icon}

@@ -12,7 +12,7 @@ import {
   User as UserIcon, MessageSquare, Activity, Receipt, Ban,
   Phone, Mail, MapPin, Siren, Calendar as CalendarIcon,
 } from 'lucide-react';
-import { Card as UICard, CardHeader, Button as UIButton, Badge as UIBadge, StatusBadge as UIStatusBadge, EmptyState as UIEmptyState, useToast, Modal as UIModal } from '../../components/ui';
+import { Card as UICard, CardHeader, Button as UIButton, Badge as UIBadge, StatusBadge as UIStatusBadge, EmptyState as UIEmptyState, useToast, Modal as UIModal, useConfirm } from '../../components/ui';
 
 type ViewTab = 'snapshot' | 'assessment' | 'plan' | 'files' | 'activity' | 'money';
 import { storage } from '../../firebase';
@@ -24,6 +24,7 @@ import { Appointment, TreatmentPlan, TreatmentPhase, Prescription, Payment } fro
 
 const ClientRecord: React.FC = () => {
   const { toast } = useToast();
+  const { confirm, ConfirmHost } = useConfirm();
   const {
     selectedClient,
     clientRecordTab,
@@ -249,6 +250,7 @@ const ClientRecord: React.FC = () => {
 
   return (
     <div className="animate-fade-up flex flex-col">
+      {ConfirmHost}
       {/* ── Sticky patient bar (always visible) ───────────────────────────── */}
       <div className="sticky top-[52px] z-30 -mx-4 sm:-mx-6 lg:-mx-4 px-4 sm:px-6 lg:px-4 py-3 bg-ivory/95 backdrop-blur border-b border-sand">
         <div className="flex items-center gap-3">
@@ -321,19 +323,42 @@ const ClientRecord: React.FC = () => {
               Contact + Lifecycle cards. Less stacking, more breathing room. */}
           <UICard>
             <div className="flex flex-col gap-4">
-              {/* Lifecycle status */}
+              {/* Patient stage (was "Lifecycle" — renamed to clinical-friendly term) */}
               <div>
-                <label className="text-xs text-muted block mb-1.5">Lifecycle</label>
+                <label
+                  className="text-xs text-muted block mb-1.5"
+                  title="Track where this patient is in their journey — from new inquiry through to active treatment."
+                >
+                  Patient stage
+                </label>
                 <select
                   value={selectedClient.status}
                   onChange={async (e) => {
+                    const nextStatus = e.target.value;
+                    const isDischarge = nextStatus === 'Not Suitable';
+                    // Confirm before discharging a patient — this changes
+                    // how they're filtered in segments and affects reporting.
+                    if (isDischarge) {
+                      const ok = await confirm({
+                        title: `Mark ${selectedClient.name} as Not Suitable?`,
+                        description: 'This effectively discharges the patient. They will be removed from active segments and active reports. You can change this back at any time.',
+                        confirmLabel: 'Mark as Not Suitable',
+                        tone: 'danger',
+                      });
+                      if (!ok) {
+                        // Revert the visual select state by re-rendering
+                        e.target.value = selectedClient.status || '';
+                        return;
+                      }
+                    }
                     try {
-                      await onUpdateClient(selectedClient.id, { status: e.target.value });
+                      await onUpdateClient(selectedClient.id, { status: nextStatus });
                     } catch (error) {
                       console.error('Failed to update client status:', error);
                     }
                   }}
                   className="w-full bg-cream border border-sand text-obsidian text-base sm:text-sm rounded-md px-3 py-2 focus:ring-2 focus:ring-primary/20 cursor-pointer"
+                  title="Track where this patient is in their journey — from new inquiry through to active treatment."
                 >
                   {['New Inquiry', 'Assessment Submitted', 'Reviewed', 'Contacted', 'Converted', 'Not Suitable', 'Active', 'Ongoing'].map(s => (
                     <option key={s} value={s}>{s}</option>
@@ -457,11 +482,15 @@ const ClientRecord: React.FC = () => {
 
             {/* Red flags (only if any) — appear right after status so doctors see them immediately */}
             {redFlags.length > 0 && (
-              <UICard className="!bg-danger-bg !border-danger/20 order-2">
+              <UICard
+                className="!bg-danger-bg !border-danger/20 order-2"
+                title="Safety concerns surfaced from the patient's intake form. Review these before planning any treatment."
+              >
                 <div className="flex items-start gap-3">
                   <Siren size={16} className="text-danger mt-0.5 shrink-0" />
                   <div className="min-w-0">
-                    <p className="text-sm font-medium text-danger-text mb-2">Clinical red flags</p>
+                    <p className="text-sm font-medium text-danger-text mb-1">Clinical red flags</p>
+                    <p className="text-xs text-danger-text/80 mb-3">Items flagged in the intake form that may affect treatment suitability.</p>
                     <div className="flex flex-wrap gap-1.5">
                       {redFlags.map((flag, i) => <UIBadge key={i} variant="danger">{flag}</UIBadge>)}
                     </div>
@@ -989,11 +1018,16 @@ const ClientRecord: React.FC = () => {
                     </div>
 
                     {!plan?.phases?.length ? (
-                      <div className="py-16 text-center border-2 border-dashed border-black/5 rounded-2xl">
-                        <Stethoscope size={40} className="text-primary/20 mb-3 mx-auto" />
-                        <p className="text-2xs text-muted">No treatment plan yet</p>
-                        <p className="text-xs text-muted/60 mt-1 font-medium">Click "Add Phase" to create the first phase</p>
-                      </div>
+                      <UIEmptyState
+                        icon={<Stethoscope size={16} />}
+                        title="No treatment plan yet"
+                        description="Treatment plans are made up of phases (e.g. '3-month intensive PRP'). Add the first phase whenever you're ready — you can do this at any time."
+                        action={
+                          <UIButton variant="primary" size="sm" leadingIcon={<Plus size={13} />} onClick={() => { setPlanTitle(plan?.title || ''); setShowAddPhase(true); }}>
+                            Add first phase
+                          </UIButton>
+                        }
+                      />
                     ) : (
                       <div className="space-y-4">
                         {plan.phases.map((phase, i) => {
@@ -1078,7 +1112,7 @@ const ClientRecord: React.FC = () => {
                     {!rxList.length ? (
                       <UIEmptyState
                         icon={<FileText size={16} />}
-                        title="No prescriptions"
+                        title="No prescriptions yet"
                         description="Add a prescription to track patient medications."
                         compact
                       />
@@ -1328,8 +1362,8 @@ const ClientRecord: React.FC = () => {
                 {!payList.length ? (
                   <UIEmptyState
                     icon={<CreditCard size={16} />}
-                    title="No payment records"
-                    description="Add a payment to start the financial trail for this patient."
+                    title="No payments yet"
+                    description="Deposits, session fees, and other charges appear here once recorded. Tap 'Add entry' to log the first payment."
                     compact
                   />
                 ) : (

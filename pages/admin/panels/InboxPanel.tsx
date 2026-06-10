@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 import {
   PageHeader, Card, Button, EmptyState, Modal, Input, Select, Textarea, Badge,
-  Skeleton, useConfirm,
+  Skeleton, useConfirm, useToast,
 } from '../../../components/ui';
 
 type InboxFilter = 'all' | 'tasks' | 'assessments' | 'messages' | 'forms' | 'payments';
@@ -65,6 +65,7 @@ function InboxPanel() {
   } = useAdminContext();
 
   const { confirm, ConfirmHost } = useConfirm();
+  const { toast } = useToast();
   const { onSendMessage, onMarkMessageRead } = useAdminContext();
 
   const handleDeleteTask = async (id: string, title: string) => {
@@ -242,7 +243,19 @@ function InboxPanel() {
           priority: (t.priority === 'high' || overdue) ? 'high' : 'normal',
           primaryAction: {
             label: 'Done',
-            onClick: () => onUpdateTask(t.id, { status: 'done', completedAt: new Date().toISOString() }),
+            onClick: () => {
+              const previousStatus = t.status;
+              onUpdateTask(t.id, { status: 'done', completedAt: new Date().toISOString() });
+              // Surface an undo toast so doctors can recover from a mis-tap.
+              toast.success('Task marked done', {
+                description: `"${t.title}" moved to completed.`,
+                duration: 5000,
+                action: {
+                  label: 'Undo',
+                  onClick: () => onUpdateTask(t.id, { status: previousStatus || 'open', completedAt: '' }),
+                },
+              });
+            },
           },
           secondaryAction: {
             label: 'Snooze',
@@ -261,7 +274,7 @@ function InboxPanel() {
       if (a.priority !== b.priority) return a.priority === 'high' ? -1 : 1;
       return new Date(b.when).getTime() - new Date(a.when).getTime();
     });
-  }, [filteredClients, clients, messages, tasks, user, setSelectedClientId, setClientRecordTab, handleSidebarClick, setTriageSelectedId, onUpdateTask]);
+  }, [filteredClients, clients, messages, tasks, user, setSelectedClientId, setClientRecordTab, handleSidebarClick, setTriageSelectedId, onUpdateTask, toast]);
 
   const filtered = filter === 'all' ? items : items.filter(i => {
     if (filter === 'tasks') return i.type === 'task';
@@ -395,8 +408,12 @@ function InboxPanel() {
         ) : filtered.length === 0 ? (
           <EmptyState
             icon={<Check size={16} />}
-            title="All caught up"
-            description={filter === 'all' ? 'Nothing in your inbox right now.' : 'No items in this filter.'}
+            title={filter === 'all' ? "You're all caught up" : 'Nothing here right now'}
+            description={
+              filter === 'all'
+                ? 'New assessments, messages, unsigned forms, and overdue payments will appear here as they come in. Great work today.'
+                : 'Try a different filter, or switch to "All" to see everything that needs attention.'
+            }
           />
         ) : (
           <div className="flex flex-col">

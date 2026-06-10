@@ -292,7 +292,7 @@ function InsightsPanel() {
       {/* KPI row — each KPI now compared against the prior 30 days */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <Stat
-          label="Conversion rate"
+          label="Booking rate"
           value={`${conversionRate}%`}
           icon={<TrendingUp size={16} />}
           accent="gold"
