@@ -65,7 +65,7 @@ export const AppointmentNotesDrawer: React.FC<AppointmentNotesDrawerProps> = ({
             onClick={handleSave}
             disabled={saving || !dirty}
           >
-            {saving ? 'Saving…' : 'Save changes'}
+            {saving ? 'Saving…' : appointment?.notes ? 'Update notes' : 'Add notes'}
           </Button>
         </div>
       }

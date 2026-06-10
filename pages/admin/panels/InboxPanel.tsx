@@ -450,7 +450,12 @@ function InboxPanel() {
                     }`}>
                       {iconFor(item.type)}
                     </div>
-                    <div className="min-w-0 flex-grow">
+                    <div
+                      className={`min-w-0 flex-grow ${item.type === 'message' ? 'cursor-pointer' : ''}`}
+                      onClick={item.type === 'message' ? () => setExpandedReplyId(prev => prev === item.id ? null : item.id) : undefined}
+                      aria-expanded={item.type === 'message' ? expandedReplyId === item.id : undefined}
+                      title={item.type === 'message' ? 'Tap to read the full conversation' : undefined}
+                    >
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="text-[10px] font-medium uppercase tracking-wider text-hint">
                           {item.type === 'assessment' ? 'Assessment' :
@@ -498,7 +503,12 @@ function InboxPanel() {
                   }`}>
                     {iconFor(item.type)}
                   </div>
-                  <div className="min-w-0 flex-grow">
+                  <div
+                    className={`min-w-0 flex-grow ${item.type === 'message' ? 'cursor-pointer' : ''}`}
+                    onClick={item.type === 'message' ? () => setExpandedReplyId(prev => prev === item.id ? null : item.id) : undefined}
+                    aria-expanded={item.type === 'message' ? expandedReplyId === item.id : undefined}
+                    title={item.type === 'message' ? 'Click to read the full conversation' : undefined}
+                  >
                     <div className="flex items-center gap-2">
                       <span className="text-[10px] font-medium uppercase tracking-wider text-hint">
                         {item.type === 'assessment' ? 'Assessment' :

@@ -1,4 +1,4 @@
-import React, { useState, memo } from 'react';
+import React, { useState, useRef, memo } from 'react';
 import { useAdminContext } from './context';
 import { ClientRecordTab } from './context';
 import { Card } from '../../components/Card';
@@ -73,6 +73,11 @@ const ClientRecord: React.FC = () => {
   const [rescheduleApt, setRescheduleApt] = useState<Appointment | null>(null);
   const [rescheduleForm, setRescheduleForm] = useState({ date: '', time: '' });
   const [rescheduleStatus, setRescheduleStatus] = useState<'idle' | 'saving' | 'error'>('idle');
+  const [rescheduleConflict, setRescheduleConflict] = useState(false);
+  // "Save & add another" flag for the Add Phase / Prescription / Payment modals.
+  // Set by the secondary submit button just before the form submits; the
+  // submit handler reads + resets it to decide whether to keep the modal open.
+  const addAnotherRef = useRef(false);
   const [showQuickEdit, setShowQuickEdit] = useState(false);
   const [quickEditForm, setQuickEditForm] = useState({ name: '', email: '', phone: '', address: '' });
   const [quickEditStatus, setQuickEditStatus] = useState<'idle' | 'saving' | 'error'>('idle');
@@ -158,6 +163,7 @@ const ClientRecord: React.FC = () => {
     setRescheduleApt(apt);
     setRescheduleForm({ date: apt.date, time: apt.time });
     setRescheduleStatus('idle');
+    setRescheduleConflict(false);
   };
 
   const submitReschedule = async (e: React.FormEvent) => {
@@ -181,6 +187,10 @@ const ClientRecord: React.FC = () => {
           return start < aEnd && end > aStart;
         });
         if (conflict) {
+          // Clear the clashing time and flag the field so the doctor
+          // immediately sees where to act instead of re-submitting the same slot.
+          setRescheduleConflict(true);
+          setRescheduleForm(p => ({ ...p, time: '' }));
           toast.error('Scheduling conflict', {
             description: `${conflict.doctorName ?? 'This clinician'} already has "${conflict.type}" with ${conflict.clientName} at ${conflict.time} on ${conflict.date}. Pick a different time.`,
             duration: 8000,
@@ -1123,7 +1133,7 @@ const ClientRecord: React.FC = () => {
                             Active: 'active', Completed: 'new', Discontinued: 'inactive',
                           };
                           return (
-                            <div key={rx.id} className="flex items-center justify-between p-4 rounded-md border border-sand bg-white hover:bg-cream/40 transition-colors">
+                            <div key={rx.id} className={`flex items-center justify-between p-4 rounded-md border border-sand bg-white hover:bg-cream/40 transition-colors ${rx.status !== 'Active' ? 'opacity-60' : ''}`}>
                               <div>
                                 <p className="text-sm font-medium text-obsidian">{rx.drugName}</p>
                                 <p className="text-xs text-muted mt-0.5">{rx.dosage} — {rx.instructions}</p>
@@ -1193,6 +1203,15 @@ const ClientRecord: React.FC = () => {
                       type="submit"
                       form="add-phase-form"
                       disabled={treatmentPlanSaving}
+                      onClick={() => { addAnotherRef.current = true; }}
+                      className="px-4 py-2 rounded-md text-sm font-medium text-obsidian bg-cream hover:bg-sand disabled:opacity-50 transition-colors"
+                    >
+                      Save & add another
+                    </button>
+                    <button
+                      type="submit"
+                      form="add-phase-form"
+                      disabled={treatmentPlanSaving}
                       className="bg-primary text-obsidian px-5 py-2 rounded-md text-sm font-medium disabled:opacity-50"
                     >
                       {treatmentPlanSaving ? 'Saving…' : 'Add Phase'}
@@ -1221,7 +1240,12 @@ const ClientRecord: React.FC = () => {
                       : { id: `plan-${Date.now()}`, clientId: selectedClient.id, title: planTitle || 'Treatment Plan', phases: [newPhase], createdAt: new Date().toISOString() };
                     await onSaveTreatmentPlan(selectedClient.id, updatedPlan);
                     setPhaseForm({ name: '', description: '', sessionsPlanned: 1, notes: '' });
-                    setShowAddPhase(false);
+                    if (addAnotherRef.current) {
+                      addAnotherRef.current = false;
+                      toast.success('Phase added', { description: 'Form cleared — add the next phase or close.' });
+                    } else {
+                      setShowAddPhase(false);
+                    }
                     setTreatmentPlanSaving(false);
                   }}
                   className="space-y-4"
@@ -1229,6 +1253,7 @@ const ClientRecord: React.FC = () => {
                   <div>
                     <label className="text-xs text-muted block mb-1">Plan Title {!plan && <span className="text-primary">(first phase)</span>}</label>
                     <input type="text" value={planTitle} onChange={e => setPlanTitle(e.target.value)} placeholder="e.g. 12-Month PRP Protocol" className="w-full bg-cream border-transparent rounded-md px-4 py-3 text-base sm:text-sm font-medium focus:ring-2 focus:ring-primary/20" />
+                    <p className="text-xs text-hint mt-1">Set once — this names the whole plan. Each phase you add lives inside it.</p>
                   </div>
                   <div>
                     <label className="text-xs text-muted block mb-1">Phase Name <span className="text-red-400">*</span></label>
@@ -1262,6 +1287,15 @@ const ClientRecord: React.FC = () => {
                       type="submit"
                       form="add-rx-form"
                       disabled={rxSaving}
+                      onClick={() => { addAnotherRef.current = true; }}
+                      className="px-4 py-2 rounded-md text-sm font-medium text-obsidian bg-cream hover:bg-sand disabled:opacity-50 transition-colors"
+                    >
+                      Save & add another
+                    </button>
+                    <button
+                      type="submit"
+                      form="add-rx-form"
+                      disabled={rxSaving}
                       className="bg-primary text-obsidian px-5 py-2 rounded-md text-sm font-medium disabled:opacity-50"
                     >
                       {rxSaving ? 'Saving…' : 'Add Prescription'}
@@ -1287,7 +1321,12 @@ const ClientRecord: React.FC = () => {
                     };
                     await onAddPrescription(selectedClient.id, newRx);
                     setRxForm({ drugName: '', dosage: '', instructions: '', startDate: '', endDate: '', prescribedBy: '' });
-                    setShowAddRx(false);
+                    if (addAnotherRef.current) {
+                      addAnotherRef.current = false;
+                      toast.success('Prescription added', { description: 'Form cleared — add the next one or close.' });
+                    } else {
+                      setShowAddRx(false);
+                    }
                     setRxSaving(false);
                   }}
                   className="space-y-4"
@@ -1410,6 +1449,15 @@ const ClientRecord: React.FC = () => {
                       type="submit"
                       form="add-payment-form"
                       disabled={paymentSaving}
+                      onClick={() => { addAnotherRef.current = true; }}
+                      className="px-4 py-2 rounded-md text-sm font-medium text-obsidian bg-cream hover:bg-sand disabled:opacity-50 transition-colors"
+                    >
+                      Save & add another
+                    </button>
+                    <button
+                      type="submit"
+                      form="add-payment-form"
+                      disabled={paymentSaving}
                       className="bg-primary text-obsidian px-5 py-2 rounded-md text-sm font-medium disabled:opacity-50"
                     >
                       {paymentSaving ? 'Saving…' : 'Add Entry'}
@@ -1434,7 +1482,12 @@ const ClientRecord: React.FC = () => {
                     };
                     await onAddPayment(selectedClient.id, newPay);
                     setPaymentForm({ description: '', amount: '', currency: 'GBP', status: 'Pending', dueDate: '', reference: '' });
-                    setShowAddPayment(false);
+                    if (addAnotherRef.current) {
+                      addAnotherRef.current = false;
+                      toast.success('Payment entry added', { description: 'Form cleared — add the next one or close.' });
+                    } else {
+                      setShowAddPayment(false);
+                    }
                     setPaymentSaving(false);
                   }}
                   className="space-y-4"
@@ -1514,14 +1567,21 @@ const ClientRecord: React.FC = () => {
               <select
                 required
                 value={rescheduleForm.time}
-                onChange={(e) => setRescheduleForm(p => ({ ...p, time: e.target.value }))}
-                className="w-full bg-cream border-transparent rounded-md px-4 py-3 text-base sm:text-sm font-medium focus:ring-2 focus:ring-primary/20"
+                onChange={(e) => { setRescheduleForm(p => ({ ...p, time: e.target.value })); setRescheduleConflict(false); }}
+                className={`w-full bg-cream rounded-md px-4 py-3 text-base sm:text-sm font-medium focus:ring-2 ${
+                  rescheduleConflict
+                    ? 'border border-danger ring-2 ring-danger/20 focus:ring-danger/30'
+                    : 'border-transparent focus:ring-primary/20'
+                }`}
               >
                 <option value="">Select time...</option>
                 {['09:00 AM','09:30 AM','10:00 AM','10:30 AM','11:00 AM','11:30 AM','12:00 PM','12:30 PM','01:00 PM','01:30 PM','02:00 PM','02:30 PM','03:00 PM','03:30 PM','04:00 PM','04:30 PM','05:00 PM','05:30 PM','06:00 PM','06:30 PM','07:00 PM','07:30 PM','08:00 PM','08:30 PM','09:00 PM','09:30 PM','10:00 PM'].map(t => (
                   <option key={t} value={t}>{t}</option>
                 ))}
               </select>
+              {rescheduleConflict && (
+                <p className="text-xs font-medium text-danger mt-1.5">Pick a different time — that slot is taken.</p>
+              )}
             </div>
             {rescheduleStatus === 'error' && (
               <p className="text-xs font-medium text-red-500">Failed to reschedule. Please try again.</p>

@@ -29,14 +29,20 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
   const [query, setQuery] = useState('');
   const [active, setActive] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
+  const previousFocusRef = useRef<HTMLElement | null>(null);
 
-  // Reset state on open
+  // Reset state on open; restore focus to wherever the user was on close
+  // (e.g. mid-sentence in a notes textarea before hitting Cmd+K).
   useEffect(() => {
     if (open) {
+      previousFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
       setQuery('');
       setActive(0);
       // Focus a tick later so the input mounts first
       setTimeout(() => inputRef.current?.focus(), 30);
+    } else if (previousFocusRef.current) {
+      previousFocusRef.current.focus();
+      previousFocusRef.current = null;
     }
   }, [open]);
 
