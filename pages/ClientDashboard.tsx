@@ -9,9 +9,9 @@ import {
   BadgeCheck, CalendarCheck, Star,
 } from 'lucide-react';
 import {
-  Button, Input, Modal, PageHeader, EmptyState, StatusBadge as UIStatusBadge,
+  Button, Input, Select, Modal, PageHeader, EmptyState, StatusBadge as UIStatusBadge,
   Stat, Card as UICard, CardHeader, SidebarItem as UISidebarItem,
-  BottomNav, useToast,
+  BottomNav, useToast, useConfirm,
 } from '../components/ui';
 import { Page, User, Appointment, Client, Message, GalleryItem } from '../types';
 import { FORMS } from '../constants';
@@ -79,6 +79,7 @@ interface MessagesTabProps {
 const MessagesTab = memo(function MessagesTab({ userMessages, user, onSendMessage, onOpenForm }: MessagesTabProps) {
   const [messageInput, setMessageInput] = useState('');
   const [isSending, setIsSending] = useState(false);
+  const { toast } = useToast();
 
   return (
     <div className="animate-fade-up h-[calc(100dvh-13rem)] sm:h-[calc(100dvh-11rem)] flex flex-col">
@@ -175,7 +176,10 @@ const MessagesTab = memo(function MessagesTab({ userMessages, user, onSendMessag
               <div className="w-20 h-20 bg-white rounded-lg flex items-center justify-center text-primary/20 mb-4 shadow-sm">
                 <MessageCircle size={40} className="text-primary/20" />
               </div>
-              <p className="text-xs font-medium text-muted">No messages yet. Start a conversation with our clinical team.</p>
+              <p className="text-sm font-medium text-obsidian mb-1">No messages yet</p>
+              <p className="text-sm text-muted leading-relaxed max-w-xs">
+                Ask us anything about appointments, treatments or your progress — type below and we'll reply within 24 hours.
+              </p>
             </div>
           )}
         </div>
@@ -196,6 +200,9 @@ const MessagesTab = memo(function MessagesTab({ userMessages, user, onSendMessag
                   createdAt: new Date().toISOString()
                 });
                 setMessageInput('');
+              } catch (error) {
+                console.error('Failed to send message:', error);
+                toast.error('Message not sent', { description: 'Please check your connection and try again — your text is still here.' });
               } finally {
                 setIsSending(false);
               }
@@ -245,8 +252,10 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
   // Appointment action state
   const [requestingAptId, setRequestingAptId] = useState<string | null>(null);
   const [aptAction, setAptAction] = useState<'reschedule' | 'cancel' | null>(null);
-  const [reschedulePreference, setReschedulePreference] = useState('');
+  const [rescheduleDate, setRescheduleDate] = useState('');
+  const [rescheduleTimePref, setRescheduleTimePref] = useState('Any time');
   const [aptRequestSending, setAptRequestSending] = useState(false);
+  const { confirm, ConfirmHost } = useConfirm();
 
   // Profile Edit State
   const [isEditingProfile, setIsEditingProfile] = useState(false);
@@ -422,6 +431,7 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
         address: profileForm.address
       });
       setIsEditingProfile(false);
+      toast.success('Profile updated', { description: 'Your details have been saved.' });
     } catch (error) {
       console.error('Failed to save profile:', error);
       toast.error('Save failed', { description: 'Please try again.' });
@@ -725,8 +735,11 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
             ) : (
               <div className="bg-white rounded-lg p-6 md:p-10 border border-black/5 shadow-sm text-center">
                 <Stethoscope size={40} className="text-primary/20 mb-3 mx-auto" />
-                <p className="text-2xs text-muted">No treatment plan assigned yet</p>
-                <p className="text-xs text-muted/60 mt-1 font-medium">Your clinician will create your personalised plan after your first session</p>
+                <p className="text-sm font-medium text-obsidian">No treatment plan yet</p>
+                <p className="text-sm text-muted mt-1 max-w-sm mx-auto leading-relaxed">Your clinician creates your personalised plan after your first visit. Questions in the meantime? We're happy to help.</p>
+                <Button variant="secondary" size="sm" className="mt-4" leadingIcon={<MessageCircle size={13} />} onClick={() => setActiveTab('messages')}>
+                  Message the clinic
+                </Button>
               </div>
             )}
 
@@ -771,7 +784,8 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
                         {userAppointments.length === 0 && (
                            <div className="py-20 text-center">
                               <ClipboardList size={40} className="text-primary/10 mb-3 mx-auto" />
-                              <p className="text-2xs text-muted">No session history yet</p>
+                              <p className="text-sm font-medium text-obsidian">No visits yet</p>
+                              <p className="text-sm text-muted mt-1">Your completed visits will appear here after your first session.</p>
                            </div>
                         )}
                      </div>
@@ -832,10 +846,14 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
                            </div>
                         ))}
                         {(!currentClient?.gallery || currentClient.gallery.length === 0) && (
-                           <div className="col-span-2 aspect-video bg-cream border-2 border-dashed border-black/5 rounded-xl flex flex-col items-center justify-center text-center p-4">
-                              <Camera size={24} className="text-muted/30 mb-1" />
-                              <p className="text-2xs font-medium text-muted/60 uppercase">No photos yet</p>
-                           </div>
+                           <button
+                              onClick={() => setShowGalleryUpload(true)}
+                              className="col-span-2 aspect-video bg-cream border-2 border-dashed border-black/5 hover:border-primary/30 rounded-xl flex flex-col items-center justify-center text-center p-4 transition-colors"
+                           >
+                              <Camera size={24} className="text-muted/30 mb-2" />
+                              <p className="text-sm font-medium text-obsidian">Add your first photo</p>
+                              <p className="text-xs text-muted mt-0.5">Regular photos help us track your results</p>
+                           </button>
                         )}
                      </div>
                      {currentClient?.gallery && currentClient.gallery.length > 4 && (
@@ -905,7 +923,9 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
                                 }`}>{apt.status === 'Awaiting deposit' ? 'Deposit needed' : apt.status}</span>
                                 {isUpcoming && (
                                   <button
-                                    onClick={() => { setRequestingAptId(isRequestingThis ? null : apt.id); setAptAction(null); setReschedulePreference(''); }}
+                                    onClick={() => { setRequestingAptId(isRequestingThis ? null : apt.id); setAptAction(null); setRescheduleDate(''); setRescheduleTimePref('Any time'); }}
+                                    aria-label={isRequestingThis ? 'Close appointment options' : 'Change or cancel this appointment'}
+                                    title={isRequestingThis ? 'Close' : 'Change or cancel this appointment'}
                                     className="w-10 h-10 rounded-full bg-cream border border-black/10 flex items-center justify-center text-muted hover:text-primary transition-colors"
                                   >
                                     {isRequestingThis ? <X size={13} /> : <ArrowRight size={13} />}
@@ -933,54 +953,94 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
                               <div className="px-6 md:px-8 pb-6 border-t border-black/5 pt-4">
                                 {!aptAction ? (
                                   <div className="flex flex-col sm:flex-row gap-3">
-                                    <button onClick={() => setAptAction('reschedule')} className="flex-1 flex items-center justify-center gap-2 bg-cream hover:bg-primary/10 text-obsidian py-3 rounded-xl text-xs transition-colors">
-                                      <RefreshCw size={16} className="text-primary" /> Request Reschedule
+                                    <button onClick={() => setAptAction('reschedule')} className="flex-1 flex items-center justify-center gap-2 bg-cream hover:bg-primary/10 text-obsidian py-3 rounded-xl text-sm font-medium transition-colors">
+                                      <RefreshCw size={16} className="text-primary" /> Change date or time
                                     </button>
                                     <button onClick={async () => {
                                       if (!user) return;
-                                      setAptRequestSending(true);
-                                      await onSendMessage({
-                                        senderId: user.id,
-                                        recipientId: 'admin',
-                                        subject: 'Cancel Request',
-                                        body: `I would like to cancel my appointment: ${apt.type} on ${new Date(apt.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })} at ${apt.time}. Please confirm cancellation.`,
-                                        read: false,
-                                        createdAt: new Date().toISOString(),
+                                      const ok = await confirm({
+                                        title: 'Request cancellation?',
+                                        description: `We'll let the clinic know you'd like to cancel ${apt.type} on ${new Date(apt.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'long' })}. Remember we ask for 48 hours' notice.`,
+                                        confirmLabel: 'Yes, request cancellation',
+                                        cancelLabel: 'Keep appointment',
+                                        tone: 'danger',
                                       });
-                                      setAptRequestSending(false);
-                                      setRequestingAptId(null);
-                                    }} disabled={aptRequestSending} className="flex-1 flex items-center justify-center gap-2 bg-red-50 hover:bg-red-100 text-red-600 py-3 rounded-xl text-xs transition-colors disabled:opacity-50">
-                                      <X size={16} /> Request Cancel
+                                      if (!ok) return;
+                                      setAptRequestSending(true);
+                                      try {
+                                        await onSendMessage({
+                                          senderId: user.id,
+                                          recipientId: 'admin',
+                                          subject: 'Cancel Request',
+                                          body: `I would like to cancel my appointment: ${apt.type} on ${new Date(apt.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })} at ${apt.time}. Please confirm cancellation.`,
+                                          read: false,
+                                          createdAt: new Date().toISOString(),
+                                        });
+                                        toast.success('Cancellation request sent', { description: "We'll confirm by message within 24 hours." });
+                                      } catch {
+                                        toast.error('Could not send request', { description: 'Please check your connection and try again.' });
+                                      } finally {
+                                        setAptRequestSending(false);
+                                        setRequestingAptId(null);
+                                      }
+                                    }} disabled={aptRequestSending} className="flex-1 flex items-center justify-center gap-2 bg-red-50 hover:bg-red-100 text-red-600 py-3 rounded-xl text-sm font-medium transition-colors disabled:opacity-50">
+                                      <X size={16} /> Cancel appointment
                                     </button>
                                   </div>
                                 ) : (
                                   <div className="space-y-3">
-                                    <p className="text-xs text-muted">Preferred new date/time</p>
-                                    <textarea
-                                      value={reschedulePreference}
-                                      onChange={e => setReschedulePreference(e.target.value)}
-                                      placeholder="e.g. Any morning next week, preferably Tuesday or Thursday..."
-                                      rows={2}
-                                      className="w-full bg-cream border-transparent rounded-xl px-4 py-3 text-xs font-medium focus:ring-2 focus:ring-primary/20 resize-none"
-                                    />
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                      <div className="space-y-1.5">
+                                        <label className="text-xs text-muted block">Preferred new date</label>
+                                        <input
+                                          type="date"
+                                          value={rescheduleDate}
+                                          min={new Date().toISOString().split('T')[0]}
+                                          onChange={e => setRescheduleDate(e.target.value)}
+                                          className="w-full bg-cream border-transparent rounded-xl px-4 py-3 text-sm font-medium focus:ring-2 focus:ring-primary/20"
+                                        />
+                                      </div>
+                                      <div className="space-y-1.5">
+                                        <label className="text-xs text-muted block">Preferred time of day</label>
+                                        <select
+                                          value={rescheduleTimePref}
+                                          onChange={e => setRescheduleTimePref(e.target.value)}
+                                          className="w-full bg-cream border-transparent rounded-xl px-4 py-3 text-sm font-medium focus:ring-2 focus:ring-primary/20"
+                                        >
+                                          <option>Any time</option>
+                                          <option>Morning</option>
+                                          <option>Afternoon</option>
+                                        </select>
+                                      </div>
+                                    </div>
+                                    <p className="text-xs text-muted leading-relaxed">We'll confirm your new time by message within 24 hours.</p>
                                     <div className="flex gap-2">
-                                      <button onClick={() => setAptAction(null)} className="px-4 py-2 text-xs text-muted hover:text-obsidian">Back</button>
+                                      <button onClick={() => setAptAction(null)} className="px-4 py-2 text-sm text-muted hover:text-obsidian">Back</button>
                                       <button onClick={async () => {
                                         if (!user) return;
                                         setAptRequestSending(true);
-                                        await onSendMessage({
-                                          senderId: user.id,
-                                          recipientId: 'admin',
-                                          subject: 'Reschedule Request',
-                                          body: `I would like to reschedule my appointment: ${apt.type} on ${new Date(apt.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })} at ${apt.time}.\n\nPreferred new time: ${reschedulePreference || 'Please contact me to arrange.'}`,
-                                          read: false,
-                                          createdAt: new Date().toISOString(),
-                                        });
-                                        setAptRequestSending(false);
-                                        setRequestingAptId(null);
-                                        setAptAction(null);
-                                      }} disabled={aptRequestSending} className="flex-1 bg-primary text-obsidian py-2 rounded-xl text-xs text-muted disabled:opacity-50">
-                                        {aptRequestSending ? 'Sending…' : 'Send Reschedule Request'}
+                                        const prettyDate = rescheduleDate
+                                          ? new Date(`${rescheduleDate}T00:00`).toLocaleDateString('en-GB', { weekday: 'long', day: '2-digit', month: 'long' })
+                                          : '';
+                                        try {
+                                          await onSendMessage({
+                                            senderId: user.id,
+                                            recipientId: 'admin',
+                                            subject: 'Reschedule Request',
+                                            body: `I would like to reschedule my appointment: ${apt.type} on ${new Date(apt.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })} at ${apt.time}.\n\nPreferred new time: ${prettyDate ? `${prettyDate} — ${rescheduleTimePref.toLowerCase()}` : 'Please contact me to arrange.'}`,
+                                            read: false,
+                                            createdAt: new Date().toISOString(),
+                                          });
+                                          toast.success('Reschedule request sent', { description: "We'll confirm your new time within 24 hours." });
+                                        } catch {
+                                          toast.error('Could not send request', { description: 'Please check your connection and try again.' });
+                                        } finally {
+                                          setAptRequestSending(false);
+                                          setRequestingAptId(null);
+                                          setAptAction(null);
+                                        }
+                                      }} disabled={aptRequestSending || !rescheduleDate} className="flex-1 bg-primary text-obsidian py-2.5 rounded-xl text-sm font-medium disabled:opacity-50 transition-all">
+                                        {aptRequestSending ? 'Sending…' : 'Send request'}
                                       </button>
                                     </div>
                                   </div>
@@ -992,7 +1052,12 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
                       })
                   ) : (
                     <div className="bg-white p-6 md:p-12 rounded-lg border border-black/5 text-center">
-                      <p className="text-muted font-medium">You have no appointment history.</p>
+                      <CalendarDays size={40} className="text-primary/15 mb-3 mx-auto" />
+                      <p className="text-sm font-medium text-obsidian">No visits booked yet</p>
+                      <p className="text-sm text-muted mt-1 max-w-sm mx-auto leading-relaxed">When you're ready, send us a message and we'll arrange your first visit.</p>
+                      <Button variant="primary" size="sm" className="mt-4" leadingIcon={<CalendarDays size={13} />} onClick={() => setActiveTab('messages')}>
+                        Request your first visit
+                      </Button>
                     </div>
                   )}
                </div>
@@ -1262,44 +1327,34 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
                     {isEditingProfile ? (
                       <form onSubmit={handleSaveProfile} className="md:col-span-2 space-y-6">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                          <div className="space-y-2">
-                            <label className="text-2xs text-muted block">Phone Number</label>
-                            <input 
-                              type="tel" 
-                              value={profileForm.phone}
-                              onChange={e => setProfileForm(p => ({ ...p, phone: e.target.value }))}
-                              className="w-full bg-cream border-transparent rounded-xl px-4 py-3 text-sm font-medium focus:ring-2 focus:ring-primary/20"
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <label className="text-2xs text-muted block">Date of Birth</label>
-                            <input 
-                              type="date" 
-                              value={profileForm.dob}
-                              onChange={e => setProfileForm(p => ({ ...p, dob: e.target.value }))}
-                              className="w-full bg-cream border-transparent rounded-xl px-4 py-3 text-sm font-medium focus:ring-2 focus:ring-primary/20"
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <label className="text-2xs text-muted block">Gender</label>
-                            <select 
-                              value={profileForm.gender}
-                              onChange={e => setProfileForm(p => ({ ...p, gender: e.target.value as 'male' | 'female' }))}
-                              className="w-full bg-cream border-transparent rounded-xl px-4 py-3 text-sm font-medium focus:ring-2 focus:ring-primary/20"
-                            >
-                              <option value="female">Female</option>
-                              <option value="male">Male</option>
-                            </select>
-                          </div>
-                          <div className="space-y-2">
-                            <label className="text-2xs text-muted block">Address</label>
-                            <input 
-                              type="text" 
-                              value={profileForm.address}
-                              onChange={e => setProfileForm(p => ({ ...p, address: e.target.value }))}
-                              className="w-full bg-cream border-transparent rounded-xl px-4 py-3 text-sm font-medium focus:ring-2 focus:ring-primary/20"
-                            />
-                          </div>
+                          <Input
+                            label="Phone Number"
+                            type="tel"
+                            autoComplete="tel"
+                            value={profileForm.phone}
+                            onChange={e => setProfileForm(p => ({ ...p, phone: e.target.value }))}
+                          />
+                          <Input
+                            label="Date of Birth"
+                            type="date"
+                            value={profileForm.dob}
+                            onChange={e => setProfileForm(p => ({ ...p, dob: e.target.value }))}
+                          />
+                          <Select
+                            label="Gender"
+                            value={profileForm.gender}
+                            onChange={e => setProfileForm(p => ({ ...p, gender: e.target.value as 'male' | 'female' }))}
+                          >
+                            <option value="female">Female</option>
+                            <option value="male">Male</option>
+                          </Select>
+                          <Input
+                            label="Address"
+                            type="text"
+                            autoComplete="street-address"
+                            value={profileForm.address}
+                            onChange={e => setProfileForm(p => ({ ...p, address: e.target.value }))}
+                          />
                         </div>
                         {/* Inline footer (desktop) + sticky footer (mobile) */}
                         <div className="hidden md:flex justify-end gap-3 pt-4 border-t border-black/5">
@@ -1411,6 +1466,7 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
 
   return (
     <div className="portal-shell font-sans selection:bg-primary/20">
+      {ConfirmHost}
       <PolicyConfirmationModal
         isOpen={showPolicyModal}
         onConfirm={handleAcceptPolicies}
@@ -1581,7 +1637,8 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
         onChange={(id) => handleSidebarClick(id as Tab)}
         items={[
           { id: 'overview',     label: 'Home',         icon: <LayoutDashboard size={18} /> },
-          { id: 'appointments', label: 'Appointments', icon: <CalendarIcon size={18} /> },
+          { id: 'treatments',   label: 'Treatments',   icon: <FlaskConical size={18} /> },
+          { id: 'appointments', label: 'Visits',       icon: <CalendarIcon size={18} /> },
           { id: 'messages',     label: 'Messages',     icon: <MessageSquare size={18} />, badge: unreadMessagesCount },
           { id: 'profile',      label: 'Profile',      icon: <UserIcon size={18} /> },
         ]}
@@ -1714,6 +1771,19 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
               <input ref={fileInputRef} type="file" accept={ACCEPTED_IMAGE_TYPES} className="hidden" onChange={handleFileSelect} />
               <input ref={cameraInputRef} type="file" accept={ACCEPTED_IMAGE_TYPES} capture="environment" className="hidden" onChange={handleFileSelect} />
             </div>
+            {!galleryUploadPreview && (
+              <div className="bg-cream/60 rounded-md px-4 py-3">
+                <p className="text-xs font-medium text-obsidian mb-1.5">Tips for a useful photo</p>
+                <ul className="space-y-1">
+                  {['Natural light, near a window if you can', 'Same angle as your last photo', 'Hair dry and unstyled'].map((tip, i) => (
+                    <li key={i} className="text-xs text-muted flex gap-2 items-start">
+                      <span className="w-1 h-1 rounded-full bg-primary mt-1.5 shrink-0" />
+                      {tip}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
             <Input
               label="Photo label"
               type="text"
@@ -1722,9 +1792,16 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
               placeholder="e.g. Month 3 progress"
             />
             {isUploading && (
-              <div className="flex items-center gap-3">
-                <div className="progress-track flex-1"><div className="progress-fill gold" style={{ width: `${uploadProgress}%` }} /></div>
-                <span className="text-xs font-medium text-muted">{uploadProgress}%</span>
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-3">
+                  <div className="progress-track flex-1"><div className="progress-fill gold" style={{ width: `${uploadProgress}%` }} /></div>
+                  <span className="text-xs font-medium text-muted">{uploadProgress}%</span>
+                </div>
+                {galleryUploadFile && (
+                  <p className="text-xs text-muted truncate">
+                    Uploading {galleryUploadFile.name} ({(galleryUploadFile.size / (1024 * 1024)).toFixed(1)} MB)
+                  </p>
+                )}
               </div>
             )}
             <div className="flex items-center justify-end gap-2 pt-1">
