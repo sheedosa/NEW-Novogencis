@@ -11,7 +11,7 @@ import {
 import {
   Button, Input, Select, Modal, PageHeader, EmptyState, StatusBadge as UIStatusBadge,
   Stat, Card as UICard, CardHeader, SidebarItem as UISidebarItem,
-  BottomNav, useToast, useConfirm,
+  BottomNav, useToast, useConfirm, Skeleton,
 } from '../components/ui';
 import { Page, User, Appointment, Client, Message, GalleryItem } from '../types';
 import { FORMS } from '../constants';
@@ -93,7 +93,7 @@ const MessagesTab = memo(function MessagesTab({ userMessages, user, onSendMessag
               <h3 className="text-xs font-medium text-obsidian">Novogenics Clinical Support</h3>
               <div className="flex items-center gap-2">
                 <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span>
-                <p className="text-2xs font-medium text-muted">Direct Portal Access</p>
+                <p className="text-xs font-medium text-muted">Direct Portal Access</p>
               </div>
             </div>
           </div>
@@ -135,7 +135,7 @@ const MessagesTab = memo(function MessagesTab({ userMessages, user, onSendMessag
                         </p>
                       )}
                       {msg.isSigned && (
-                        <div className="flex items-center gap-1 text-green-500 text-2xs font-medium">
+                        <div className="flex items-center gap-1 text-green-500 text-xs font-medium">
                           <CheckCircle size={10} />
                           Signed
                         </div>
@@ -163,7 +163,7 @@ const MessagesTab = memo(function MessagesTab({ userMessages, user, onSendMessag
                   ) : (
                     <p className="text-xs leading-relaxed mb-2">{msg.body}</p>
                   )}
-                  <div className={`text-2xs font-medium ${
+                  <div className={`text-xs font-medium ${
                     msg.senderId === user?.id ? 'text-white/40 text-right' : 'text-muted'
                   }`}>
                     {new Date(msg.createdAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
@@ -238,6 +238,15 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<Tab>('overview');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
+  // 400ms perceived-loading window (same pattern as the admin panels) so
+  // freshly-opened tabs show skeletons instead of flashing "no data" while
+  // Firestore listeners deliver the first snapshot.
+  const [warmingUp, setWarmingUp] = useState(true);
+  React.useEffect(() => {
+    const t = setTimeout(() => setWarmingUp(false), 400);
+    return () => clearTimeout(t);
+  }, []);
   const [isFormSaving, setIsFormSaving] = useState(false);
   const [showPolicyModal, setShowPolicyModal] = useState(!user?.policiesAccepted);
   const [showNotifications, setShowNotifications] = useState(false);
@@ -485,7 +494,42 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
     return ` (${age} years old)`;
   };
 
+  // Skeleton placeholder while Firestore delivers the first snapshot —
+  // prevents tabs flashing "no data" for users on slower connections.
+  const renderWarmupSkeleton = () => (
+    <div className="animate-fade-up flex flex-col gap-6">
+      <div className="space-y-2">
+        <Skeleton height={28} width="45%" />
+        <Skeleton height={14} width="30%" />
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        {[0, 1, 2].map(i => (
+          <UICard key={i}>
+            <Skeleton height={12} width="40%" className="mb-3" />
+            <Skeleton height={20} width="65%" />
+          </UICard>
+        ))}
+      </div>
+      <UICard>
+        <Skeleton height={12} width="30%" className="mb-4" />
+        {[0, 1, 2].map(i => (
+          <div key={i} className="flex items-center gap-3 py-2.5">
+            <Skeleton width={36} height={36} rounded="full" />
+            <div className="flex-1 space-y-1.5">
+              <Skeleton height={12} width="55%" />
+              <Skeleton height={10} width="35%" />
+            </div>
+          </div>
+        ))}
+      </UICard>
+    </div>
+  );
+
+  const dataStillWarming = warmingUp && !currentClient;
+
   const renderSection = () => {
+    if (dataStillWarming && activeTab !== 'messages') return renderWarmupSkeleton();
+    if (warmingUp && activeTab === 'messages' && userMessages.length === 0) return renderWarmupSkeleton();
     switch (activeTab) {
       case 'overview':
         return (
@@ -711,7 +755,7 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
                             </div>
                             <div>
                               <p className="text-sm font-medium text-obsidian">{phase.name}</p>
-                              {phase.description && <p className="text-2xs text-muted font-medium">{phase.description}</p>}
+                              {phase.description && <p className="text-xs text-muted font-medium">{phase.description}</p>}
                             </div>
                           </div>
                           <span className={`text-xs px-2 py-1 rounded-full shrink-0 ${statusColor[phase.status]}`}>
@@ -726,7 +770,7 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
                             <span className="text-xs font-medium text-primary shrink-0">{phase.sessionsCompleted} of {phase.sessionsPlanned} visits done</span>
                           </div>
                         )}
-                        {phase.notes && <p className="text-2xs text-muted/80 font-medium mt-2">"{phase.notes}"</p>}
+                        {phase.notes && <p className="text-xs text-muted/80 font-medium mt-2">"{phase.notes}"</p>}
                       </div>
                     );
                   })}
@@ -752,7 +796,7 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
                            <History size={20} className="text-primary" />
                            <h3 className="text-sm font-medium text-obsidian">Your visits</h3>
                         </div>
-                        <div className="px-4 py-1.5 bg-cream rounded-full text-2xs text-muted">
+                        <div className="px-4 py-1.5 bg-cream rounded-full text-xs text-muted">
                            {userAppointments.filter(a => a.status === 'Completed').length} Completed
                         </div>
                      </div>
@@ -767,9 +811,9 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
                                    <p className="text-xs text-muted">Visit {userAppointments.length - i}</p>
                                    <h4 className="text-base font-medium text-obsidian mt-0.5">{session.type}</h4>
                                 </div>
-                                <span className={`text-2xs font-medium px-3 py-1 rounded-full ${session.status === 'Completed' ? 'bg-obsidian text-white' : 'bg-primary/10 text-primary'}`}>{session.status}</span>
+                                <span className={`text-xs font-medium px-3 py-1 rounded-full ${session.status === 'Completed' ? 'bg-obsidian text-white' : 'bg-primary/10 text-primary'}`}>{session.status}</span>
                              </div>
-                             <p className="text-2xs text-muted mb-2 flex items-center gap-2">
+                             <p className="text-xs text-muted mb-2 flex items-center gap-2">
                                 <CalendarDays size={16} />
                                 {new Date(session.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
                                 {session.time && <span>· {session.time}</span>}
@@ -802,11 +846,11 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
                            <p className="text-sm font-medium">{currentClient?.package || 'Assessment underway'}</p>
                         </div>
                         <div>
-                           <p className="text-2xs font-medium text-gray-400 uppercase mb-3">Session Progress</p>
+                           <p className="text-xs font-medium text-gray-400 uppercase mb-3">Overall progress</p>
                            <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
                               <div className="bg-primary h-full rounded-full" style={{ width: `${progress}%` }} />
                            </div>
-                           <p className="text-2xs font-medium text-right mt-1 text-primary">{progress}%</p>
+                           <p className="text-xs font-medium text-right mt-1 text-primary">{progress}%</p>
                         </div>
                         <button onClick={() => setActiveTab('messages')} className="w-full bg-white text-obsidian py-3 rounded-xl text-sm font-medium shadow-lg shadow-white/5 hover:bg-cream transition-all">Request next visit</button>
                      </div>
@@ -823,9 +867,9 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
                         {activeRx.map(rx => (
                           <div key={rx.id} className="p-4 bg-cream rounded-md">
                             <p className="text-sm font-medium text-obsidian">{rx.drugName}</p>
-                            <p className="text-2xs font-medium text-muted mt-0.5">{rx.dosage}</p>
-                            <p className="text-2xs font-medium text-muted/70 mt-1 leading-relaxed">{rx.instructions}</p>
-                            {rx.prescribedBy && <p className="text-2xs text-muted mt-2">Prescribed by {rx.prescribedBy}</p>}
+                            <p className="text-xs font-medium text-muted mt-0.5">{rx.dosage}</p>
+                            <p className="text-xs font-medium text-muted/70 mt-1 leading-relaxed">{rx.instructions}</p>
+                            {rx.prescribedBy && <p className="text-xs text-muted mt-2">Prescribed by {rx.prescribedBy}</p>}
                           </div>
                         ))}
                       </div>
@@ -859,7 +903,7 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
                      {currentClient?.gallery && currentClient.gallery.length > 4 && (
                         <button
                           onClick={() => setShowGalleryUpload(true)}
-                          className="w-full text-center py-3 text-2xs text-muted hover:underline mt-2"
+                          className="w-full text-center py-3 text-xs text-muted hover:underline mt-2"
                         >
                           View All ({currentClient.gallery.length} photos)
                         </button>
@@ -886,7 +930,18 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 md:gap-10">
                {/* Left: Appointments list (rendered second on mobile so policy info sees first) */}
                <div className="lg:col-span-8 space-y-4 order-2 lg:order-1">
-                  {userAppointments.length > 0 ? (
+                  {warmingUp && userAppointments.length === 0 ? (
+                    [0, 1].map(i => (
+                      <div key={i} className="bg-white rounded-lg border border-black/5 shadow-sm p-6 md:p-8 flex items-center gap-4">
+                        <Skeleton width={56} height={56} rounded="md" />
+                        <div className="flex-1 space-y-2">
+                          <Skeleton height={14} width="50%" />
+                          <Skeleton height={11} width="30%" />
+                        </div>
+                        <Skeleton width={80} height={26} rounded="full" />
+                      </div>
+                    ))
+                  ) : userAppointments.length > 0 ? (
                     userAppointments
                       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
                       .map((apt) => {
@@ -900,7 +955,7 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
                             <div className="p-6 md:p-8 flex items-center justify-between gap-4">
                               <div className="flex items-center gap-4 md:gap-6 min-w-0">
                                 <div className="w-14 h-14 md:w-16 md:h-16 bg-cream rounded-lg flex flex-col items-center justify-center text-center shrink-0">
-                                  <span className="text-2xs text-muted">
+                                  <span className="text-xs text-muted">
                                     {new Date(apt.date).toLocaleString('default', { month: 'short' })}
                                   </span>
                                   <span className="text-xl font-medium text-obsidian leading-none">
@@ -910,7 +965,7 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
                                 <div className="min-w-0">
                                   <h4 className="text-base md:text-lg font-medium text-obsidian truncate">{apt.type}</h4>
                                   <p className="text-xs md:text-sm font-medium text-muted">{apt.time}</p>
-                                  {apt.doctorName && <p className="text-2xs text-muted mt-1">{apt.doctorName}</p>}
+                                  {apt.doctorName && <p className="text-xs text-muted mt-1">{apt.doctorName}</p>}
                                 </div>
                               </div>
                               <div className="flex items-center gap-2 shrink-0">
@@ -1081,7 +1136,7 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
                   <div className="bg-obsidian text-white rounded-xl p-5 md:p-8 lg:p-10">
                     <p className="text-xs text-muted text-gray-400 mb-2">Need to make a change?</p>
                     <p className="text-sm font-medium text-gray-300 leading-relaxed mb-5">Use the menu on each upcoming appointment to request a reschedule or cancellation. Our team will confirm via message.</p>
-                    <p className="text-2xs text-muted">48 hours notice required</p>
+                    <p className="text-xs text-muted">48 hours notice required</p>
                   </div>
                </div>
             </div>
@@ -1108,12 +1163,12 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
                     </p>
                     <div className="pt-6 border-t border-white/10 flex items-center justify-between">
                       <div>
-                        <p className="text-2xs text-muted mb-1">Reviewed By</p>
+                        <p className="text-xs text-muted mb-1">Reviewed By</p>
                         <p className="text-xs font-medium">Novogenics Clinical Team</p>
                       </div>
                       {currentClient.assessmentData.reviewDate && (
                         <div className="text-right">
-                          <p className="text-2xs text-muted mb-1">Review Date</p>
+                          <p className="text-xs text-muted mb-1">Review Date</p>
                           <p className="text-xs font-medium">{new Date(currentClient.assessmentData.reviewDate).toLocaleDateString()}</p>
                         </div>
                       )}
@@ -1194,19 +1249,19 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
                   </div>
                   <div className="space-y-6">
                     <div>
-                      <span className="text-2xs text-muted block mb-2">Medical History</span>
+                      <span className="text-xs text-muted block mb-2">Medical History</span>
                       <p className="text-sm font-medium text-obsidian">
                         {currentClient.assessmentData.consultation?.medicalHistory || 'None reported'}
                       </p>
                     </div>
                     <div>
-                      <span className="text-2xs text-muted block mb-2">Medications</span>
+                      <span className="text-xs text-muted block mb-2">Medications</span>
                       <p className="text-sm font-medium text-obsidian">
                         {currentClient.assessmentData.consultation?.medications || 'None reported'}
                       </p>
                     </div>
                     <div>
-                      <span className="text-2xs text-muted block mb-2">Lifestyle & Hair Care</span>
+                      <span className="text-xs text-muted block mb-2">Lifestyle & Hair Care</span>
                       <p className="text-sm font-medium text-obsidian">
                         {currentClient.assessmentData.consultation?.lifestyle || 'N/A'} • {currentClient.assessmentData.consultation?.hairCare || 'N/A'}
                       </p>
@@ -1264,7 +1319,7 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
                           const displayValue = Array.isArray(answer.value) ? answer.value.join(', ') : answer.value;
                           return (
                             <div key={key} className="border-b border-black/5 pb-4 last:border-0">
-                              <p className="text-2xs text-muted mb-2">{answer.text}</p>
+                              <p className="text-xs text-muted mb-2">{answer.text}</p>
                               <p className="text-sm font-medium text-obsidian">{displayValue}</p>
                             </div>
                           );
@@ -1409,29 +1464,29 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
                       <>
                         <div className="space-y-6">
                           <div>
-                            <span className="text-2xs text-muted block mb-2">Full Name</span>
+                            <span className="text-xs text-muted block mb-2">Full Name</span>
                             <p className="text-sm font-medium text-obsidian">{user?.fullName}</p>
                           </div>
                           <div>
-                            <span className="text-2xs text-muted block mb-2">Email Address</span>
+                            <span className="text-xs text-muted block mb-2">Email Address</span>
                             <p className="text-sm font-medium text-obsidian">{user?.email}</p>
                           </div>
                           <div>
-                            <span className="text-2xs text-muted block mb-2">Phone Number</span>
+                            <span className="text-xs text-muted block mb-2">Phone Number</span>
                             <p className="text-sm font-medium text-obsidian">{currentClient?.phone || 'Not provided'}</p>
                           </div>
                         </div>
                         <div className="space-y-6">
                           <div>
-                            <span className="text-2xs text-muted block mb-2">Date of Birth</span>
+                            <span className="text-xs text-muted block mb-2">Date of Birth</span>
                             <p className="text-sm font-medium text-obsidian">{formatDOB(currentClient?.dob)}{calculateAge(currentClient?.dob)}</p>
                           </div>
                           <div>
-                            <span className="text-2xs text-muted block mb-2">Gender</span>
+                            <span className="text-xs text-muted block mb-2">Gender</span>
                             <p className="text-sm font-medium text-obsidian capitalize">{currentClient?.gender || 'Not provided'}</p>
                           </div>
                           <div>
-                            <span className="text-2xs text-muted block mb-2">Address</span>
+                            <span className="text-xs text-muted block mb-2">Address</span>
                             <p className="text-sm font-medium text-obsidian">{currentClient?.address || 'Not provided'}</p>
                           </div>
                         </div>
@@ -1852,10 +1907,10 @@ const TimelineStep: React.FC<{ label: string; state: TimelineState }> = ({ label
                           'text-muted';
   return (
     <div className="flex flex-col items-center gap-1.5 min-w-0">
-      <div className={`w-7 h-7 rounded-full border flex items-center justify-center text-[10px] font-medium shrink-0 ${dotClass}`}>
+      <div className={`w-9 h-9 rounded-full border flex items-center justify-center text-xs font-medium shrink-0 ${dotClass}`}>
         {state === 'complete' ? '✓' : state === 'active' ? '●' : '○'}
       </div>
-      <span className={`text-[10px] uppercase tracking-wider text-center ${labelClass}`}>{label}</span>
+      <span className={`text-xs uppercase tracking-wider text-center ${labelClass}`}>{label}</span>
     </div>
   );
 };
