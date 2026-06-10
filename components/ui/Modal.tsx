@@ -75,8 +75,12 @@ export const Modal: React.FC<ModalProps> = ({
             dragConstraints={{ top: 0, bottom: 0 }}
             dragElastic={{ top: 0, bottom: 0.4 }}
             onDragEnd={(_e, info) => {
-              if (info.offset.y > 120 || info.velocity.y > 500) onClose();
+              // Deliberate pull required — a stray scroll gesture shouldn't dismiss
+              if (info.offset.y > 160 || info.velocity.y > 800) onClose();
             }}
+            role="dialog"
+            aria-modal="true"
+            aria-label={typeof title === 'string' ? title : undefined}
             className={`relative z-10 w-full ${sizeClass[size]} bg-white shadow-modal flex flex-col overflow-hidden
                         max-h-[92dvh] lg:max-h-[90vh]
                         rounded-t-xl lg:rounded-xl

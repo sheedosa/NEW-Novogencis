@@ -24,7 +24,7 @@ import Footer from './components/Footer';
 import WhatsAppWidget from './components/WhatsAppWidget';
 import CookieBanner from './components/CookieBanner';
 import Logo from './components/Logo';
-import { ToastProvider } from './components/ui';
+import { ToastProvider, notify } from './components/ui';
 
 // Error Boundary Component
 class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean, error: Error | null }> {
@@ -223,7 +223,9 @@ const App: React.FC = () => {
       
       setClients(clientsData);
     }, (error) => {
-      handleFirestoreError(error, OperationType.LIST, path);
+      // Surface to the user (listener terminates on error, so this fires once)
+      notify.error('Connection problem', { description: 'Some information may be out of date. Please reload the page.' });
+      try { handleFirestoreError(error, OperationType.LIST, path); } catch { /* logged above */ }
     });
 
     return () => unsubscribe();
@@ -260,7 +262,8 @@ const App: React.FC = () => {
       
       setAppointments(appointmentsData);
     }, (error) => {
-      handleFirestoreError(error, OperationType.LIST, path);
+      notify.error('Connection problem', { description: 'Appointments may be out of date. Please reload the page.' });
+      try { handleFirestoreError(error, OperationType.LIST, path); } catch { /* logged above */ }
     });
 
     return () => unsubscribe();
@@ -295,7 +298,8 @@ const App: React.FC = () => {
         .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
       setMessages(messagesData);
     }, (error) => {
-      handleFirestoreError(error, OperationType.LIST, path);
+      notify.error('Connection problem', { description: 'Messages may be out of date. Please reload the page.' });
+      try { handleFirestoreError(error, OperationType.LIST, path); } catch { /* logged above */ }
     });
 
     return () => unsubscribe();

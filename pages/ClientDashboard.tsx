@@ -879,7 +879,7 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
                   <Card className="p-6 md:p-8 border border-black/5 shadow-sm">
                      <div className="flex justify-between items-center mb-6">
                         <h3 className="text-xs text-muted">Progress Photos</h3>
-                        <button onClick={() => setShowGalleryUpload(true)} className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center hover:bg-primary hover:text-white transition-all">
+                        <button onClick={() => setShowGalleryUpload(true)} aria-label="Add progress photo" title="Add progress photo" className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center hover:bg-primary hover:text-white transition-all">
                            <Camera size={16} />
                         </button>
                      </div>
@@ -1809,6 +1809,7 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
                   <img src={galleryUploadPreview} alt="Preview" className="w-full h-full object-cover" />
                   <button
                     onClick={() => { setGalleryUploadFile(null); setGalleryUploadPreview(null); }}
+                    aria-label="Remove selected photo"
                     className="absolute top-3 right-3 w-9 h-9 rounded-full bg-obsidian/70 text-white flex items-center justify-center hover:bg-obsidian transition-colors"
                   >
                     <X size={13} />
@@ -1877,7 +1878,7 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
       {lightboxImage && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-obsidian/95 animate-fade-in" onClick={() => setLightboxImage(null)}>
           <img src={lightboxImage.url} alt={lightboxImage.label} className="max-w-full max-h-[90dvh] object-contain rounded-md" />
-          <button onClick={() => setLightboxImage(null)} className="absolute top-4 right-4 w-11 h-11 bg-white/10 rounded-md flex items-center justify-center text-white hover:bg-white/20 transition-all">
+          <button onClick={() => setLightboxImage(null)} aria-label="Close photo viewer" className="absolute top-4 right-4 w-11 h-11 bg-white/10 rounded-md flex items-center justify-center text-white hover:bg-white/20 transition-all">
             <X size={18} />
           </button>
           <div className="absolute bottom-5 left-1/2 -translate-x-1/2 max-w-[calc(100vw-3rem)] bg-white/10 text-white px-3 py-1.5 rounded-md text-xs text-center">

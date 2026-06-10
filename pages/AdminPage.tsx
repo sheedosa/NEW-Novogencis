@@ -1106,7 +1106,7 @@ const AdminPage: React.FC<AdminPageProps> = ({
                 {galleryUploadPreview ? (
                   <>
                     <img src={galleryUploadPreview} alt="Preview" className="w-full h-full object-cover" />
-                    <button onClick={() => { setGalleryUploadFile(null); setGalleryUploadPreview(null); }} className="absolute top-3 right-3 w-9 h-9 rounded-full bg-obsidian/70 text-white flex items-center justify-center hover:bg-obsidian transition-colors">
+                    <button onClick={() => { setGalleryUploadFile(null); setGalleryUploadPreview(null); }} aria-label="Remove selected photo" className="absolute top-3 right-3 w-9 h-9 rounded-full bg-obsidian/70 text-white flex items-center justify-center hover:bg-obsidian transition-colors">
                       <X size={13} />
                     </button>
                   </>
@@ -1130,9 +1130,16 @@ const AdminPage: React.FC<AdminPageProps> = ({
                 placeholder="e.g. Post-session 1 — vertex"
               />
               {isUploading && (
-                <div className="flex items-center gap-3">
-                  <div className="progress-track flex-1"><div className="progress-fill gold" style={{ width: `${uploadProgress}%` }} /></div>
-                  <span className="text-xs font-medium text-muted">{uploadProgress}%</span>
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-3">
+                    <div className="progress-track flex-1"><div className="progress-fill gold" style={{ width: `${uploadProgress}%` }} /></div>
+                    <span className="text-xs font-medium text-muted">{uploadProgress}%</span>
+                  </div>
+                  {galleryUploadFile && (
+                    <p className="text-xs text-muted truncate">
+                      Uploading {galleryUploadFile.name} ({(galleryUploadFile.size / (1024 * 1024)).toFixed(1)} MB)
+                    </p>
+                  )}
                 </div>
               )}
               <div className="flex items-center justify-end gap-2 pt-1">
@@ -1154,7 +1161,7 @@ const AdminPage: React.FC<AdminPageProps> = ({
         {lightboxImage && (
           <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-obsidian/95 animate-fade-in" onClick={() => setLightboxImage(null)}>
             <img src={lightboxImage.url} alt={lightboxImage.label} className="max-w-full max-h-[90dvh] object-contain rounded-md" />
-            <button onClick={() => setLightboxImage(null)} className="absolute top-4 right-4 w-9 h-9 bg-white/10 rounded-md flex items-center justify-center text-white hover:bg-white/20 transition-all">
+            <button onClick={() => setLightboxImage(null)} aria-label="Close photo viewer" className="absolute top-4 right-4 w-9 h-9 bg-white/10 rounded-md flex items-center justify-center text-white hover:bg-white/20 transition-all">
               <X size={15} />
             </button>
             <div className="absolute bottom-5 left-1/2 -translate-x-1/2 bg-white/10 text-white px-3 py-1.5 rounded-md text-xs text-center">
