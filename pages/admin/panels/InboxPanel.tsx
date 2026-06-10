@@ -334,8 +334,9 @@ function InboxPanel() {
         }
       />
 
-      {/* Filter chips — use shared .filter-chip CSS so styling stays consistent. */}
-      <div className="flex gap-2 overflow-x-auto no-scrollbar pb-0.5">
+      {/* Filter chips — wrap on narrow screens so Forms/Payments are never
+          hidden behind an uncued horizontal scroll. */}
+      <div className="flex flex-wrap gap-2 pb-0.5">
         {filterChips.map(chip => (
           <button
             key={chip.id}
@@ -547,11 +548,12 @@ function InboxPanel() {
                 {/* ── Inline reply expansion (message-type items only) ─────────── */}
                 <AnimatePresence>
                   {item.type === 'message' && expandedReplyId === item.id && item.messageId && (() => {
-                    // Find last 3 messages in this thread (between admin and patient).
+                    // Last 5 messages in this thread (between admin and patient).
+                    // Older history lives behind "Open thread".
                     const threadMessages = messages
                       .filter(m => m.senderId === item.patientId || m.recipientId === item.patientId)
                       .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
-                    const recentThread = threadMessages.slice(-3);
+                    const recentThread = threadMessages.slice(-5);
                     return (
                       <motion.div
                         initial={{ opacity: 0, height: 0 }}
@@ -560,8 +562,11 @@ function InboxPanel() {
                         transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
                         className="mt-3 border-t border-cream pt-3"
                       >
-                        <div className="flex flex-col gap-2 mb-3">
-                          {recentThread.map(m => (
+                        {/* col-reverse + reversed array bottom-anchors the scroll
+                            (newest visible) without a scrollTop effect that would
+                            race the height animation. */}
+                        <div className="flex flex-col-reverse gap-2 mb-3 max-h-60 overflow-y-auto pr-1">
+                          {[...recentThread].reverse().map(m => (
                             <div
                               key={m.id}
                               className={`text-sm px-3 py-2 rounded-md max-w-[85%] ${

@@ -52,18 +52,18 @@ function getPrepFlags(apt: Appointment, allMessages: any[], allClients: any[]): 
     m => m.type === 'form' && !m.isSigned &&
          (m.senderId === apt.clientId || m.recipientId === apt.clientId)
   );
-  if (unsigned) flags.push({ id: 'form', label: 'Form unsigned', icon: <FileText size={11} />, tone: 'warning' });
+  if (unsigned) flags.push({ id: 'form', label: 'Form unsigned', icon: <FileText size={12} />, tone: 'warning' });
 
   // No deposit / pending payment?
   const pendingPay = (client.payments || []).find((p: any) => p.status === 'Pending' || p.status === 'Overdue');
-  if (pendingPay) flags.push({ id: 'pay', label: 'Payment pending', icon: <CreditCard size={11} />, tone: 'warning' });
+  if (pendingPay) flags.push({ id: 'pay', label: 'Payment pending', icon: <CreditCard size={12} />, tone: 'warning' });
 
   // Policies not accepted?
-  if (!client.policiesAccepted) flags.push({ id: 'policy', label: 'Policies pending', icon: <AlertTriangle size={11} />, tone: 'danger' });
+  if (!client.policiesAccepted) flags.push({ id: 'policy', label: 'Policies pending', icon: <AlertTriangle size={12} />, tone: 'danger' });
 
   // Notes missing on a completed appointment?
   if (apt.status === 'Completed' && (!apt.notes || apt.notes.trim().length === 0)) {
-    flags.push({ id: 'notes', label: 'Notes missing', icon: <StickyNote size={11} />, tone: 'warning' });
+    flags.push({ id: 'notes', label: 'Notes missing', icon: <StickyNote size={12} />, tone: 'warning' });
   }
 
   return flags;
@@ -629,10 +629,10 @@ function TodayPanel() {
                                 {flags.map(f => (
                                   <span
                                     key={f.id}
-                                    className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-sm text-xs ${
-                                      f.tone === 'danger'  ? 'bg-danger-bg text-danger-text' :
-                                      f.tone === 'warning' ? 'bg-warning-bg text-warning-text' :
-                                                             'bg-cream text-muted'
+                                    className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-medium ${
+                                      f.tone === 'danger'  ? 'bg-danger-bg text-danger-text border border-danger/25' :
+                                      f.tone === 'warning' ? 'bg-warning-bg text-warning-text border border-warning/30' :
+                                                             'bg-cream text-muted border border-sand'
                                     }`}
                                   >
                                     {f.icon}
