@@ -263,12 +263,12 @@ const ClientRecord: React.FC = () => {
     <div className="animate-fade-up flex flex-col">
       {ConfirmHost}
       {/* ── Sticky patient bar (always visible) ───────────────────────────── */}
-      <div className="sticky top-[52px] z-30 -mx-4 sm:-mx-6 lg:-mx-4 px-4 sm:px-6 lg:px-4 py-3 bg-ivory/95 backdrop-blur border-b border-sand">
+      <div className="sticky top-[52px] z-30 -mx-4 sm:-mx-6 lg:-mx-4 px-4 sm:px-6 lg:px-4 py-2 lg:py-3 bg-ivory/95 backdrop-blur border-b border-sand">
         <div className="flex items-center gap-3">
           <UIButton variant="ghost" size="sm" onClick={() => setSelectedClientId(null)} aria-label="Back to list">
             <ArrowLeft size={14} />
           </UIButton>
-          <div className="avatar avatar-md shrink-0">{getInitials(selectedClient.name)}</div>
+          <div className="avatar avatar-md max-sm:!w-7 max-sm:!h-7 max-sm:!text-[10px] shrink-0">{getInitials(selectedClient.name)}</div>
           <div className="min-w-0 flex-grow">
             <div className="flex items-center gap-2">
               <h2 className="text-base font-medium text-obsidian truncate">{selectedClient.name}</h2>
@@ -289,7 +289,7 @@ const ClientRecord: React.FC = () => {
             <UIButton variant="ghost" size="sm" onClick={openQuickEdit} aria-label="Quick edit">
               <Pencil size={13} />
             </UIButton>
-            <UIButton variant="primary" size="sm" leadingIcon={<CalendarClock size={13} />} onClick={() => openBookingModal(selectedClient.id)}>
+            <UIButton variant="primary" size="sm" className="max-sm:min-h-[44px]" leadingIcon={<CalendarClock size={13} />} onClick={() => openBookingModal(selectedClient.id)}>
               <span className="hidden md:inline">Book appointment</span>
               <span className="md:hidden">Book</span>
             </UIButton>
@@ -494,14 +494,16 @@ const ClientRecord: React.FC = () => {
             {/* Red flags (only if any) — appear right after status so doctors see them immediately */}
             {redFlags.length > 0 && (
               <UICard
-                className="!bg-danger-bg !border-danger/20 order-2"
+                className="!bg-danger-bg !border-danger/20 order-2 max-sm:!px-3 max-sm:!py-2.5"
                 title="Safety concerns surfaced from the patient's intake form. Review these before planning any treatment."
               >
                 <div className="flex items-start gap-3">
                   <Siren size={16} className="text-danger mt-0.5 shrink-0" />
                   <div className="min-w-0">
-                    <p className="text-sm font-medium text-danger-text mb-1">Clinical red flags</p>
-                    <p className="text-xs text-danger-text/80 mb-3">Items flagged in the intake form that may affect treatment suitability.</p>
+                    <p className="text-sm font-medium text-danger-text mb-1.5">Clinical red flags</p>
+                    {/* Explainer hidden on phones — the chips carry the content;
+                        keeps the safety card compact so feedback is visible sooner. */}
+                    <p className="hidden sm:block text-xs text-danger-text/80 mb-3">Items flagged in the intake form that may affect treatment suitability.</p>
                     <div className="flex flex-wrap gap-1.5">
                       {redFlags.map((flag, i) => <UIBadge key={i} variant="danger">{flag}</UIBadge>)}
                     </div>
@@ -548,8 +550,9 @@ const ClientRecord: React.FC = () => {
                 Snapshot is now purely: status → red flags → clinical feedback
                 — the doctor's primary clinical workspace. */}
 
-            {/* Mobile-only: contact + notes accordion (since identity rail is hidden) */}
-            <details className="lg:hidden">
+            {/* Mobile-only: contact + notes accordion (since identity rail is hidden).
+                Open by default so contact details are glanceable; still collapsible. */}
+            <details open className="lg:hidden">
               <summary className="cursor-pointer text-sm font-medium text-obsidian py-2 px-3 bg-cream rounded-md flex items-center justify-between">
                 <span>Contact & internal notes</span>
                 <ChevronDown size={14} />
@@ -1077,18 +1080,18 @@ const ClientRecord: React.FC = () => {
                                   <div className="grid grid-cols-2 gap-3">
                                     <div>
                                       <label className="text-2xs text-muted block mb-1">Status</label>
-                                      <select value={editPhaseForm.status || phase.status} onChange={e => setEditPhaseForm(p => ({ ...p, status: e.target.value as TreatmentPhase['status'] }))} className="w-full bg-white border-black/10 rounded-lg px-3 py-2 text-xs font-medium">
+                                      <select value={editPhaseForm.status || phase.status} onChange={e => setEditPhaseForm(p => ({ ...p, status: e.target.value as TreatmentPhase['status'] }))} className="w-full bg-white border-black/10 rounded-lg px-3 py-2 text-base sm:text-xs font-medium">
                                         <option>Planned</option><option>Active</option><option>Completed</option><option>On Hold</option>
                                       </select>
                                     </div>
                                     <div>
                                       <label className="text-2xs text-muted block mb-1">Sessions Done</label>
-                                      <input type="number" min={0} max={phase.sessionsPlanned} value={editPhaseForm.sessionsCompleted ?? phase.sessionsCompleted} onChange={e => setEditPhaseForm(p => ({ ...p, sessionsCompleted: Number(e.target.value) }))} className="w-full bg-white border-black/10 rounded-lg px-3 py-2 text-xs font-medium" />
+                                      <input type="number" min={0} max={phase.sessionsPlanned} value={editPhaseForm.sessionsCompleted ?? phase.sessionsCompleted} onChange={e => setEditPhaseForm(p => ({ ...p, sessionsCompleted: Number(e.target.value) }))} className="w-full bg-white border-black/10 rounded-lg px-3 py-2 text-base sm:text-xs font-medium" />
                                     </div>
                                   </div>
                                   <div>
                                     <label className="text-2xs text-muted block mb-1">Notes</label>
-                                    <textarea value={editPhaseForm.notes ?? phase.notes ?? ''} onChange={e => setEditPhaseForm(p => ({ ...p, notes: e.target.value }))} rows={2} className="w-full bg-white border-black/10 rounded-lg px-3 py-2 text-xs font-medium resize-none" />
+                                    <textarea value={editPhaseForm.notes ?? phase.notes ?? ''} onChange={e => setEditPhaseForm(p => ({ ...p, notes: e.target.value }))} rows={2} className="w-full bg-white border-black/10 rounded-lg px-3 py-2 text-base sm:text-xs font-medium resize-none" />
                                   </div>
                                   <div className="flex gap-2 justify-end">
                                     <button onClick={() => setEditingPhaseId(null)} className="px-4 py-1.5 text-xs text-muted hover:text-obsidian">Cancel</button>
