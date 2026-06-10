@@ -124,10 +124,15 @@ const MessagesTab = memo(function MessagesTab({ userMessages, user, onSendMessag
                       <p className="text-xs font-medium">{FORMS.find(f => f.id === msg.formId)?.title || msg.subject}</p>
                       <button
                         onClick={() => onOpenForm(msg)}
-                        className="block w-full bg-primary text-obsidian text-center py-2 rounded-xl text-xs text-muted transition-transform"
+                        className="block w-full bg-primary text-obsidian text-center py-2.5 rounded-xl text-sm font-medium hover:opacity-90 transition-all"
                       >
-                        {msg.isSigned ? 'View Completed Form' : 'Open Interactive Form'}
+                        {msg.isSigned ? 'View completed form' : 'Open & sign form'}
                       </button>
+                      {!msg.isSigned && (
+                        <p className="text-xs text-muted leading-relaxed">
+                          A consent form to read and sign before your visit — it takes a couple of minutes.
+                        </p>
+                      )}
                       {msg.isSigned && (
                         <div className="flex items-center gap-1 text-green-500 text-2xs font-medium">
                           <CheckCircle size={10} />
@@ -141,15 +146,18 @@ const MessagesTab = memo(function MessagesTab({ userMessages, user, onSendMessag
                         <CreditCard size={16} />
                         <span className="text-xs text-muted">Payment Request</span>
                       </div>
-                      <p className="text-xs font-medium">{msg.body.split(': ')[0]}</p>
+                      <p className="text-sm font-medium leading-relaxed">{msg.body}</p>
                       <a
                         href={msg.paymentUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="block w-full bg-primary text-obsidian text-center py-2 rounded-xl text-xs text-muted transition-transform"
+                        className="block w-full bg-primary text-obsidian text-center py-2.5 rounded-xl text-sm font-medium hover:opacity-90 transition-all"
                       >
-                        Complete Payment
+                        Pay securely
                       </a>
+                      <p className="text-xs text-muted leading-relaxed">
+                        Opens our secure payment page. Your booking is confirmed as soon as payment is made.
+                      </p>
                     </div>
                   ) : (
                     <p className="text-xs leading-relaxed mb-2">{msg.body}</p>
@@ -425,7 +433,7 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
   // Filter appointments for this user
   const userAppointments = appointments.filter(a => a.clientId === user?.id);
   const nextAppointment = userAppointments
-    .filter(a => a.status === 'Confirmed' || a.status === 'Pending')
+    .filter(a => a.status === 'Confirmed' || a.status === 'Pending' || a.status === 'Awaiting deposit')
     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())[0];
 
   // Progress = % of completed sessions out of all booked sessions
@@ -524,6 +532,29 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
               </button>
             )}
 
+            {/* What happens next — guidance for newly-reviewed patients with no booking yet */}
+            {currentClient?.assessmentData?.clinicalFeedback && currentClient?.status === 'Reviewed' && !nextAppointment && (
+              <UICard accent="gold">
+                <CardHeader title="What happens next" leadingIcon={<Navigation size={14} />} />
+                <ol className="space-y-3 mb-4">
+                  {[
+                    'Read your personalised feedback from the clinical team.',
+                    'Request your first visit whenever you’re ready — no rush.',
+                    'Or simply wait — we’ll call you within 2 working days to talk it through.',
+                  ].map((step, i) => (
+                    <li key={i} className="flex gap-3 items-start">
+                      <span className="w-6 h-6 rounded-full bg-primary/15 text-primary text-xs font-medium flex items-center justify-center shrink-0 mt-0.5">{i + 1}</span>
+                      <span className="text-sm text-obsidian leading-relaxed">{step}</span>
+                    </li>
+                  ))}
+                </ol>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <Button variant="primary" fullWidth onClick={() => setActiveTab('assessments')}>Read my feedback</Button>
+                  <Button variant="secondary" fullWidth onClick={() => setActiveTab('messages')}>Request a visit</Button>
+                </div>
+              </UICard>
+            )}
+
             {/* Stats */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <UICard>
@@ -601,7 +632,7 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
                 </div>
               </UICard>
 
-              <UICard accent="gold">
+              <UICard accent="gold" className={currentClient?.assessmentData?.clinicalFeedback ? 'order-first' : ''}>
                 <CardHeader
                   title="Clinical update"
                   subtitle={
@@ -653,8 +684,8 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
                     <Navigation size={20} className="text-primary" />
                     <h3 className="text-xs font-medium text-obsidian">{plan.title || 'Treatment Plan'}</h3>
                   </div>
-                  <div className="px-4 py-1.5 bg-cream rounded-full text-2xs text-muted">
-                    {plan.phases.filter(p => p.status === 'Completed').length}/{plan.phases.length} Phases Complete
+                  <div className="px-4 py-1.5 bg-cream rounded-full text-xs text-muted">
+                    {plan.phases.filter(p => p.status === 'Completed').length} of {plan.phases.length} steps complete
                   </div>
                 </div>
                 <div className="space-y-4">
@@ -673,14 +704,16 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
                               {phase.description && <p className="text-2xs text-muted font-medium">{phase.description}</p>}
                             </div>
                           </div>
-                          <span className={`text-xs text-muted px-2 py-1 rounded-full shrink-0 ${statusColor[phase.status]}`}>{phase.status}</span>
+                          <span className={`text-xs px-2 py-1 rounded-full shrink-0 ${statusColor[phase.status]}`}>
+                            {phase.status === 'On Hold' ? 'Paused' : phase.status === 'Planned' ? 'Up next' : phase.status}
+                          </span>
                         </div>
                         {phase.status !== 'Planned' && (
                           <div className="flex items-center gap-3 mt-3">
                             <div className="flex-grow h-1 bg-black/5 rounded-full overflow-hidden">
                               <div className="bg-primary h-full rounded-full" style={{ width: `${pct}%` }} />
                             </div>
-                            <span className="text-2xs font-medium text-primary shrink-0">{phase.sessionsCompleted}/{phase.sessionsPlanned} sessions</span>
+                            <span className="text-xs font-medium text-primary shrink-0">{phase.sessionsCompleted} of {phase.sessionsPlanned} visits done</span>
                           </div>
                         )}
                         {phase.notes && <p className="text-2xs text-muted/80 font-medium mt-2">"{phase.notes}"</p>}
@@ -704,7 +737,7 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
                      <div className="flex justify-between items-center mb-8">
                         <div className="flex items-center gap-3">
                            <History size={20} className="text-primary" />
-                           <h3 className="text-xs font-medium text-obsidian">Session Timeline</h3>
+                           <h3 className="text-sm font-medium text-obsidian">Your visits</h3>
                         </div>
                         <div className="px-4 py-1.5 bg-cream rounded-full text-2xs text-muted">
                            {userAppointments.filter(a => a.status === 'Completed').length} Completed
@@ -718,7 +751,7 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
                           <div key={session.id} className={`p-5 md:p-6 rounded-2xl border transition-all ${session.status === 'Completed' ? 'bg-cream/50 border-black/5' : 'bg-white border-dashed border-primary/20'}`}>
                              <div className="flex justify-between items-start mb-3">
                                 <div>
-                                   <p className="text-2xs text-muted">Session {userAppointments.length - i}</p>
+                                   <p className="text-xs text-muted">Visit {userAppointments.length - i}</p>
                                    <h4 className="text-base font-medium text-obsidian mt-0.5">{session.type}</h4>
                                 </div>
                                 <span className={`text-2xs font-medium px-3 py-1 rounded-full ${session.status === 'Completed' ? 'bg-obsidian text-white' : 'bg-primary/10 text-primary'}`}>{session.status}</span>
@@ -748,11 +781,11 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
                {/* Right: Progress Summary, Prescriptions & Gallery (rendered first on mobile) */}
                <div className="lg:col-span-4 space-y-4 md:space-y-6 order-1 lg:order-2">
                   <Card className="p-5 md:p-8 bg-obsidian text-white border-none shadow-xl shadow-obsidian/20">
-                     <h3 className="text-xs text-muted text-gray-400 mb-6">Program Overview</h3>
+                     <h3 className="text-sm text-gray-400 mb-6">Your progress</h3>
                      <div className="space-y-6">
                         <div>
-                           <p className="text-2xs text-muted mb-1">Current Protocol</p>
-                           <p className="text-sm font-medium">{currentClient?.package || 'Assessment Underway'}</p>
+                           <p className="text-xs text-gray-400 mb-1">Your treatment</p>
+                           <p className="text-sm font-medium">{currentClient?.package || 'Assessment underway'}</p>
                         </div>
                         <div>
                            <p className="text-2xs font-medium text-gray-400 uppercase mb-3">Session Progress</p>
@@ -761,7 +794,7 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
                            </div>
                            <p className="text-2xs font-medium text-right mt-1 text-primary">{progress}%</p>
                         </div>
-                        <button onClick={() => setActiveTab('messages')} className="w-full bg-white text-obsidian py-3 rounded-xl text-xs text-muted shadow-lg shadow-white/5 transition-all">Request Next Session</button>
+                        <button onClick={() => setActiveTab('messages')} className="w-full bg-white text-obsidian py-3 rounded-xl text-sm font-medium shadow-lg shadow-white/5 hover:bg-cream transition-all">Request next visit</button>
                      </div>
                   </Card>
 
@@ -842,7 +875,7 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
                         // Compare full date+time, not just calendar day, so an
                         // appointment at 09:00 isn't marked "upcoming" at 14:00 the same day.
                         const aptDateTime = new Date(`${apt.date}T${apt.time || '00:00'}`);
-                        const isUpcoming = (apt.status === 'Confirmed' || apt.status === 'Pending') && aptDateTime.getTime() >= Date.now();
+                        const isUpcoming = (apt.status === 'Confirmed' || apt.status === 'Pending' || apt.status === 'Awaiting deposit') && aptDateTime.getTime() >= Date.now();
                         const isRequestingThis = requestingAptId === apt.id;
                         return (
                           <div key={apt.id} className="bg-white rounded-lg border border-black/5 shadow-sm overflow-hidden">
@@ -863,12 +896,13 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
                                 </div>
                               </div>
                               <div className="flex items-center gap-2 shrink-0">
-                                <span className={`px-3 py-1.5 rounded-full text-xs text-muted ${
+                                <span className={`px-3 py-1.5 rounded-full text-xs font-medium ${
                                   apt.status === 'Confirmed' ? 'bg-green-100 text-green-700' :
                                   apt.status === 'Completed' ? 'bg-blue-100 text-blue-700' :
                                   apt.status === 'Cancelled' ? 'bg-red-100 text-red-600' :
+                                  apt.status === 'Awaiting deposit' ? 'bg-amber-100 text-amber-700' :
                                   'bg-gray-100 text-muted'
-                                }`}>{apt.status}</span>
+                                }`}>{apt.status === 'Awaiting deposit' ? 'Deposit needed' : apt.status}</span>
                                 {isUpcoming && (
                                   <button
                                     onClick={() => { setRequestingAptId(isRequestingThis ? null : apt.id); setAptAction(null); setReschedulePreference(''); }}
@@ -879,6 +913,20 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
                                 )}
                               </div>
                             </div>
+
+                            {/* Deposit explainer — shown while the booking is held pending payment */}
+                            {apt.status === 'Awaiting deposit' && (
+                              <div className="px-6 md:px-8 pb-5 -mt-2">
+                                <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center gap-3">
+                                  <p className="text-sm text-amber-800 leading-relaxed flex-grow">
+                                    This time is held for you. Pay the deposit to confirm your booking.
+                                  </p>
+                                  <Button variant="primary" size="sm" onClick={() => setActiveTab('messages')} leadingIcon={<CreditCard size={13} />}>
+                                    Pay deposit
+                                  </Button>
+                                </div>
+                              </div>
+                            )}
 
                             {/* Inline action panel */}
                             {isRequestingThis && (
@@ -1034,7 +1082,7 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
                     <VTimelineStep label="Submitted" state="complete" hasNext />
                     <VTimelineStep label="Under review" state="active" hasNext />
                     <VTimelineStep label="Feedback ready" state="pending" hasNext />
-                    <VTimelineStep label="Book consultation" state="pending" />
+                    <VTimelineStep label="Book your first visit" state="pending" />
                   </div>
                   {/* Desktop horizontal */}
                   <div className="hidden md:flex items-center gap-3 md:gap-4">
@@ -1044,7 +1092,7 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
                     <TimelineConnector state="pending" />
                     <TimelineStep label="Feedback ready" state="pending" />
                     <TimelineConnector state="pending" />
-                    <TimelineStep label="Book consultation" state="pending" />
+                    <TimelineStep label="Book your first visit" state="pending" />
                   </div>
                   <p className="text-xs text-hint mt-4 md:text-center">
                     Submitted {currentClient?.createdAt
@@ -1061,19 +1109,19 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-10">
                   <div className="space-y-6">
                     <div>
-                      <span className="text-2xs text-muted block mb-2">Screening Conditions</span>
+                      <span className="text-xs text-muted block mb-2">Health conditions you told us about</span>
                       <p className="text-sm font-medium text-obsidian">
                         {currentClient.assessmentData.screening?.conditions?.join(', ') || 'None reported'}
                       </p>
                     </div>
                     <div>
-                      <span className="text-2xs text-muted block mb-2">Triggers</span>
+                      <span className="text-xs text-muted block mb-2">Possible triggers you mentioned</span>
                       <p className="text-sm font-medium text-obsidian">
                         {currentClient.assessmentData.consultation?.triggers || 'None reported'}
                       </p>
                     </div>
                     <div>
-                      <span className="text-2xs text-muted block mb-2">Lifestyle</span>
+                      <span className="text-xs text-muted block mb-2">Lifestyle & habits</span>
                       <p className="text-sm font-medium text-obsidian">
                         {currentClient.assessmentData.consultation?.lifestyle || 'N/A'}
                       </p>

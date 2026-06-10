@@ -45,8 +45,10 @@ export const StatusBadge: React.FC<{ status: string }> = ({ status }) => {
     'Converted': 'active',
     'Completed': 'active',
     'Pending': 'pending',
+    'Awaiting deposit': 'pending',
     'Cancelled': 'danger',
     'Not Suitable': 'danger',
+    'No-Show': 'inactive',
     'Inactive': 'inactive',
   };
   return <Badge variant={map[status] || 'inactive'}>{status}</Badge>;
