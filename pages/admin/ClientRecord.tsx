@@ -8,13 +8,13 @@ import { FORMS } from '../../constants';
 import {
   Camera, Upload, X, Plus, Image as ImageIcon, Loader2, ArrowLeft, CheckCircle,
   CalendarClock, FileText, CreditCard, ChevronDown, Send, GitCompare,
-  ClipboardList, Stethoscope, Pencil, Check,
+  Stethoscope, Pencil, Check,
   User as UserIcon, MessageSquare, Activity, Receipt, Ban,
   Phone, Mail, MapPin, Siren, Calendar as CalendarIcon,
 } from 'lucide-react';
 import { Card as UICard, CardHeader, Button as UIButton, Badge as UIBadge, StatusBadge as UIStatusBadge, EmptyState as UIEmptyState, useToast, Modal as UIModal, useConfirm } from '../../components/ui';
 
-type ViewTab = 'snapshot' | 'assessment' | 'plan' | 'files' | 'activity' | 'money';
+type ViewTab = 'snapshot' | 'plan' | 'files' | 'activity' | 'money';
 import { storage } from '../../firebase';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { processImageForUpload, validateImageFile, ACCEPTED_IMAGE_TYPES } from '../../imageUtils';
@@ -116,7 +116,7 @@ const ClientRecord: React.FC = () => {
   // into a 5-tab view used by this component.
   const incomingToView: Record<ClientRecordTab, ViewTab> = {
     overview: 'snapshot',
-    assessment: 'assessment',
+    assessment: 'snapshot', // intake now lives inside Snapshot — alias kept so deep links still land
     treatment: 'plan',
     forms: 'files',
     gallery: 'files',
@@ -125,7 +125,6 @@ const ClientRecord: React.FC = () => {
   };
   const viewToCanonical: Record<ViewTab, ClientRecordTab> = {
     snapshot: 'overview',
-    assessment: 'assessment',
     plan: 'treatment',
     files: 'forms',
     activity: 'communications',
@@ -304,7 +303,6 @@ const ClientRecord: React.FC = () => {
         <div className="flex gap-1 overflow-x-auto no-scrollbar">
           {([
             { id: 'snapshot',   label: 'Snapshot',   icon: <UserIcon size={13} />,        show: true },
-            { id: 'assessment', label: 'Assessment', icon: <ClipboardList size={13} />,   show: !!selectedClient.assessmentData?.answers },
             { id: 'plan',       label: 'Plan',       icon: <Activity size={13} />,        show: true },
             { id: 'files',      label: 'Files',      icon: <FileText size={13} />,        show: true },
             { id: 'activity',   label: 'Activity',   icon: <MessageSquare size={13} />,   show: true },
@@ -545,10 +543,94 @@ const ClientRecord: React.FC = () => {
               />
             </UICard>
 
-            {/* Upcoming bookings moved to the left rail.
-                Recent activity removed (lives in Activity tab).
-                Snapshot is now purely: status → red flags → clinical feedback
-                — the doctor's primary clinical workspace. */}
+            {/* Intake assessment — full Q&A + photos, collapsed by default.
+                Merged from the former Assessment tab so the record is 5 tabs
+                and the intake is one tap away from the feedback editor. */}
+            {selectedClient.assessmentData?.answers && (
+              <details className="order-4">
+                <summary className="cursor-pointer text-sm font-medium text-obsidian py-2 px-3 bg-cream rounded-md flex items-center justify-between">
+                  <span>
+                    Intake assessment
+                    <span className="text-xs text-muted font-normal ml-2">
+                      Submitted {selectedClient.createdAt
+                        ? new Date(selectedClient.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+                        : 'recently'}
+                    </span>
+                  </span>
+                  <ChevronDown size={14} />
+                </summary>
+                <div className="mt-2 flex flex-col gap-3">
+                  {(() => {
+                    const answers = selectedClient.assessmentData?.answers || {};
+                    const photoUrls: string[] = ['f26', 'm22']
+                      .map(k => answers[k])
+                      .filter(Boolean)
+                      .flatMap(a => (Array.isArray(a!.value) ? (a!.value as string[]) : []));
+                    return photoUrls.length > 0 ? (
+                      <UICard>
+                        <CardHeader title="Submitted photos" subtitle="Tap to enlarge" />
+                        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
+                          {photoUrls.map((url, i) => (
+                            <button
+                              key={i}
+                              type="button"
+                              onClick={() => setLightboxImage({
+                                id: `assessment-${i}`,
+                                url,
+                                label: `Assessment photo ${i + 1}`,
+                                uploadedAt: selectedClient.createdAt ?? new Date().toISOString(),
+                                source: 'Assessment',
+                              })}
+                              className="block aspect-square rounded-md overflow-hidden bg-cream border border-sand hover:border-primary/40 transition-colors"
+                            >
+                              <img src={url} alt={`Assessment photo ${i + 1}`} className="w-full h-full object-cover" loading="lazy" />
+                            </button>
+                          ))}
+                        </div>
+                      </UICard>
+                    ) : null;
+                  })()}
+
+                  <UICard>
+                    <CardHeader title="Hair concerns & goals" />
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+                      {Object.entries(selectedClient.assessmentData?.answers || {})
+                        .filter(([key]) => ['f1','f2','f3','f4','f5','m1','m2','m3','m4','m5'].includes(key))
+                        .map(([key, val]: [string, any]) => (
+                          <div key={key}>
+                            <p className="text-xs text-muted leading-tight">{val.text}</p>
+                            <p className="text-sm text-obsidian leading-relaxed mt-1">
+                              {Array.isArray(val.value) ? val.value.join(', ') : val.value || '—'}
+                            </p>
+                          </div>
+                        ))}
+                    </div>
+                  </UICard>
+
+                  <UICard>
+                    <CardHeader
+                      title="Medical & safety screening"
+                      subtitle="Significant answers are highlighted"
+                    />
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3">
+                      {Object.entries(selectedClient.assessmentData?.answers || {})
+                        .filter(([key]) => !['f1','f2','f3','f4','f5','m1','m2','m3','m4','m5','f26','m22'].includes(key))
+                        .map(([key, val]: [string, any]) => {
+                          const isSignificant = val.value && val.value !== 'No' && val.value !== 'None' && !String(val.value).includes('None');
+                          return (
+                            <div key={key} className={`p-2 -m-2 rounded-sm ${isSignificant ? 'bg-danger-bg' : ''}`}>
+                              <p className="text-xs text-muted leading-tight">{val.text}</p>
+                              <p className={`text-sm leading-relaxed mt-1 ${isSignificant ? 'text-danger-text font-medium' : 'text-obsidian'}`}>
+                                {Array.isArray(val.value) ? val.value.join(', ') : val.value || '—'}
+                              </p>
+                            </div>
+                          );
+                        })}
+                    </div>
+                  </UICard>
+                </div>
+              </details>
+            )}
 
             {/* Mobile-only: contact + notes accordion (since identity rail is hidden).
                 Open by default so contact details are glanceable; still collapsible. */}
@@ -946,59 +1028,6 @@ const ClientRecord: React.FC = () => {
             (controlled by the `show: !!selectedClient.assessmentData?.answers`
             filter in the tab bar above), so the section below is unconditional
             on data presence — it's already gated. */}
-        {viewTab === 'assessment' && selectedClient.assessmentData?.answers && (
-          <div className="animate-fade-up flex flex-col gap-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-base font-medium text-obsidian">Intake assessment</h2>
-                <p className="text-xs text-muted mt-0.5">
-                  Submitted {selectedClient.createdAt
-                    ? new Date(selectedClient.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
-                    : 'recently'}
-                </p>
-              </div>
-            </div>
-
-            <UICard>
-              <CardHeader title="Hair concerns & goals" />
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
-                {Object.entries(selectedClient.assessmentData?.answers || {})
-                  .filter(([key]) => ['f1','f2','f3','f4','f5','m1','m2','m3','m4','m5'].includes(key))
-                  .map(([key, val]: [string, any]) => (
-                    <div key={key}>
-                      <p className="text-xs text-muted leading-tight">{val.text}</p>
-                      <p className="text-sm text-obsidian leading-relaxed mt-1">
-                        {Array.isArray(val.value) ? val.value.join(', ') : val.value || '—'}
-                      </p>
-                    </div>
-                  ))}
-              </div>
-            </UICard>
-
-            <UICard>
-              <CardHeader
-                title="Medical & safety screening"
-                subtitle="Significant answers are highlighted"
-              />
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3">
-                {Object.entries(selectedClient.assessmentData?.answers || {})
-                  .filter(([key]) => !['f1','f2','f3','f4','f5','m1','m2','m3','m4','m5','f26','m22'].includes(key))
-                  .map(([key, val]: [string, any]) => {
-                    const isSignificant = val.value && val.value !== 'No' && val.value !== 'None' && !String(val.value).includes('None');
-                    return (
-                      <div key={key} className={`p-2 -m-2 rounded-sm ${isSignificant ? 'bg-danger-bg' : ''}`}>
-                        <p className="text-xs text-muted leading-tight">{val.text}</p>
-                        <p className={`text-sm leading-relaxed mt-1 ${isSignificant ? 'text-danger-text font-medium' : 'text-obsidian'}`}>
-                          {Array.isArray(val.value) ? val.value.join(', ') : val.value || '—'}
-                        </p>
-                      </div>
-                    );
-                  })}
-              </div>
-            </UICard>
-          </div>
-        )}
-
         {/* ── Treatment Plan tab ────────────────────────────────────────── */}
         {viewTab === 'plan' && (() => {
           const plan = selectedClient.treatmentPlan;
