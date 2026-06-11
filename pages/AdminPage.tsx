@@ -405,6 +405,31 @@ const AdminPage: React.FC<AdminPageProps> = ({
       clinicianId: bookingForm.clinicianId,
     };
     onAddAppointment(newAppointment);
+
+    // Deposit follow-through — when the treatment carries a deposit, the
+    // booking sits in limbo until the doctor requests it. Surface the next
+    // step right in the confirmation toast.
+    const bookedTreatment = treatments.find(t => t.id === bookingForm.treatmentId);
+    const bookedClientId = bookingForm.clientId;
+    const depositPence = bookedTreatment && bookedTreatment.depositPct > 0
+      ? Math.round((bookedTreatment.fullPricePence * bookedTreatment.depositPct) / 100)
+      : 0;
+    const depositAction = depositPence > 0 && bookedClientId
+      ? {
+          description: `${client?.name || 'Patient'} — ${bookingForm.date} at ${bookingForm.time}. Deposit due: £${(depositPence / 100).toFixed(2)}.`,
+          action: {
+            label: 'Open Money tab',
+            onClick: () => {
+              setShowBookingModal(false);
+              setSelectedClientId(bookedClientId);
+              setClientRecordTab('financials');
+              setActiveTab('patients');
+            },
+          },
+          duration: 8000,
+        }
+      : null;
+
     if (bookAnotherRef.current) {
       // Keep the modal open for back-to-back booking: same treatment +
       // clinician, fresh patient/date/time.
@@ -419,11 +444,11 @@ const AdminPage: React.FC<AdminPageProps> = ({
         time: '10:00 AM',
         notes: '',
       }));
-      toast.success('Appointment booked', { description: `${client?.name || 'Patient'} booked — pick the next patient.` });
+      toast.success('Appointment booked', depositAction ?? { description: `${client?.name || 'Patient'} booked — pick the next patient.` });
     } else {
       setShowBookingModal(false);
       setBookingForm({ type: 'Initial Consultation', status: 'Confirmed', date: new Date().toISOString().split('T')[0], time: '10:00 AM' });
-      toast.success('Appointment booked', { description: `${client?.name || 'Patient'} — ${bookingForm.date} at ${bookingForm.time}.` });
+      toast.success('Appointment booked', depositAction ?? { description: `${client?.name || 'Patient'} — ${bookingForm.date} at ${bookingForm.time}.` });
     }
   };
 
