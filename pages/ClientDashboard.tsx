@@ -1,16 +1,15 @@
 import React, { useState, useMemo, memo, useCallback } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
 import {
   Stethoscope, FileText, CheckCircle, CreditCard, MessageCircle, Send,
   CalendarDays, FlaskConical, Navigation, History, ClipboardList, Info,
   UserIcon, X, LogOut, Menu, Bell, BellOff, ArrowRight, Pill, Camera,
-  Upload, RefreshCw, BarChart2,
+  Upload, RefreshCw,
   LayoutDashboard, Calendar as CalendarIcon, MessageSquare,
   BadgeCheck, CalendarCheck, Star,
 } from 'lucide-react';
 import {
-  Button, Input, Select, Modal, PageHeader, EmptyState, StatusBadge as UIStatusBadge,
-  Stat, Card as UICard, CardHeader, SidebarItem as UISidebarItem,
+  Button, Input, Select, Modal, PageHeader, EmptyState,
+  Card as UICard, CardHeader, SidebarItem as UISidebarItem,
   BottomNav, useToast, useConfirm, Skeleton,
 } from '../components/ui';
 import { Page, User, Appointment, Client, Message, GalleryItem } from '../types';
@@ -37,7 +36,8 @@ interface ClientDashboardProps {
   onMarkNotificationRead: (id: string) => Promise<void>;
 }
 
-type Tab = 'overview' | 'treatments' | 'appointments' | 'assessments' | 'messages' | 'profile';
+type Tab = 'home' | 'care' | 'visits' | 'messages' | 'profile';
+type CareSubTab = 'assessment' | 'treatment';
 
 interface SidebarItemProps {
   id: Tab;
@@ -49,10 +49,9 @@ interface SidebarItemProps {
 }
 
 const iconMap: Record<string, React.ReactNode> = {
-  overview: <LayoutDashboard size={15} />,
-  treatments: <FlaskConical size={15} />,
-  appointments: <CalendarIcon size={15} />,
-  assessments: <ClipboardList size={15} />,
+  home: <LayoutDashboard size={15} />,
+  care: <FlaskConical size={15} />,
+  visits: <CalendarIcon size={15} />,
   messages: <MessageSquare size={15} />,
   profile: <UserIcon size={15} />,
 };
@@ -236,7 +235,10 @@ const MessagesTab = memo(function MessagesTab({ userMessages, user, onSendMessag
 
 const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNavigate, appointments, clients, messages, notifications, onMarkNotificationRead, onSendMessage, onMarkMessageRead, onUpdateMessage, onUpdateClient, onAcceptPolicies }) => {
   const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState<Tab>('overview');
+  const [activeTab, setActiveTab] = useState<Tab>('home');
+  // Sub-tab inside My Care — null means "auto": Treatment when a plan exists,
+  // Assessment otherwise.
+  const [careSubTab, setCareSubTab] = useState<CareSubTab | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   // 400ms perceived-loading window (same pattern as the admin panels) so
@@ -401,13 +403,20 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
         return true;
       });
 
+  // Jump to My Care with an explicit sub-tab (null = auto-select).
+  const goCare = (sub: CareSubTab | null = null) => {
+    setCareSubTab(sub);
+    setActiveTab('care');
+  };
+
   const handleNotificationClick = (n: AppNotification) => {
     onMarkNotificationRead(n.id);
     setShowNotifications(false);
-    
+
     if (n.type === 'new_message') setActiveTab('messages');
-    if (n.type === 'appointment_confirmed' || n.type === 'appointment_reminder') setActiveTab('appointments');
-    if (n.type === 'feedback_received') setActiveTab('assessments');
+    if (n.type === 'appointment_confirmed' || n.type === 'appointment_reminder') setActiveTab('visits');
+    if (n.type === 'feedback_received') goCare('assessment');
+    if (n.type === 'treatment_plan_ready' || n.type === 'prescription_added') goCare('treatment');
     if (n.type === 'form_sent') setActiveTab('messages');
     if (n.type === 'payment_received') setActiveTab('messages');
   };
@@ -530,64 +539,116 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
   const renderSection = () => {
     if (dataStillWarming && activeTab !== 'messages') return renderWarmupSkeleton();
     if (warmingUp && activeTab === 'messages' && userMessages.length === 0) return renderWarmupSkeleton();
-    switch (activeTab) {
-      case 'overview':
+
+    // My Care holds two sub-views; resolve which one renders. null = auto:
+    // Treatment when a plan exists, Assessment otherwise.
+    const effectiveCareSub: CareSubTab = careSubTab
+      ?? (currentClient?.treatmentPlan?.phases?.length ? 'treatment' : 'assessment');
+    const careSubTabBar = (
+      <div className="flex gap-1 bg-cream p-0.5 rounded-md w-fit">
+        {([['assessment', 'Assessment'], ['treatment', 'Treatment']] as const).map(([id, label]) => (
+          <button
+            key={id}
+            onClick={() => setCareSubTab(id)}
+            className={`px-3 py-1.5 rounded-sm text-sm transition-colors ${
+              effectiveCareSub === id ? 'bg-white text-obsidian shadow-sm font-medium' : 'text-muted hover:text-obsidian'
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+    );
+    const sectionKey: string = activeTab === 'care'
+      ? (effectiveCareSub === 'assessment' ? 'care-assessment' : 'care-treatment')
+      : activeTab;
+
+    switch (sectionKey) {
+      case 'home': {
+        // State-driven Home — the patient is in exactly one journey state at a
+        // time; show ONLY what's happening and what to do next (max 3 cards).
+        const feedback = currentClient?.assessmentData?.clinicalFeedback;
+        const homePlan = currentClient?.treatmentPlan;
+        type HomeState = 'awaiting-deposit' | 'upcoming-visit' | 'under-review' | 'feedback-ready' | 'in-treatment' | 'default';
+        const homeState: HomeState =
+          nextAppointment?.status === 'Awaiting deposit' ? 'awaiting-deposit'
+          : nextAppointment ? 'upcoming-visit'
+          : currentClient?.status === 'Assessment Submitted' && !feedback ? 'under-review'
+          : feedback && currentClient?.status === 'Reviewed' ? 'feedback-ready'
+          : homePlan?.phases?.length ? 'in-treatment'
+          : 'default';
+
+        const assignedDoc = userAppointments
+          .filter(a => a.doctorName)
+          .sort((a, b) => new Date(b.createdAt || b.date).getTime() - new Date(a.createdAt || a.date).getTime())[0];
+
+        const statusCardStyles: Record<HomeState, string> = {
+          'awaiting-deposit': 'bg-amber-50 hover:bg-amber-100/70 border-amber-200',
+          'upcoming-visit':   'bg-primary/5 hover:bg-primary/10 border-primary/20',
+          'under-review':     'bg-primary/5 hover:bg-primary/10 border-primary/20',
+          'feedback-ready':   'bg-success-light hover:bg-success-light/80 border-success/30',
+          'in-treatment':     'bg-white hover:bg-cream/40 border-sand',
+          'default':          'bg-white hover:bg-cream/40 border-sand',
+        };
+        const statusCard: Record<HomeState, { eyebrow: string; eyebrowClass: string; title: string; detail: string; onClick: () => void }> = {
+          'awaiting-deposit': {
+            eyebrow: 'Deposit needed', eyebrowClass: 'text-amber-700',
+            title: 'Your visit time is being held for you',
+            detail: nextAppointment ? `${nextAppointment.type} on ${new Date(nextAppointment.date).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })} at ${nextAppointment.time} — pay the deposit to confirm.` : 'Pay the deposit to confirm your booking.',
+            onClick: () => setActiveTab('messages'),
+          },
+          'upcoming-visit': {
+            eyebrow: 'Next visit', eyebrowClass: 'text-primary',
+            title: nextAppointment ? `${new Date(nextAppointment.date).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })} at ${nextAppointment.time}` : 'Upcoming visit',
+            detail: nextAppointment ? `${nextAppointment.type}${nextAppointment.doctorName ? ` with ${nextAppointment.doctorName}` : ''} · Tap for details` : '',
+            onClick: () => setActiveTab('visits'),
+          },
+          'under-review': {
+            eyebrow: 'Awaiting clinical review', eyebrowClass: 'text-primary',
+            title: 'Your assessment is with the clinical team',
+            detail: 'Typically reviewed within 48 hours · Tap to view what you submitted',
+            onClick: () => goCare('assessment'),
+          },
+          'feedback-ready': {
+            eyebrow: 'Feedback ready', eyebrowClass: 'text-success-text',
+            title: 'Your clinical team has reviewed your assessment',
+            detail: 'Tap to read your personalised feedback',
+            onClick: () => goCare('assessment'),
+          },
+          'in-treatment': {
+            eyebrow: 'In treatment', eyebrowClass: 'text-primary',
+            title: currentClient?.package ? `You're on ${currentClient.package}` : 'Your treatment is underway',
+            detail: `${progress}% complete · Tap to see your plan and visits`,
+            onClick: () => goCare('treatment'),
+          },
+          'default': {
+            eyebrow: 'Welcome', eyebrowClass: 'text-primary',
+            title: 'Your portal is ready',
+            detail: 'Message us any time — we reply within 24 hours.',
+            onClick: () => setActiveTab('messages'),
+          },
+        };
+        const sc = statusCard[homeState];
+
         return (
-          <div className="animate-fade-up flex flex-col gap-6">
-            <PageHeader
-              title={`Welcome back, ${firstName}`}
-              subtitle={`Account status: ${currentClient?.status || 'Active'}`}
-              actions={
-                <UIStatusBadge status={currentClient?.packageStatus || 'Active'} />
-              }
-            />
+          <div className="animate-fade-up flex flex-col gap-4">
+            <PageHeader title={`Welcome back, ${firstName}`} />
 
-            {/* Banner: assessment awaiting review — only renders if relevant */}
-            {currentClient?.status === 'Assessment Submitted' && !currentClient?.assessmentData?.clinicalFeedback && (
-              <button
-                onClick={() => setActiveTab('assessments')}
-                className="w-full text-left bg-primary/5 hover:bg-primary/10 border border-primary/20 rounded-2xl p-5 md:p-6 flex items-center justify-between gap-4 transition-colors group"
-              >
-                <div className="flex items-center gap-4 min-w-0">
-                  <div className="w-11 h-11 rounded-full bg-primary/20 flex items-center justify-center text-primary shrink-0">
-                    <ClipboardList size={18} />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-2xs uppercase tracking-wider text-primary font-medium mb-0.5">Awaiting clinical review</p>
-                    <h4 className="text-base md:text-lg font-medium text-obsidian leading-snug">
-                      Your assessment is with the clinical team
-                    </h4>
-                    <p className="text-xs md:text-sm text-muted mt-0.5">Typically reviewed within 48 hours · Tap to view what you submitted</p>
-                  </div>
-                </div>
-                <ArrowRight size={18} className="text-primary shrink-0 group-hover:translate-x-1 transition-transform" />
-              </button>
-            )}
+            {/* 1 — What's happening right now */}
+            <button
+              onClick={sc.onClick}
+              className={`w-full text-left border rounded-2xl p-5 md:p-6 flex items-center justify-between gap-4 transition-colors group ${statusCardStyles[homeState]}`}
+            >
+              <div className="min-w-0">
+                <p className={`text-xs uppercase tracking-wider font-medium mb-0.5 ${sc.eyebrowClass}`}>{sc.eyebrow}</p>
+                <h4 className="text-base md:text-lg font-medium text-obsidian leading-snug">{sc.title}</h4>
+                {sc.detail && <p className="text-xs md:text-sm text-muted mt-0.5">{sc.detail}</p>}
+              </div>
+              <ArrowRight size={18} className="text-muted shrink-0 group-hover:translate-x-1 transition-transform" />
+            </button>
 
-            {/* Banner: feedback ready — promotes the assessment tab */}
-            {currentClient?.assessmentData?.clinicalFeedback && currentClient?.status === 'Reviewed' && (
-              <button
-                onClick={() => setActiveTab('assessments')}
-                className="w-full text-left bg-success-light hover:bg-success-light/80 border border-success/30 rounded-2xl p-5 md:p-6 flex items-center justify-between gap-4 transition-colors group"
-              >
-                <div className="flex items-center gap-4 min-w-0">
-                  <div className="w-11 h-11 rounded-full bg-success/20 flex items-center justify-center text-success-text shrink-0">
-                    <CheckCircle size={18} />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-2xs uppercase tracking-wider text-success-text font-medium mb-0.5">Feedback ready</p>
-                    <h4 className="text-base md:text-lg font-medium text-obsidian leading-snug">
-                      Your clinical team has reviewed your assessment
-                    </h4>
-                    <p className="text-xs md:text-sm text-muted mt-0.5">Tap to read your personalised feedback</p>
-                  </div>
-                </div>
-                <ArrowRight size={18} className="text-success-text shrink-0 group-hover:translate-x-1 transition-transform" />
-              </button>
-            )}
-
-            {/* What happens next — guidance for newly-reviewed patients with no booking yet */}
-            {currentClient?.assessmentData?.clinicalFeedback && currentClient?.status === 'Reviewed' && !nextAppointment && (
+            {/* 2 — What to do now */}
+            {homeState === 'feedback-ready' ? (
               <UICard accent="gold">
                 <CardHeader title="What happens next" leadingIcon={<Navigation size={14} />} />
                 <ol className="space-y-3 mb-4">
@@ -603,132 +664,74 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
                   ))}
                 </ol>
                 <div className="flex flex-col sm:flex-row gap-2">
-                  <Button variant="primary" fullWidth onClick={() => setActiveTab('assessments')}>Read my feedback</Button>
+                  <Button variant="primary" fullWidth onClick={() => goCare('assessment')}>Read my feedback</Button>
                   <Button variant="secondary" fullWidth onClick={() => setActiveTab('messages')}>Request a visit</Button>
+                </div>
+              </UICard>
+            ) : (
+              <UICard>
+                <CardHeader title="What to do now" />
+                <div className="flex flex-col sm:flex-row gap-2">
+                  {homeState === 'awaiting-deposit' && (
+                    <Button variant="primary" fullWidth leadingIcon={<CreditCard size={14} />} onClick={() => setActiveTab('messages')}>
+                      Pay deposit
+                    </Button>
+                  )}
+                  {homeState === 'upcoming-visit' && (
+                    <Button variant="primary" fullWidth leadingIcon={<CalendarDays size={14} />} onClick={() => setActiveTab('visits')}>
+                      View visit details
+                    </Button>
+                  )}
+                  {homeState === 'under-review' && (
+                    <Button variant="primary" fullWidth leadingIcon={<ClipboardList size={14} />} onClick={() => goCare('assessment')}>
+                      View what you submitted
+                    </Button>
+                  )}
+                  {homeState === 'in-treatment' && (
+                    <Button variant="primary" fullWidth leadingIcon={<CalendarDays size={14} />} onClick={() => setActiveTab('messages')}>
+                      Request next visit
+                    </Button>
+                  )}
+                  {homeState === 'default' && (
+                    <Button variant="primary" fullWidth leadingIcon={<MessageCircle size={14} />} onClick={() => setActiveTab('messages')}>
+                      Message the clinic
+                    </Button>
+                  )}
+                  <Button variant="secondary" fullWidth leadingIcon={<MessageCircle size={14} />} onClick={() => setActiveTab('messages')}>
+                    {homeState === 'default' ? 'Ask a question' : 'Message the clinic'}
+                  </Button>
                 </div>
               </UICard>
             )}
 
-            {/* Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <UICard>
-                <CardHeader
-                  title="Next appointment"
-                  leadingIcon={<CalendarDays size={14} />}
-                />
-                {nextAppointment ? (
-                  <div className="flex items-baseline justify-between">
-                    <p className="text-lg font-medium text-obsidian">
-                      {new Date(nextAppointment.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
-                    </p>
-                    <p className="text-sm text-muted">{nextAppointment.time}</p>
-                  </div>
+            {/* 3 — Treatment + clinician at a glance */}
+            <UICard accent="gold">
+              <CardHeader title="Your treatment" leadingIcon={<FlaskConical size={14} />} />
+              <p className="text-base font-medium text-obsidian truncate">{currentClient?.package || 'Assessment only'}</p>
+              <div className="mt-2 flex items-center gap-2">
+                <div className="progress-track flex-grow"><div className="progress-fill gold" style={{ width: `${progress}%` }} /></div>
+                <span className="text-xs text-muted">{progress}%</span>
+              </div>
+              <div className="mt-3 pt-3 border-t border-sand flex items-center gap-2">
+                <Stethoscope size={14} className="text-muted shrink-0" />
+                {assignedDoc?.doctorName ? (
+                  <p className="text-sm text-obsidian">{assignedDoc.doctorName} <span className="text-muted">· your clinician</span></p>
                 ) : (
-                  <p className="text-sm text-muted">No upcoming sessions</p>
+                  <p className="text-sm text-muted">A clinician is assigned when you book</p>
                 )}
-              </UICard>
-
-              <UICard>
-                <CardHeader
-                  title="Treatment plan"
-                  leadingIcon={<FlaskConical size={14} />}
-                />
-                <p className="text-base font-medium text-obsidian truncate">{currentClient?.package || 'Assessment only'}</p>
-                <div className="mt-2 flex items-center gap-2">
-                  <div className="progress-track flex-grow"><div className="progress-fill gold" style={{ width: `${progress}%` }} /></div>
-                  <span className="text-xs text-muted">{progress}%</span>
-                </div>
-              </UICard>
-
-              <UICard accent="gold">
-                <CardHeader
-                  title="Your clinician"
-                  leadingIcon={<Stethoscope size={14} />}
-                />
-                {(() => {
-                  const assigned = userAppointments
-                    .filter(a => a.doctorName)
-                    .sort((a, b) => new Date(b.createdAt || b.date).getTime() - new Date(a.createdAt || a.date).getTime())[0];
-                  if (assigned?.doctorName) {
-                    return (
-                      <>
-                        <p className="text-base font-medium text-obsidian">{assigned.doctorName}</p>
-                        <p className="text-xs text-muted mt-0.5">Via {assigned.type}</p>
-                      </>
-                    );
-                  }
-                  return (
-                    <>
-                      <p className="text-base font-medium text-obsidian">Pending assignment</p>
-                      <p className="text-xs text-muted mt-0.5">A clinician is assigned at booking</p>
-                    </>
-                  );
-                })()}
-              </UICard>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-              <UICard>
-                <CardHeader title="Quick actions" />
-                <div className="grid grid-cols-2 gap-2">
-                  <Button variant="ghost" fullWidth leadingIcon={<CalendarDays size={14} />} onClick={() => setActiveTab('messages')} className="!justify-start">
-                    Request visit
-                  </Button>
-                  <Button variant="ghost" fullWidth leadingIcon={<BarChart2 size={14} />} onClick={() => setActiveTab('treatments')} className="!justify-start">
-                    View progress
-                  </Button>
-                  <Button variant="ghost" fullWidth leadingIcon={<MessageCircle size={14} />} onClick={() => setActiveTab('messages')} className="!justify-start">
-                    Message clinic
-                  </Button>
-                  <Button variant="ghost" fullWidth leadingIcon={<ClipboardList size={14} />} onClick={() => setActiveTab('assessments')} className="!justify-start">
-                    My assessment
-                  </Button>
-                </div>
-              </UICard>
-
-              <UICard accent="gold" className={currentClient?.assessmentData?.clinicalFeedback ? 'order-first' : ''}>
-                <CardHeader
-                  title="Clinical update"
-                  subtitle={
-                    currentClient?.assessmentData?.reviewDate
-                      ? `Reviewed ${new Date(currentClient.assessmentData.reviewDate).toLocaleDateString()}`
-                      : undefined
-                  }
-                  leadingIcon={<ClipboardList size={14} />}
-                />
-                {currentClient?.assessmentData?.clinicalFeedback ? (
-                  <button
-                    onClick={() => setActiveTab('assessments')}
-                    className="w-full text-left bg-cream/40 rounded-md border border-sand hover:bg-cream transition-colors p-3"
-                  >
-                    <p className="text-sm leading-relaxed text-obsidian line-clamp-3">
-                      "{currentClient.assessmentData.clinicalFeedback}"
-                    </p>
-                    <p className="text-xs text-primary mt-2 flex items-center gap-1">
-                      Read full review <ArrowRight size={12} />
-                    </p>
-                  </button>
-                ) : currentClient?.status === 'Assessment Submitted' ? (
-                  <div className="bg-cream/40 rounded-md border border-sand p-3">
-                    <p className="text-xs text-primary mb-1 font-medium">Under review</p>
-                    <p className="text-sm leading-relaxed text-muted">
-                      Your clinical team is reviewing your assessment. You'll be notified when feedback is ready.
-                    </p>
-                  </div>
-                ) : (
-                  <p className="text-sm text-muted">No clinical updates yet.</p>
-                )}
-              </UICard>
-            </div>
+              </div>
+            </UICard>
           </div>
         );
-      case 'treatments': {
+      }
+      case 'care-treatment': {
           const plan = currentClient?.treatmentPlan;
           const rxList = currentClient?.prescriptions || [];
           const activeRx = rxList.filter(r => r.status === 'Active');
           return (
           <div className="animate-fade-up flex flex-col gap-6">
-            <PageHeader title="Treatment plan" subtitle="Your personalised clinical roadmap and progress" />
+            <PageHeader title="My care" subtitle="Your treatment plan, visits and progress" />
+            {careSubTabBar}
 
             {/* Treatment phases */}
             {plan?.phases?.length ? (
@@ -838,21 +841,14 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
 
                {/* Right: Progress Summary, Prescriptions & Gallery (rendered first on mobile) */}
                <div className="lg:col-span-4 space-y-4 md:space-y-6 order-1 lg:order-2">
-                  <Card className="p-5 md:p-8 bg-obsidian text-white border-none shadow-xl shadow-obsidian/20">
-                     <h3 className="text-sm text-gray-400 mb-6">Your progress</h3>
-                     <div className="space-y-6">
+                  {/* Progress % lives on Home — this card is just the next action */}
+                  <Card className="p-5 md:p-6 border border-black/5 shadow-sm">
+                     <div className="space-y-3">
                         <div>
-                           <p className="text-xs text-gray-400 mb-1">Your treatment</p>
-                           <p className="text-sm font-medium">{currentClient?.package || 'Assessment underway'}</p>
+                           <p className="text-xs text-muted mb-1">Your treatment</p>
+                           <p className="text-sm font-medium text-obsidian">{currentClient?.package || 'Assessment underway'}</p>
                         </div>
-                        <div>
-                           <p className="text-xs font-medium text-gray-400 uppercase mb-3">Overall progress</p>
-                           <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
-                              <div className="bg-primary h-full rounded-full" style={{ width: `${progress}%` }} />
-                           </div>
-                           <p className="text-xs font-medium text-right mt-1 text-primary">{progress}%</p>
-                        </div>
-                        <button onClick={() => setActiveTab('messages')} className="w-full bg-white text-obsidian py-3 rounded-xl text-sm font-medium shadow-lg shadow-white/5 hover:bg-cream transition-all">Request next visit</button>
+                        <button onClick={() => setActiveTab('messages')} className="w-full bg-primary text-obsidian py-3 rounded-xl text-sm font-medium hover:opacity-90 transition-all">Request next visit</button>
                      </div>
                   </Card>
 
@@ -914,7 +910,7 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
           </div>
           );
         }
-      case 'appointments':
+      case 'visits':
         return (
           <div className="animate-fade-up flex flex-col gap-6">
             <PageHeader
@@ -1116,11 +1112,14 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
                     </div>
                   )}
                </div>
-               {/* Right: Policy + change card (rendered first on mobile) */}
-               <div className="lg:col-span-4 space-y-4 md:space-y-6 order-1 lg:order-2">
-                  <div className="bg-primary/5 rounded-xl p-4 md:p-6 lg:p-8 border border-primary/10">
-                    <h4 className="text-base md:text-lg font-medium text-obsidian uppercase mb-4 md:mb-6">Booking Policy</h4>
-                    <ul className="space-y-4">
+               {/* Right: collapsible booking policy reference */}
+               <div className="lg:col-span-4 order-1 lg:order-2">
+                  <details className="bg-primary/5 rounded-xl border border-primary/10 overflow-hidden">
+                    <summary className="cursor-pointer px-4 md:px-6 py-4 text-sm font-medium text-obsidian flex items-center justify-between">
+                      <span>Booking policy</span>
+                      <span className="text-xs text-muted font-normal">48h notice for changes</span>
+                    </summary>
+                    <ul className="space-y-3 px-4 md:px-6 pb-5">
                       {[
                         "Please provide 48 hours' notice for cancellations.",
                         "Arrive 5 minutes before your scheduled session.",
@@ -1132,21 +1131,17 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
                         </li>
                       ))}
                     </ul>
-                  </div>
-                  <div className="bg-obsidian text-white rounded-xl p-5 md:p-8 lg:p-10">
-                    <p className="text-xs text-muted text-gray-400 mb-2">Need to make a change?</p>
-                    <p className="text-sm font-medium text-gray-300 leading-relaxed mb-5">Use the menu on each upcoming appointment to request a reschedule or cancellation. Our team will confirm via message.</p>
-                    <p className="text-xs text-muted">48 hours notice required</p>
-                  </div>
+                  </details>
                </div>
             </div>
           </div>
         );
-      case 'assessments':
+      case 'care-assessment':
         return (
           <div className="animate-fade-up flex flex-col gap-6">
-            <PageHeader title="Assessments" subtitle="Your clinical reviews and feedback" />
-            
+            <PageHeader title="My care" subtitle="Your assessment and clinical feedback" />
+            {careSubTabBar}
+
             {currentClient?.assessmentData?.clinicalFeedback ? (
               <div className="bg-obsidian text-white p-6 md:p-8 rounded-2xl shadow-xl relative overflow-hidden group">
                 <div className="absolute top-0 right-0 w-64 h-64 bg-primary/10 rounded-full blur-[80px] pointer-events-none group-hover:bg-primary/20 transition-colors" />
@@ -1540,22 +1535,24 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
 
         <p className="nav-section-label">My care</p>
         <nav className="flex flex-col gap-0.5">
-          <SidebarItem id="overview"     label="Overview"     icon="overview"     activeTab={activeTab} onClick={handleSidebarClick} />
-          <SidebarItem id="treatments"   label="Treatments"   icon="treatments"   activeTab={activeTab} onClick={handleSidebarClick} />
-          <SidebarItem id="appointments" label="Appointments" icon="appointments" activeTab={activeTab} onClick={handleSidebarClick} />
-          <SidebarItem id="assessments"  label="Assessments"  icon="assessments"  activeTab={activeTab} onClick={handleSidebarClick} />
-          <SidebarItem id="messages"     label="Messages"     icon="messages"     activeTab={activeTab} onClick={handleSidebarClick} badge={unreadMessagesCount} />
-          <SidebarItem id="profile"      label="Profile"      icon="profile"      activeTab={activeTab} onClick={handleSidebarClick} />
+          <SidebarItem id="home"     label="Home"     icon="home"     activeTab={activeTab} onClick={handleSidebarClick} />
+          <SidebarItem id="care"     label="My care"  icon="care"     activeTab={activeTab} onClick={handleSidebarClick} />
+          <SidebarItem id="visits"   label="Visits"   icon="visits"   activeTab={activeTab} onClick={handleSidebarClick} />
+          <SidebarItem id="messages" label="Messages" icon="messages" activeTab={activeTab} onClick={handleSidebarClick} badge={unreadMessagesCount} />
         </nav>
 
         <div className="mt-auto pt-3 border-t border-sand">
-          <div className="flex items-center gap-2.5 p-2 rounded-md">
+          {/* User block doubles as the Profile entry point */}
+          <button
+            onClick={() => handleSidebarClick('profile')}
+            className={`w-full flex items-center gap-2.5 p-2 rounded-md text-left hover:bg-cream transition-colors ${activeTab === 'profile' ? 'bg-cream' : ''}`}
+          >
             <div className="avatar avatar-sm">{firstName[0]}</div>
             <div className="flex flex-col min-w-0 flex-grow">
               <span className="text-sm font-medium text-obsidian truncate">{user?.fullName}</span>
-              <span className="text-xs text-muted truncate">Client portal</span>
+              <span className="text-xs text-muted truncate">View profile</span>
             </div>
-          </div>
+          </button>
         </div>
       </aside>
 
@@ -1568,16 +1565,20 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
           <div className="flex items-center gap-1.5 text-sm">
             <span className="text-muted hidden sm:inline">Portal</span>
             <span className="text-hint hidden sm:inline">/</span>
-            <span className="text-obsidian font-medium capitalize">{activeTab}</span>
-          </div>
-
-          <div className="hidden md:flex items-center gap-3 ml-6 max-w-xs">
-            <span className="text-xs text-muted whitespace-nowrap">Treatment journey</span>
-            <div className="progress-track w-32"><div className="progress-fill gold" style={{ width: `${progress}%` }} /></div>
-            <span className="text-xs text-muted">{progress}%</span>
+            <span className="text-obsidian font-medium">
+              {{ home: 'Home', care: 'My care', visits: 'Visits', messages: 'Messages', profile: 'Profile' }[activeTab]}
+            </span>
           </div>
 
           <div className="ml-auto flex items-center gap-1">
+            <button
+              onClick={() => setActiveTab('profile')}
+              className={`btn-icon ${activeTab === 'profile' ? 'bg-cream text-obsidian' : ''}`}
+              aria-label="My profile"
+              title="My profile"
+            >
+              <UserIcon size={15} />
+            </button>
             <div className="relative">
               <button
                 onClick={() => setShowNotifications(!showNotifications)}
@@ -1691,11 +1692,10 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
         active={activeTab}
         onChange={(id) => handleSidebarClick(id as Tab)}
         items={[
-          { id: 'overview',     label: 'Home',         icon: <LayoutDashboard size={18} /> },
-          { id: 'treatments',   label: 'Treatments',   icon: <FlaskConical size={18} /> },
-          { id: 'appointments', label: 'Visits',       icon: <CalendarIcon size={18} /> },
-          { id: 'messages',     label: 'Messages',     icon: <MessageSquare size={18} />, badge: unreadMessagesCount },
-          { id: 'profile',      label: 'Profile',      icon: <UserIcon size={18} /> },
+          { id: 'home',     label: 'Home',     icon: <LayoutDashboard size={18} /> },
+          { id: 'care',     label: 'My care',  icon: <FlaskConical size={18} /> },
+          { id: 'visits',   label: 'Visits',   icon: <CalendarIcon size={18} /> },
+          { id: 'messages', label: 'Messages', icon: <MessageSquare size={18} />, badge: unreadMessagesCount },
         ]}
       />
       {isFormModalOpen && activeFormMessage && (

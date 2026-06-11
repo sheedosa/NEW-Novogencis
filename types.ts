@@ -292,7 +292,9 @@ export type NotificationType =
   | 'daily_briefing'
   | 'profile_updated'
   | 'reschedule_request'
-  | 'cancel_request';
+  | 'cancel_request'
+  | 'treatment_plan_ready'
+  | 'prescription_added';
 
 export interface AppNotification {
   id: string;
