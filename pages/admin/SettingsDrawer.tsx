@@ -110,8 +110,8 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({ open, onClose })
               ))}
             </div>
 
-            {/* Body */}
-            <div className="flex-1 overflow-y-auto" data-scroll>
+            {/* Body — bottom safe-area inset so content clears the iOS home indicator */}
+            <div className="flex-1 overflow-y-auto" data-scroll style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
               <AnimatePresence mode="wait" initial={false}>
                 {tab === 'preferences' && (
                   <motion.div

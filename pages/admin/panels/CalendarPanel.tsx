@@ -81,9 +81,10 @@ function CalendarPanel() {
     if (ok) await onDeleteAppointment(id);
   };
 
-  // Default to day view on mobile (week view is too dense for <640px viewports).
+  // Default to day view below 768px — matches the Week toggle's `md:` visibility
+  // so a small-tablet user is never defaulted into a view whose button is hidden.
   const [view, setView] = useState<View>(() => {
-    if (typeof window !== 'undefined' && window.matchMedia('(max-width: 639px)').matches) {
+    if (typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches) {
       return 'day';
     }
     return 'week';

@@ -47,6 +47,12 @@ function MarketingPanel() {
   const sourceBreakdown = useMemo(() => aggregateBySource(clientsInRange), [clientsInRange]);
   const campaignBreakdown = useMemo(() => aggregateByCampaign(clientsInRange), [clientsInRange]);
   const funnel = useMemo(() => computeFunnel(clientsInRange), [clientsInRange]);
+  // Display-only: shorten the longest stage name so the chart's Y-axis
+  // labels don't clip on narrow phone viewports. KPIs keep using `funnel`.
+  const funnelDisplay = useMemo(
+    () => funnel.map(f => ({ ...f, stage: f.stage === 'Assessment Submitted' ? 'Submitted' : f.stage })),
+    [funnel],
+  );
   const submitted = funnel[0]?.count ?? 0;
   const converted = funnel[funnel.length - 1]?.count ?? 0;
   const overallConversion = submitted === 0 ? 0 : Math.round((converted / submitted) * 100);
@@ -125,7 +131,7 @@ function MarketingPanel() {
             />
           ) : (
             <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={funnel} layout="vertical" margin={{ left: 16, right: 32, top: 8, bottom: 8 }}>
+              <BarChart data={funnelDisplay} layout="vertical" margin={{ left: 16, right: 32, top: 8, bottom: 8 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#E8E6E1" horizontal={false} />
                 <XAxis type="number" tick={{ fill: COLORS.muted, fontSize: 12 }} axisLine={false} tickLine={false} />
                 <YAxis dataKey="stage" type="category" tick={{ fill: COLORS.obsidian, fontSize: 11 }} axisLine={false} tickLine={false} width={85} />

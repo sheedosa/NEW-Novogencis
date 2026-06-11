@@ -72,7 +72,7 @@ const OperationsSubPanel: React.FC = () => {
             <span className="text-obsidian font-medium">{weekPct}%</span> capacity
           </p>
         </div>
-        <div className="grid grid-cols-7 gap-1.5">
+        <div className="grid grid-cols-7 gap-1 sm:gap-1.5">
           {days.map(d => {
             const tone = d.pct >= 90 ? 'bg-danger'
                        : d.pct >= 60 ? 'bg-warning'
@@ -81,12 +81,12 @@ const OperationsSubPanel: React.FC = () => {
                                      : 'bg-cream';
             return (
               <div key={d.dateStr} className="flex flex-col items-center gap-1">
-                <span className={`text-xs ${d.isToday ? 'text-obsidian font-medium' : 'text-hint'}`}>
+                <span className={`text-[10px] sm:text-xs ${d.isToday ? 'text-obsidian font-medium' : 'text-hint'}`}>
                   {d.date.toLocaleDateString('en-GB', { weekday: 'short' })}
                 </span>
                 <div className="w-full h-14 bg-cream/60 rounded-md overflow-hidden relative">
                   <div className={`absolute bottom-0 left-0 right-0 ${tone} transition-all`} style={{ height: `${Math.max(d.pct, 6)}%` }} />
-                  <span className="absolute inset-0 flex items-center justify-center text-xs font-medium text-obsidian">
+                  <span className="absolute inset-0 flex items-center justify-center text-[10px] sm:text-xs font-medium text-obsidian">
                     {d.count || ''}
                   </span>
                 </div>
