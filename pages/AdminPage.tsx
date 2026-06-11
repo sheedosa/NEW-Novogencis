@@ -17,7 +17,7 @@ import { Button, Modal, Input, Select, Textarea, SidebarItem as UISidebarItem, C
 import type { CommandItem } from '../components/ui';
 import { processImageForUpload, validateImageFile, ACCEPTED_IMAGE_TYPES } from '../imageUtils';
 import { logClinicalAction } from '../utils/auditLogger';
-import { notifyPaymentSent } from '../utils/notificationService';
+import { notifyPaymentSent, notifyTreatmentPlanReady, notifyPrescriptionAdded } from '../utils/notificationService';
 
 import {
   AdminContext,
@@ -454,8 +454,19 @@ const AdminPage: React.FC<AdminPageProps> = ({
 
   // ── Treatment plan / prescriptions / payments ──────────────────────────────
   const onSaveTreatmentPlan = async (clientId: string, plan: TreatmentPlan) => {
+    // Capture BEFORE the write: notify only on the plan's first phases,
+    // not on every subsequent edit.
+    const existingClient = clients.find(c => c.id === clientId);
+    const isFirstPlan = !existingClient?.treatmentPlan?.phases?.length;
     await onUpdateClient(clientId, { treatmentPlan: plan });
     await logClinicalAction(user?.id || 'admin', 'save_treatment_plan', clientId, `Saved treatment plan: ${plan.title}`);
+    if (isFirstPlan && plan.phases?.length && existingClient) {
+      try {
+        await notifyTreatmentPlanReady(clientId, existingClient.email, existingClient.name, plan.title);
+      } catch (err) {
+        console.error('Plan notification failed (non-blocking):', err);
+      }
+    }
   };
 
   const onAddPrescription = async (clientId: string, rx: Prescription) => {
@@ -463,6 +474,13 @@ const AdminPage: React.FC<AdminPageProps> = ({
     const existing = client?.prescriptions || [];
     await onUpdateClient(clientId, { prescriptions: [...existing, rx] });
     await logClinicalAction(user?.id || 'admin', 'add_prescription', clientId, `Added prescription: ${rx.drugName}`);
+    if (client) {
+      try {
+        await notifyPrescriptionAdded(clientId, client.email, client.name, rx.drugName);
+      } catch (err) {
+        console.error('Prescription notification failed (non-blocking):', err);
+      }
+    }
   };
 
   const onUpdatePrescription = async (clientId: string, rxId: string, updates: Partial<Prescription>) => {

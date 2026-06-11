@@ -150,6 +150,56 @@ export const notifyFeedbackReceived = async (
   });
 };
 
+/** Notify a client that their treatment plan is ready to view */
+export const notifyTreatmentPlanReady = async (
+  clientId: string,
+  clientEmail: string,
+  clientName: string,
+  planTitle: string
+) => {
+  await createNotification({
+    recipientId: clientId,
+    recipientRole: 'client',
+    type: 'treatment_plan_ready',
+    title: 'Your Treatment Plan Is Ready',
+    body: `Your clinician has created your plan: "${planTitle}". Open My care to see the steps.`,
+    metadata: { clientId },
+  });
+
+  // Generic email template — content stays non-clinical (GDPR-conservative).
+  await sendEmailNotification('new_message_client', {
+    to_email: clientEmail,
+    client_name: clientName,
+    message_preview: 'Your personalised treatment plan is ready in your Novogenics portal.',
+    dashboard_url: window.location.origin,
+  });
+};
+
+/** Notify a client that a prescription was added to their record */
+export const notifyPrescriptionAdded = async (
+  clientId: string,
+  clientEmail: string,
+  clientName: string,
+  drugName: string
+) => {
+  await createNotification({
+    recipientId: clientId,
+    recipientRole: 'client',
+    type: 'prescription_added',
+    title: 'New Prescription Added',
+    body: `Your clinician has added ${drugName} to your treatment. Open My care for the instructions.`,
+    metadata: { clientId },
+  });
+
+  // Email deliberately omits the drug name (GDPR-conservative).
+  await sendEmailNotification('new_message_client', {
+    to_email: clientEmail,
+    client_name: clientName,
+    message_preview: 'Your clinician has updated your prescriptions in your Novogenics portal.',
+    dashboard_url: window.location.origin,
+  });
+};
+
 /** Notify a client that a form was sent to them */
 export const notifyFormSent = async (
   clientId: string,
