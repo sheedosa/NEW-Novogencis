@@ -95,8 +95,6 @@ export interface AdminContextValue extends AdminPageProps {
   setShowAccountSwitcher: (show: boolean) => void;
   triageSelectedId: string | null;
   setTriageSelectedId: (id: string | null) => void;
-  showMorningBriefing: boolean;
-  setShowMorningBriefing: (show: boolean) => void;
   isUploading: boolean;
   setIsUploading: (v: boolean) => void;
   showGalleryUpload: boolean;

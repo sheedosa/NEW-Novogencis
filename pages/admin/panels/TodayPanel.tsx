@@ -2,38 +2,14 @@ import React, { memo, useMemo, useState, useEffect } from 'react';
 import { useAdminContext } from '../context';
 import {
   CalendarDays, CalendarX2, AlertTriangle, FileText, CreditCard,
-  StickyNote, ArrowRight, Plus, ClipboardList, MessageSquare, Users as UsersIcon,
-  CheckCircle, Sun, Phone, Activity, Send, X as XIcon,
-  Sparkles, Lightbulb, TrendingUp, TrendingDown, Hourglass, UserX, PackageCheck,
+  StickyNote, ArrowRight, Plus, Users as UsersIcon,
+  CheckCircle, Sun, Phone,
 } from 'lucide-react';
 import {
-  PageHeader, Card, CardHeader, Button, StatusBadge, EmptyState, Badge,
-  Skeleton, AISurface,
+  PageHeader, Card, Button, StatusBadge, EmptyState,
+  Skeleton,
 } from '../../../components/ui';
 import { Appointment } from '../../../types';
-import { doc, onSnapshot, collection, query, where, updateDoc } from 'firebase/firestore';
-import { db } from '../../../firebase';
-
-interface DailyBriefingDoc {
-  date: string;
-  generatedAt: string;
-  model: string;
-  summary: string;
-  bullets: string[];
-  metrics?: Record<string, number>;
-}
-
-interface FollowUpSuggestionDoc {
-  clientId: string;
-  clientName: string;
-  clientFirstName: string;
-  hoursStale: number;
-  draftSubject: string;
-  draftBody: string;
-  status: 'pending-approval' | 'sent' | 'dismissed';
-  generatedAt: string;
-  editedBody?: string;
-}
 
 interface PrepFlag {
   id: string;
@@ -94,24 +70,6 @@ function TodayPanel() {
 
   const today = new Date().toISOString().split('T')[0];
 
-  // ── AI: today's briefing (written by the dailyBriefing Cloud Function) ────
-  const [briefing, setBriefing] = useState<DailyBriefingDoc | null>(null);
-  useEffect(() => {
-    const ref = doc(db, 'daily_briefings', today);
-    return onSnapshot(ref, snap => {
-      setBriefing(snap.exists() ? (snap.data() as DailyBriefingDoc) : null);
-    }, () => setBriefing(null));
-  }, [today]);
-
-  // ── AI: pending follow-up suggestions ─────────────────────────────────────
-  const [followUps, setFollowUps] = useState<FollowUpSuggestionDoc[]>([]);
-  useEffect(() => {
-    const q = query(collection(db, 'followup_suggestions'), where('status', '==', 'pending-approval'));
-    return onSnapshot(q, snap => {
-      setFollowUps(snap.docs.map(d => d.data() as FollowUpSuggestionDoc));
-    }, () => setFollowUps([]));
-  }, []);
-
   const todayAppointments = useMemo(
     () => filteredAppointments
       .filter(a => a.date === today && a.status !== 'Cancelled')
@@ -156,121 +114,6 @@ function TodayPanel() {
   const unreadFromClients = messages.filter(m => !m.read && m.recipientId === 'admin');
 
   const formatGBP = (n: number) => new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP', maximumFractionDigits: 0 }).format(n);
-
-  // ─────────────────────────────────────────────────────────────────────────
-  // Clinic Radar — forward-thinking signals computed from data the app
-  // already has. Each item is something a real operator would want to know
-  // BEFORE they realise it themselves. Keep this honest: only show what's
-  // computable from real data, never invent metrics.
-  // ─────────────────────────────────────────────────────────────────────────
-  const radar = useMemo(() => {
-    const items: {
-      id: string;
-      tone: 'gold' | 'warning' | 'danger' | 'positive';
-      icon: React.ReactNode;
-      title: string;
-      detail: string;
-      action?: { label: string; onClick: () => void };
-    }[] = [];
-
-    const now = Date.now();
-    const ms = (days: number) => days * 24 * 60 * 60 * 1000;
-
-    // 1. Active patients who have no upcoming booking AND haven't been in for 60+ days
-    //    → likely to churn unless reached out to
-    const atRisk = filteredClients.filter(c => {
-      if (!['Active', 'Ongoing', 'Converted'].includes(c.status || '')) return false;
-      const aps = appointments.filter(a => a.clientId === c.id);
-      const upcoming = aps.find(a => (a.status === 'Confirmed' || a.status === 'Pending') && new Date(a.date) >= new Date(new Date().toDateString()));
-      if (upcoming) return false;
-      const lastVisit = aps.filter(a => a.status === 'Completed').sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
-      if (!lastVisit) return false;
-      return now - new Date(lastVisit.date).getTime() > ms(60);
-    });
-    if (atRisk.length > 0) {
-      items.push({
-        id: 'at-risk',
-        tone: 'danger',
-        icon: <UserX size={14} />,
-        title: `${atRisk.length} active patient${atRisk.length !== 1 ? 's' : ''} at risk of lapsing`,
-        detail: `${atRisk.slice(0, 2).map(c => c.name).join(', ')}${atRisk.length > 2 ? ` and ${atRisk.length - 2} more` : ''} — no future booking and 60+ days since last visit.`,
-        action: { label: 'Open registry', onClick: () => handleSidebarClick('patients') },
-      });
-    }
-
-    // 2. Reviewed-but-not-Contacted bottleneck — patients stuck in the funnel
-    const stuckReviewed = filteredClients.filter(c => {
-      if (c.status !== 'Reviewed') return false;
-      const reviewedAt = c.assessmentData?.reviewDate ? new Date(c.assessmentData.reviewDate).getTime() : new Date(c.createdAt || 0).getTime();
-      return now - reviewedAt > ms(3);
-    });
-    if (stuckReviewed.length > 0) {
-      items.push({
-        id: 'stuck-reviewed',
-        tone: 'warning',
-        icon: <Hourglass size={14} />,
-        title: `${stuckReviewed.length} reviewed patient${stuckReviewed.length !== 1 ? 's' : ''} waiting for outreach`,
-        detail: `Feedback was submitted 3+ days ago. Reach out before they lose momentum.`,
-        action: { label: 'See list', onClick: () => handleSidebarClick('patients') },
-      });
-    }
-
-    // 3. Conversion momentum — % converted this 14d vs prior 14d
-    const conv14 = filteredClients.filter(c => c.createdAt && now - new Date(c.createdAt).getTime() < ms(14) && ['Converted', 'Active', 'Ongoing'].includes(c.status || '')).length;
-    const conv14prev = filteredClients.filter(c => c.createdAt && now - new Date(c.createdAt).getTime() >= ms(14) && now - new Date(c.createdAt).getTime() < ms(28) && ['Converted', 'Active', 'Ongoing'].includes(c.status || '')).length;
-    if (conv14 + conv14prev > 0) {
-      const delta = conv14 - conv14prev;
-      const pct = conv14prev === 0 ? (conv14 > 0 ? 100 : 0) : Math.round(((conv14 - conv14prev) / conv14prev) * 100);
-      if (Math.abs(pct) >= 15 || delta !== 0) {
-        items.push({
-          id: 'momentum',
-          tone: delta >= 0 ? 'positive' : 'warning',
-          icon: delta >= 0 ? <TrendingUp size={14} /> : <TrendingDown size={14} />,
-          title: `Conversions ${delta >= 0 ? 'up' : 'down'} ${Math.abs(pct)}% over the last 14 days`,
-          detail: `${conv14} converted vs ${conv14prev} in the prior fortnight.`,
-          action: { label: 'See insights', onClick: () => handleSidebarClick('practice') },
-        });
-      }
-    }
-
-    // 4. Treatment-plan completions imminent — clients on packageStatus='In progress' nearing end
-    const planEndingSoon = filteredClients.filter(c => {
-      const plan = c.treatmentPlan;
-      if (!plan?.phases?.length) return false;
-      const active = plan.phases.find((p: any) => p.status === 'Active');
-      if (!active) return false;
-      return active.sessionsCompleted >= active.sessionsPlanned - 1;
-    });
-    if (planEndingSoon.length > 0) {
-      items.push({
-        id: 'plan-ending',
-        tone: 'gold',
-        icon: <PackageCheck size={14} />,
-        title: `${planEndingSoon.length} patient${planEndingSoon.length !== 1 ? 's' : ''} finishing their package`,
-        detail: `Time to discuss the next phase — biggest LTV moment of the journey.`,
-        action: { label: 'Review', onClick: () => handleSidebarClick('patients') },
-      });
-    }
-
-    // 5. Pending feedback older than 48h
-    const overdueFeedback = filteredClients.filter(c => {
-      if (c.status !== 'Assessment Submitted') return false;
-      const submittedAt = c.createdAt ? new Date(c.createdAt).getTime() : 0;
-      return now - submittedAt > ms(2);
-    });
-    if (overdueFeedback.length > 0) {
-      items.push({
-        id: 'overdue-feedback',
-        tone: 'danger',
-        icon: <AlertTriangle size={14} />,
-        title: `${overdueFeedback.length} assessment${overdueFeedback.length !== 1 ? 's' : ''} awaiting feedback for 48+ hours`,
-        detail: `Clinic SLA: review within 24h. These patients are waiting.`,
-        action: { label: 'Triage now', onClick: () => handleSidebarClick('inbox') },
-      });
-    }
-
-    return items;
-  }, [filteredClients, appointments, handleSidebarClick]);
 
   const friendlyDate = new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' });
 
@@ -390,163 +233,11 @@ function TodayPanel() {
           <span className="text-obsidian font-medium">{newPatientsWeek}</span>
           <span>new this week</span>
         </span>
-        {openTasks.length > 0 ? (
-          <button
-            onClick={() => handleSidebarClick('inbox')}
-            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-warning-bg text-warning-text hover:bg-warning/20 transition-colors -my-1"
-          >
-            <ListChecksIcon />
-            <span className="font-medium">{openTasks.length}</span>
-            <span>need{openTasks.length === 1 ? 's' : ''} you</span>
-            <ArrowRight size={12} />
-          </button>
-        ) : (
-          <span className="inline-flex items-center gap-1.5 text-success-text">
-            <ListChecksIcon />
-            <span className="font-medium">All caught up</span>
-          </span>
-        )}
       </div>
 
-      {/* ── AI: Today's briefing (Claude-generated each morning at 07:00) ── */}
-      {/* AI surfaces render BELOW the run sheet — Run sheet is what doctors
-          actually scan when they open the dashboard. AI insights are secondary. */}
-      {briefing && (briefing.summary || briefing.bullets.length > 0) && (
-        <AISurface strong className="p-5 md:p-6 order-3">
-          <div className="flex items-start gap-3">
-            {/* Stronger AI mark — gold-on-obsidian with a soft drop-shadow,
-                matches the designer's signature icon treatment. */}
-            <div
-              className="w-9 h-9 rounded-md text-primary flex items-center justify-center shrink-0"
-              style={{
-                background: 'linear-gradient(135deg, #1A1916 0%, #2a261d 100%)',
-                boxShadow: '0 4px 12px -4px rgba(201,168,106,0.4)',
-              }}
-            >
-              <Sparkles size={16} />
-            </div>
-            <div className="flex-grow min-w-0">
-              <div className="flex items-center gap-2 mb-1.5 flex-wrap">
-                <p className="eyebrow">Today's briefing</p>
-                <Badge variant="ai" icon={<Sparkles size={9} />}>AI</Badge>
-              </div>
-              {briefing.summary && (
-                <p className="font-serif text-[20px] md:text-[22px] font-normal text-obsidian leading-snug tracking-[-0.01em]">
-                  {briefing.summary}
-                </p>
-              )}
-              {briefing.bullets.length > 0 && (
-                <ul className="mt-3 space-y-2.5">
-                  {briefing.bullets.map((b, i) => (
-                    <li key={i} className="flex items-start gap-3 leading-relaxed">
-                      <span
-                        className="shrink-0 mt-0.5 inline-flex items-center justify-center"
-                        style={{
-                          width: 18, height: 18, borderRadius: 5,
-                          background: 'var(--color-gold-soft)',
-                          color: 'var(--color-gold-dim)',
-                          fontSize: 10, fontWeight: 600,
-                        }}
-                      >
-                        {i + 1}
-                      </span>
-                      <span className="text-[13px] text-obsidian leading-[1.55]">{b}</span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-              <p className="text-[10px] text-hint mt-3 pt-3 border-t border-sand">
-                Generated {new Date(briefing.generatedAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })} · {briefing.model}
-              </p>
-            </div>
-          </div>
-        </AISurface>
-      )}
-
-      {/* ── AI: Follow-up suggestions — patients due for follow-up ── */}
-      {/* Unified light-AISurface treatment so all 3 AI cards read as one cohesive section. */}
-      {followUps.length > 0 && (
-        <AISurface className="p-5 md:p-6 order-4">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-md bg-gold-soft text-gold-dim flex items-center justify-center shrink-0">
-                <Hourglass size={15} />
-              </div>
-              <div>
-                <p className="eyebrow">Follow-ups ready</p>
-                <p className="text-sm font-medium text-obsidian mt-0.5">
-                  {followUps.length} patient{followUps.length > 1 ? 's' : ''} due for follow-up — draft ready to send
-                </p>
-              </div>
-            </div>
-            <Badge variant="ai" icon={<Sparkles size={9} />}>AI</Badge>
-          </div>
-          <div className="space-y-2">
-            {followUps.slice(0, 5).map(f => (
-              <FollowUpRow key={f.clientId} suggestion={f} onOpenClient={(id) => { setSelectedClientId(id); handleSidebarClick('patients'); }} />
-            ))}
-          </div>
-        </AISurface>
-      )}
-
-      {/* ── Today's signals — forward-thinking signals (only renders if there's anything to flag) ── */}
-      {/* Unified light-AISurface treatment so all 3 AI cards read as one cohesive section. */}
-      {radar.length > 0 && (
-        <AISurface className="p-5 md:p-6 order-5">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-md bg-gold-soft text-gold-dim flex items-center justify-center shrink-0">
-                <Sparkles size={15} />
-              </div>
-              <div>
-                <p className="eyebrow">Today's signals</p>
-                <p className="text-sm font-medium text-obsidian mt-0.5">
-                  {radar.length} signal{radar.length !== 1 ? 's' : ''} worth your attention
-                </p>
-              </div>
-            </div>
-            <Badge variant="ai" icon={<Lightbulb size={11} />}>Auto-detected</Badge>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
-            {radar.map(item => (
-              <button
-                key={item.id}
-                onClick={item.action?.onClick}
-                className="text-left transition-colors rounded-[10px] p-3 border border-sand bg-white hover:bg-cream/40 group"
-              >
-                <div className="flex items-center gap-2 mb-1.5">
-                  <span
-                    className={`w-1.5 h-1.5 rounded-full shrink-0 ${
-                      item.tone === 'danger'   ? 'bg-danger' :
-                      item.tone === 'warning'  ? 'bg-warning' :
-                      item.tone === 'positive' ? 'bg-success' :
-                                                  'bg-primary'
-                    }`}
-                  />
-                  <span className="text-[10px] uppercase tracking-[0.06em] text-hint font-medium">
-                    {item.tone === 'positive' ? 'Opportunity' : item.tone === 'danger' ? 'Attention' : item.tone === 'warning' ? 'Lapsed' : 'Signal'}
-                  </span>
-                </div>
-                <p className="text-[13px] text-obsidian leading-snug">{item.title}</p>
-                {item.detail && (
-                  <p className="text-xs text-muted mt-1 leading-relaxed">{item.detail}</p>
-                )}
-                {item.action && (
-                  <p className="text-xs text-primary mt-2 inline-flex items-center gap-1 group-hover:gap-1.5 transition-all">
-                    {item.action.label} <ArrowRight size={11} />
-                  </p>
-                )}
-              </button>
-            ))}
-          </div>
-        </AISurface>
-      )}
-
-      {/* Main: schedule + side panel — primary content, rendered ABOVE the
-          AI surfaces because this is what doctors scan first thing in the morning. */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 order-2">
-        {/* Run sheet (2/3) */}
-        <div className="lg:col-span-2">
+      {/* Main: run sheet — the doctor's primary surface, full width */}
+      <div className="flex flex-col gap-3">
+        <div>
           <Card padded={false}>
             <div className="px-4 py-3 border-b border-sand flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -653,183 +344,39 @@ function TodayPanel() {
           </Card>
         </div>
 
-        {/* Side: action queue + tomorrow */}
-        <div className="flex flex-col gap-3">
-          {/* Action queue */}
-          <Card>
-            <CardHeader
-              title="Needs you"
-              subtitle={`${pendingTriage.length + unreadFromClients.length + openTasks.length} item${(pendingTriage.length + unreadFromClients.length + openTasks.length) !== 1 ? 's' : ''}`}
-              leadingIcon={<AlertTriangle size={14} />}
-              trailing={
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  trailingIcon={<ArrowRight size={13} />}
-                  onClick={() => handleSidebarClick('inbox')}
-                >
-                  Inbox
-                </Button>
-              }
-            />
-            {(pendingTriage.length + unreadFromClients.length + openTasks.length) === 0 ? (
-              <p className="text-sm text-muted">You're all caught up.</p>
-            ) : (
-              <div className="flex flex-col gap-1.5">
-                {pendingTriage.length > 0 && (
-                  <button
-                    onClick={() => handleSidebarClick('inbox')}
-                    className="flex items-center gap-2.5 px-2 py-2 rounded-md hover:bg-cream/60 transition-colors text-left"
-                  >
-                    <ClipboardList size={14} className="text-muted shrink-0" />
-                    <div className="min-w-0 flex-grow">
-                      <p className="text-sm font-medium text-obsidian">{pendingTriage.length} assessment{pendingTriage.length !== 1 ? 's' : ''} to triage</p>
-                      <p className="text-xs text-muted truncate">
-                        {pendingTriage.slice(0, 2).map(c => c.name).join(', ')}
-                        {pendingTriage.length > 2 && ` +${pendingTriage.length - 2}`}
-                      </p>
-                    </div>
-                  </button>
-                )}
-                {unreadFromClients.length > 0 && (
-                  <button
-                    onClick={() => handleSidebarClick('inbox')}
-                    className="flex items-center gap-2.5 px-2 py-2 rounded-md hover:bg-cream/60 transition-colors text-left"
-                  >
-                    <MessageSquare size={14} className="text-muted shrink-0" />
-                    <div className="min-w-0 flex-grow">
-                      <p className="text-sm font-medium text-obsidian">{unreadFromClients.length} unread message{unreadFromClients.length !== 1 ? 's' : ''}</p>
-                      <p className="text-xs text-muted truncate">
-                        {(() => {
-                          const lastMsg = unreadFromClients[unreadFromClients.length - 1];
-                          const client = filteredClients.find(c => c.id === lastMsg?.senderId);
-                          return client?.name || 'Latest from client';
-                        })()}
-                      </p>
-                    </div>
-                  </button>
-                )}
-                {openTasks.slice(0, 3).map(task => (
-                  <button
-                    key={task.id}
-                    onClick={() => handleSidebarClick('inbox')}
-                    className="flex items-center gap-2.5 px-2 py-2 rounded-md hover:bg-cream/60 transition-colors text-left"
-                  >
-                    <span className={`w-2 h-2 rounded-full shrink-0 ${task.priority === 'high' ? 'bg-danger' : 'bg-primary'}`} />
-                    <div className="min-w-0 flex-grow">
-                      <p className="text-sm font-medium text-obsidian truncate">{task.title}</p>
-                      {task.dueDate && (
-                        <p className="text-xs text-muted">
-                          Due {new Date(task.dueDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
-                        </p>
-                      )}
-                    </div>
-                  </button>
-                ))}
-              </div>
-            )}
-          </Card>
-
-          {/* Tomorrow teaser */}
-          <Card>
-            <CardHeader
-              title="Tomorrow"
-              subtitle={new Date(Date.now() + 86400000).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}
-              leadingIcon={<Sun size={14} />}
-            />
-            {tomorrowAppointments.length === 0 ? (
-              <p className="text-sm text-muted">No sessions scheduled.</p>
-            ) : (
-              <div className="flex flex-col gap-1.5">
-                <p className="text-sm text-obsidian">
-                  <span className="font-medium">{tomorrowAppointments.length}</span> appointment{tomorrowAppointments.length !== 1 ? 's' : ''}
-                </p>
-                {tomorrowAppointments.slice(0, 3).map(apt => (
-                  <div key={apt.id} className="flex items-center justify-between gap-2 text-xs">
-                    <span className="text-muted font-mono shrink-0 w-14">{apt.time}</span>
-                    <span className="text-obsidian truncate flex-grow">{apt.clientName}</span>
-                    <span className="text-hint truncate hidden sm:inline">{apt.type}</span>
-                  </div>
-                ))}
-                {tomorrowAppointments.length > 3 && (
-                  <p className="text-xs text-muted mt-1">+ {tomorrowAppointments.length - 3} more</p>
-                )}
-              </div>
-            )}
-          </Card>
+        {/* Compact follow-on links — one line each, full detail lives in
+            Inbox and Schedule respectively. */}
+        <div className="flex flex-col sm:flex-row gap-2">
+          <button
+            onClick={() => handleSidebarClick('inbox')}
+            className="flex-1 flex items-center justify-between gap-3 px-4 py-3 rounded-md border border-sand bg-white hover:bg-cream/40 transition-colors text-left"
+          >
+            <span className="flex items-center gap-2.5 min-w-0">
+              <AlertTriangle size={14} className={`shrink-0 ${(pendingTriage.length + unreadFromClients.length + openTasks.length) > 0 ? 'text-warning-text' : 'text-muted'}`} />
+              <span className="text-sm text-obsidian truncate">
+                {(pendingTriage.length + unreadFromClients.length + openTasks.length) === 0
+                  ? 'Inbox — all caught up'
+                  : `${pendingTriage.length + unreadFromClients.length + openTasks.length} item${(pendingTriage.length + unreadFromClients.length + openTasks.length) !== 1 ? 's' : ''} need${(pendingTriage.length + unreadFromClients.length + openTasks.length) === 1 ? 's' : ''} you`}
+              </span>
+            </span>
+            <ArrowRight size={13} className="text-muted shrink-0" />
+          </button>
+          <button
+            onClick={() => handleSidebarClick('schedule')}
+            className="flex-1 flex items-center justify-between gap-3 px-4 py-3 rounded-md border border-sand bg-white hover:bg-cream/40 transition-colors text-left"
+          >
+            <span className="flex items-center gap-2.5 min-w-0">
+              <Sun size={14} className="text-muted shrink-0" />
+              <span className="text-sm text-obsidian truncate">
+                Tomorrow: {tomorrowAppointments.length === 0 ? 'no sessions' : `${tomorrowAppointments.length} session${tomorrowAppointments.length !== 1 ? 's' : ''}`}
+              </span>
+            </span>
+            <ArrowRight size={13} className="text-muted shrink-0" />
+          </button>
         </div>
       </div>
     </div>
   );
 }
 
-// Inline ListChecks icon wrapper to avoid extra lucide import in stat row
-function ListChecksIcon({ className }: { className?: string }) {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-      <path d="m3 17 2 2 4-4" /><path d="m3 7 2 2 4-4" /><path d="M13 6h8" /><path d="M13 12h8" /><path d="M13 18h8" />
-    </svg>
-  );
-}
-
 export default memo(TodayPanel);
-
-// ─────────────────────────────────────────────────────────────────────────────
-// FollowUpRow — single AI-drafted follow-up suggestion with approve / dismiss.
-// ─────────────────────────────────────────────────────────────────────────────
-
-interface FollowUpRowProps {
-  suggestion: FollowUpSuggestionDoc;
-  onOpenClient: (id: string) => void;
-}
-
-const FollowUpRow: React.FC<FollowUpRowProps> = ({ suggestion: s, onOpenClient }) => {
-  const [expanded, setExpanded] = useState(false);
-  const [working, setWorking] = useState(false);
-
-  const dismiss = async () => {
-    setWorking(true);
-    try {
-      await updateDoc(doc(db, 'followup_suggestions', s.clientId), { status: 'dismissed' });
-    } finally {
-      setWorking(false);
-    }
-  };
-
-  return (
-    <div className="border border-cream rounded-md overflow-hidden">
-      <button
-        onClick={() => setExpanded(!expanded)}
-        className="w-full px-3 py-2.5 flex items-center justify-between hover:bg-cream/40 transition-colors text-left"
-      >
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="avatar avatar-sm shrink-0">{(s.clientName || 'C').split(' ').map(n => n[0]).slice(0, 2).join('')}</div>
-          <div className="min-w-0">
-            <p className="text-sm font-medium text-obsidian truncate">{s.clientName}</p>
-            <p className="text-xs text-muted">{s.hoursStale}h since feedback sent · {s.draftSubject}</p>
-          </div>
-        </div>
-        <ArrowRight size={14} className={`text-muted transition-transform shrink-0 ${expanded ? 'rotate-90' : ''}`} />
-      </button>
-      {expanded && (
-        <div className="px-3 pb-3 pt-1 border-t border-cream bg-cream/30">
-          <p className="text-sm text-obsidian leading-relaxed whitespace-pre-wrap mb-3">{s.draftBody}</p>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="primary"
-              size="sm"
-              leadingIcon={<Send size={12} />}
-              onClick={() => onOpenClient(s.clientId)}
-            >
-              Open & review
-            </Button>
-            <Button variant="ghost" size="sm" onClick={dismiss} disabled={working} leadingIcon={<XIcon size={12} />}>
-              Dismiss
-            </Button>
-            <p className="text-[10px] text-hint ml-auto">AI draft — review before sending</p>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};

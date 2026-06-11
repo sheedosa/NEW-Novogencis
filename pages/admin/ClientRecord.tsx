@@ -640,14 +640,6 @@ const ClientRecord: React.FC = () => {
                 <div className="mt-4 md:mt-6 pt-4 md:pt-6 border-t border-black/5">
                   <MessageInputForm
                     onSend={(msg) => handleSendMessage(msg, selectedClientId || '')}
-                    aiDraftContext={selectedClientId ? {
-                      clientId: selectedClientId,
-                      threadMessages: clientMessages.map(m => ({
-                        senderId: m.senderId,
-                        body: m.body,
-                        createdAt: m.createdAt,
-                      })),
-                    } : undefined}
                   />
                 </div>
               </Card>

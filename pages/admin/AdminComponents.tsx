@@ -1,9 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card } from '../../components/ui';
 import { Button, StatusBadge } from '../../components/ui';
-import { User as UserIcon, PlusCircle, Send, StickyNote, RefreshCw, CheckCircle, AlertCircle, Sparkles, Clock } from 'lucide-react';
-import { httpsCallable, getFunctions } from 'firebase/functions';
-import { getApp } from 'firebase/app';
+import { User as UserIcon, PlusCircle, Send, StickyNote, RefreshCw, CheckCircle, AlertCircle, Clock } from 'lucide-react';
 import { InternalNoteEntry } from '../../types';
 
 // Re-export StatusBadge for any legacy import sites that look here
@@ -21,57 +19,20 @@ export const AssignedBadge = ({ isAssigned }: { isAssigned: boolean }) => {
 };
 
 // ── MessageInputForm ───────────────────────────────────────────────────────
-// Lazily-created functions instance, scoped to europe-west2 to match deploy.
-let functionsInstance: ReturnType<typeof getFunctions> | null = null;
-function getRegionalFunctions() {
-  if (!functionsInstance) {
-    functionsInstance = getFunctions(getApp(), 'europe-west2');
-  }
-  return functionsInstance;
-}
-
-interface AIDraftContext {
-  clientId: string;
-  threadMessages: Array<{ senderId: string; body: string; createdAt: string }>;
-}
-
 export const MessageInputForm = ({
   onSend,
   placeholder = 'Type a message…',
   showQuickActionsBtn = false,
   showQuickActions = false,
   onToggleQuickActions,
-  aiDraftContext,
 }: {
   onSend: (message: string) => void;
   placeholder?: string;
   showQuickActionsBtn?: boolean;
   showQuickActions?: boolean;
   onToggleQuickActions?: () => void;
-  /** When provided, shows a "Draft with AI" button that calls the Cloud Function. */
-  aiDraftContext?: AIDraftContext;
 }) => {
   const [input, setInput] = useState('');
-  const [drafting, setDrafting] = useState(false);
-  const [draftError, setDraftError] = useState<string | null>(null);
-
-  const handleAiDraft = async () => {
-    if (!aiDraftContext) return;
-    setDrafting(true);
-    setDraftError(null);
-    try {
-      const fns = getRegionalFunctions();
-      const draftReply = httpsCallable<AIDraftContext, { draft: string }>(fns, 'draftReply');
-      const result = await draftReply(aiDraftContext);
-      setInput(result.data.draft);
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Draft failed';
-      setDraftError(msg);
-      setTimeout(() => setDraftError(null), 4000);
-    } finally {
-      setDrafting(false);
-    }
-  };
 
   return (
     <div className="w-full">
@@ -90,41 +51,23 @@ export const MessageInputForm = ({
             <PlusCircle size={14} />
           </Button>
         )}
-        {aiDraftContext && aiDraftContext.threadMessages.length > 0 && (
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={handleAiDraft}
-            disabled={drafting}
-            loading={drafting}
-            aria-label="Draft reply with AI"
-            title="Draft a reply with AI based on the conversation"
-          >
-            <Sparkles size={14} className="text-primary" />
-          </Button>
-        )}
         <input
           type="text"
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder={drafting ? 'Drafting…' : placeholder}
+          placeholder={placeholder}
           className="flex-grow"
-          disabled={drafting}
         />
         <Button
           type="submit"
           variant="primary"
           size="sm"
-          disabled={!input.trim() || drafting}
+          disabled={!input.trim()}
           aria-label="Send"
         >
           <Send size={14} />
         </Button>
       </form>
-      {draftError && (
-        <p className="text-xs text-danger mt-1.5">{draftError}</p>
-      )}
     </div>
   );
 };
