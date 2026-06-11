@@ -1,11 +1,11 @@
 import React, { memo, useMemo, useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAdminContext } from '../context';
-import { Task } from '../../../types';
+import { Task, Message } from '../../../types';
 import {
   ClipboardList, MessageSquare, FileText, CreditCard, ListChecks,
   Plus, Check, X, Snowflake, ArrowRight, Inbox as InboxIcon,
-  AlertTriangle, Trash2,
+  AlertTriangle, Trash2, CalendarClock,
 } from 'lucide-react';
 import {
   PageHeader, Card, Button, EmptyState, Modal, Input, Select, Textarea, Badge,
@@ -16,7 +16,7 @@ type InboxFilter = 'all' | 'tasks' | 'assessments' | 'messages' | 'forms' | 'pay
 
 interface InboxItem {
   id: string;
-  type: 'task' | 'assessment' | 'message' | 'form' | 'payment';
+  type: 'task' | 'assessment' | 'message' | 'form' | 'payment' | 'reschedule';
   title: string;
   subtitle: string;
   patientName?: string;
@@ -66,7 +66,46 @@ function InboxPanel() {
 
   const { confirm, ConfirmHost } = useConfirm();
   const { toast } = useToast();
-  const { onSendMessage, onMarkMessageRead } = useAdminContext();
+  const { onSendMessage, onMarkMessageRead, appointments, onUpdateAppointment } = useAdminContext();
+
+  /** Parse "10:30 AM" into minutes since midnight (null if unparseable). */
+  const parseTime12h = (t: string | undefined): number | null => {
+    if (!t) return null;
+    const m = t.trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+    if (!m) return null;
+    let h = parseInt(m[1], 10);
+    const min = parseInt(m[2], 10);
+    const ampm = m[3].toUpperCase();
+    if (ampm === 'PM' && h !== 12) h += 12;
+    if (ampm === 'AM' && h === 12) h = 0;
+    return h * 60 + min;
+  };
+
+  // ── Accept-reschedule modal state ─────────────────────────────────────────
+  const [acceptingMsg, setAcceptingMsg] = useState<Message | null>(null);
+  const [acceptForm, setAcceptForm] = useState({ date: '', time: '10:00 AM' });
+  const [acceptSaving, setAcceptSaving] = useState(false);
+  const acceptApt = acceptingMsg?.rescheduleRequest
+    ? appointments.find(a => a.id === acceptingMsg.rescheduleRequest!.appointmentId) ?? null
+    : null;
+  // Live conflict check for the proposed new slot (same clinician, overlapping window).
+  const acceptConflict = (() => {
+    if (!acceptApt || !acceptForm.date || !acceptForm.time) return null;
+    const start = parseTime12h(acceptForm.time);
+    if (start === null) return null;
+    const end = start + (acceptApt.durationMin ?? 30);
+    for (const a of appointments) {
+      if (a.id === acceptApt.id) continue;
+      if (a.clinicianId !== acceptApt.clinicianId) continue;
+      if (a.date !== acceptForm.date) continue;
+      if (a.status === 'Cancelled' || a.status === 'No-Show') continue;
+      const aStart = parseTime12h(a.time);
+      if (aStart === null) continue;
+      const aEnd = aStart + (a.durationMin ?? 30);
+      if (start < aEnd && end > aStart) return a;
+    }
+    return null;
+  })();
 
   const handleDeleteTask = async (id: string, title: string) => {
     const ok = await confirm({
@@ -131,6 +170,47 @@ function InboxPanel() {
       .forEach(m => {
         const client = clients.find(c => c.id === m.senderId);
         const itemId = `message-${m.id}`;
+
+        // Structured reschedule request — one-tap accept/decline instead of
+        // parsing the free-text body. Older messages without the payload fall
+        // through to the plain message branch below.
+        if (m.rescheduleRequest) {
+          const req = m.rescheduleRequest;
+          const apt = appointments.find(a => a.id === req.appointmentId);
+          out.push({
+            id: itemId,
+            type: 'reschedule',
+            title: `Reschedule request — ${client?.name || 'client'}`,
+            subtitle: apt
+              ? `${apt.type} on ${new Date(apt.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })} → wants ${new Date(`${req.preferredDate}T00:00`).toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'short' })} (${req.preferredTime.toLowerCase()})`
+              : 'Original appointment no longer exists',
+            patientName: client?.name,
+            patientId: client?.id,
+            when: m.createdAt,
+            priority: 'high',
+            messageId: m.id,
+            primaryAction: {
+              label: 'Accept',
+              onClick: () => {
+                if (!apt) {
+                  toast.error('Appointment not found', { description: 'It may have been cancelled or already moved. Reply to the patient instead.' });
+                  return;
+                }
+                setAcceptForm({ date: req.preferredDate, time: apt.time || '10:00 AM' });
+                setAcceptingMsg(m);
+              },
+            },
+            secondaryAction: {
+              label: 'Decline',
+              onClick: () => {
+                setReplyDraft(`Hi ${client?.name?.split(' ')[0] || 'there'}, unfortunately we can't move your appointment to that time. `);
+                setExpandedReplyId(itemId);
+              },
+            },
+          });
+          return;
+        }
+
         out.push({
           id: itemId,
           type: 'message',
@@ -274,12 +354,12 @@ function InboxPanel() {
       if (a.priority !== b.priority) return a.priority === 'high' ? -1 : 1;
       return new Date(b.when).getTime() - new Date(a.when).getTime();
     });
-  }, [filteredClients, clients, messages, tasks, user, setSelectedClientId, setClientRecordTab, handleSidebarClick, setTriageSelectedId, onUpdateTask, toast]);
+  }, [filteredClients, clients, messages, appointments, tasks, user, setSelectedClientId, setClientRecordTab, handleSidebarClick, setTriageSelectedId, onUpdateTask, toast]);
 
   const filtered = filter === 'all' ? items : items.filter(i => {
     if (filter === 'tasks') return i.type === 'task';
     if (filter === 'assessments') return i.type === 'assessment';
-    if (filter === 'messages') return i.type === 'message';
+    if (filter === 'messages') return i.type === 'message' || i.type === 'reschedule';
     if (filter === 'forms') return i.type === 'form';
     if (filter === 'payments') return i.type === 'payment';
     return true;
@@ -289,7 +369,7 @@ function InboxPanel() {
     all: items.length,
     tasks: items.filter(i => i.type === 'task').length,
     assessments: items.filter(i => i.type === 'assessment').length,
-    messages: items.filter(i => i.type === 'message').length,
+    messages: items.filter(i => i.type === 'message' || i.type === 'reschedule').length,
     forms: items.filter(i => i.type === 'form').length,
     payments: items.filter(i => i.type === 'payment').length,
   };
@@ -297,6 +377,7 @@ function InboxPanel() {
   const iconFor = (type: InboxItem['type']) => {
     if (type === 'assessment') return <ClipboardList size={14} />;
     if (type === 'message') return <MessageSquare size={14} />;
+    if (type === 'reschedule') return <CalendarClock size={14} />;
     if (type === 'form') return <FileText size={14} />;
     if (type === 'payment') return <CreditCard size={14} />;
     return <ListChecks size={14} />;
@@ -434,6 +515,7 @@ function InboxPanel() {
                   item.priority === 'high'         ? 'bg-danger' :
                   item.type === 'assessment'       ? 'bg-info' :
                   item.type === 'message'          ? 'bg-primary' :
+                  item.type === 'reschedule'       ? 'bg-warning' :
                   item.type === 'form'             ? 'bg-warning' :
                   item.type === 'payment'          ? 'bg-success' :
                                                      'bg-transparent'
@@ -445,6 +527,7 @@ function InboxPanel() {
                     <div className={`w-9 h-9 rounded-md flex items-center justify-center shrink-0 ${
                       item.type === 'assessment' ? 'bg-info-light text-info-text' :
                       item.type === 'message'    ? 'bg-primary/10 text-primary' :
+                      item.type === 'reschedule' ? 'bg-warning-bg text-warning-text' :
                       item.type === 'form'       ? 'bg-warning-bg text-warning-text' :
                       item.type === 'payment'    ? 'bg-success-light text-success-text' :
                                                    'bg-cream text-obsidian'
@@ -461,6 +544,7 @@ function InboxPanel() {
                         <span className="text-[10px] font-medium uppercase tracking-wider text-hint">
                           {item.type === 'assessment' ? 'Assessment' :
                            item.type === 'message'    ? 'Message' :
+                         item.type === 'reschedule' ? 'Reschedule' :
                            item.type === 'form'       ? 'Form' :
                            item.type === 'payment'    ? 'Payment' :
                            item.type === 'task'       ? 'Task' : 'Item'}
@@ -514,6 +598,7 @@ function InboxPanel() {
                       <span className="text-[10px] font-medium uppercase tracking-wider text-hint">
                         {item.type === 'assessment' ? 'Assessment' :
                          item.type === 'message'    ? 'Message' :
+                         item.type === 'reschedule' ? 'Reschedule' :
                          item.type === 'form'       ? 'Form' :
                          item.type === 'payment'    ? 'Payment' :
                          item.type === 'task'       ? 'Task' : 'Item'}
@@ -547,7 +632,7 @@ function InboxPanel() {
 
                 {/* ── Inline reply expansion (message-type items only) ─────────── */}
                 <AnimatePresence>
-                  {item.type === 'message' && expandedReplyId === item.id && item.messageId && (() => {
+                  {(item.type === 'message' || item.type === 'reschedule') && expandedReplyId === item.id && item.messageId && (() => {
                     // Last 5 messages in this thread (between admin and patient).
                     // Older history lives behind "Open thread".
                     const threadMessages = messages
@@ -690,6 +775,83 @@ function InboxPanel() {
             <Button type="submit" variant="primary" disabled={!newTask.title.trim()}>Create task</Button>
           </div>
         </form>
+      </Modal>
+
+      {/* Accept-reschedule modal — confirms the patient's structured request,
+          with a live conflict check against the clinician's other bookings. */}
+      <Modal
+        open={!!acceptingMsg && !!acceptApt}
+        onClose={() => setAcceptingMsg(null)}
+        title="Accept reschedule"
+        subtitle={acceptApt ? `${acceptApt.clientName} — ${acceptApt.type}, currently ${acceptApt.date} at ${acceptApt.time}` : undefined}
+        size="md"
+      >
+        {acceptApt && acceptingMsg?.rescheduleRequest && (
+          <div className="flex flex-col gap-4">
+            <p className="text-sm text-muted">
+              Patient asked for{' '}
+              <span className="text-obsidian font-medium">
+                {new Date(`${acceptingMsg.rescheduleRequest.preferredDate}T00:00`).toLocaleDateString('en-GB', { weekday: 'long', day: '2-digit', month: 'long' })}
+              </span>
+              {' '}({acceptingMsg.rescheduleRequest.preferredTime.toLowerCase()}). Pick the exact slot:
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Input
+                label="New date"
+                type="date"
+                required
+                value={acceptForm.date}
+                min={new Date().toISOString().split('T')[0]}
+                onChange={(e) => setAcceptForm(f => ({ ...f, date: e.target.value }))}
+              />
+              <Select
+                label="New time"
+                required
+                value={acceptForm.time}
+                onChange={(e) => setAcceptForm(f => ({ ...f, time: e.target.value }))}
+              >
+                {['09:00 AM','09:30 AM','10:00 AM','10:30 AM','11:00 AM','11:30 AM','12:00 PM','12:30 PM','01:00 PM','01:30 PM','02:00 PM','02:30 PM','03:00 PM','03:30 PM','04:00 PM','04:30 PM','05:00 PM','05:30 PM','06:00 PM','06:30 PM','07:00 PM','07:30 PM','08:00 PM','08:30 PM','09:00 PM','09:30 PM','10:00 PM'].map(t => (
+                  <option key={t} value={t}>{t}</option>
+                ))}
+              </Select>
+            </div>
+            {acceptConflict && (
+              <div className="rounded-md bg-danger-bg border border-danger/20 px-3 py-2.5 text-xs text-danger-text">
+                <span className="font-medium">Conflict:</span> {acceptConflict.doctorName ?? 'This clinician'} already has{' '}
+                <span className="font-medium">{acceptConflict.type}</span> with {acceptConflict.clientName} at {acceptConflict.time} that day.
+                Pick a different time.
+              </div>
+            )}
+            <p className="text-xs text-muted">The patient is notified automatically once the new time is saved.</p>
+            <div className="flex items-center justify-end gap-2 pt-1">
+              <Button variant="ghost" onClick={() => setAcceptingMsg(null)} disabled={acceptSaving}>Cancel</Button>
+              <Button
+                variant="primary"
+                disabled={acceptSaving || !acceptForm.date || !acceptForm.time || !!acceptConflict}
+                loading={acceptSaving}
+                onClick={async () => {
+                  if (!acceptApt || !acceptingMsg) return;
+                  setAcceptSaving(true);
+                  try {
+                    await onUpdateAppointment(acceptApt.id, { date: acceptForm.date, time: acceptForm.time });
+                    await onMarkMessageRead(acceptingMsg.id);
+                    toast.success('Appointment rescheduled', {
+                      description: `${acceptApt.clientName} moved to ${acceptForm.date} at ${acceptForm.time}. Patient notified.`,
+                    });
+                    setAcceptingMsg(null);
+                  } catch (err) {
+                    console.error('Failed to accept reschedule:', err);
+                    toast.error('Could not reschedule', { description: 'Please try again.' });
+                  } finally {
+                    setAcceptSaving(false);
+                  }
+                }}
+              >
+                {acceptSaving ? 'Saving…' : 'Confirm new time'}
+              </Button>
+            </div>
+          </div>
+        )}
       </Modal>
     </div>
   );

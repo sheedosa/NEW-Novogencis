@@ -262,6 +262,14 @@ export interface Message {
   formData?: Record<string, unknown>;
   signature?: string;
   paymentUrl?: string;
+  /** Structured reschedule request — set when a patient asks to move an
+      appointment from the portal. The human-readable body is still sent, so
+      older clients render these as plain messages. */
+  rescheduleRequest?: {
+    appointmentId: string;
+    preferredDate: string;   // YYYY-MM-DD
+    preferredTime: string;   // 'Morning' | 'Afternoon' | 'Any time'
+  };
 }
 
 export interface FAQItem {

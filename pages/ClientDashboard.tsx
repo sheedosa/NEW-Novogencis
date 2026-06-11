@@ -1081,6 +1081,13 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
                                             body: `I would like to reschedule my appointment: ${apt.type} on ${new Date(apt.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })} at ${apt.time}.\n\nPreferred new time: ${prettyDate ? `${prettyDate} — ${rescheduleTimePref.toLowerCase()}` : 'Please contact me to arrange.'}`,
                                             read: false,
                                             createdAt: new Date().toISOString(),
+                                            // Structured payload — lets the clinic accept/decline with one
+                                            // tap instead of parsing the text above.
+                                            rescheduleRequest: {
+                                              appointmentId: apt.id,
+                                              preferredDate: rescheduleDate,
+                                              preferredTime: rescheduleTimePref,
+                                            },
                                           });
                                           toast.success('Reschedule request sent', { description: "We'll confirm your new time within 24 hours." });
                                         } catch {

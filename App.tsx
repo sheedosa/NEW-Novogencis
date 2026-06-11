@@ -464,6 +464,24 @@ const App: React.FC = () => {
     try {
       await setDoc(doc(db, 'appointments', id), cleanData(updates), { merge: true });
 
+      // Reschedules: when the date or time changes, tell the patient the new
+      // slot (fire-and-forget, mirrors the create path). Status-only updates
+      // (Completed/Cancelled) never carry date/time, so they don't trigger this.
+      if (updates.date || updates.time) {
+        const appt = appointments.find(a => a.id === id);
+        const client = appt ? clients.find(c => c.id === appt.clientId) : undefined;
+        if (appt && client) {
+          notifyAppointmentConfirmed(
+            client.id,
+            client.email,
+            client.name,
+            appt.type,
+            updates.date ?? appt.date,
+            updates.time ?? appt.time,
+          );
+        }
+      }
+
       // Auto-sync: when an appointment is marked Completed, increment the
       // active treatment-plan phase's sessionsCompleted counter for the patient.
       // Closes the silent-drift bug where doctors had to remember to bump
