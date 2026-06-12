@@ -5,12 +5,13 @@ import { Task, Message } from '../../../types';
 import {
   ClipboardList, MessageSquare, FileText, CreditCard, ListChecks,
   Plus, Check, X, Snowflake, ArrowRight, Inbox as InboxIcon,
-  AlertTriangle, Trash2, CalendarClock,
+  AlertTriangle, Trash2, CalendarClock, BookText,
 } from 'lucide-react';
 import {
   PageHeader, Card, Button, EmptyState, Modal, Input, Select, Textarea, Badge,
   Skeleton, useConfirm, useToast,
 } from '../../../components/ui';
+import { relativeTime } from '../../../utils/relativeTime';
 
 type InboxFilter = 'all' | 'tasks' | 'assessments' | 'messages' | 'forms' | 'payments';
 
@@ -39,13 +40,6 @@ const filterChips: { id: InboxFilter; label: string; icon: React.ReactNode }[] =
   { id: 'payments',     label: 'Payments',     icon: <CreditCard size={13} /> },
 ];
 
-function relativeTime(iso: string) {
-  const diff = Date.now() - new Date(iso).getTime();
-  if (diff < 60000) return 'Just now';
-  if (diff < 3600000) return `${Math.floor(diff / 60000)}m`;
-  if (diff < 86400000) return `${Math.floor(diff / 3600000)}h`;
-  return `${Math.floor(diff / 86400000)}d`;
-}
 
 function InboxPanel() {
   const {
@@ -66,7 +60,9 @@ function InboxPanel() {
 
   const { confirm, ConfirmHost } = useConfirm();
   const { toast } = useToast();
-  const { onSendMessage, onMarkMessageRead, appointments, onUpdateAppointment } = useAdminContext();
+  const { onSendMessage, onMarkMessageRead, appointments, onUpdateAppointment, templates } = useAdminContext();
+  const messageTemplates = templates.filter(t => t.category === 'message');
+  const [showReplyTemplates, setShowReplyTemplates] = useState(false);
 
   /** Parse "10:30 AM" into minutes since midnight (null if unparseable). */
   const parseTime12h = (t: string | undefined): number | null => {
@@ -654,7 +650,7 @@ function InboxPanel() {
                           {[...recentThread].reverse().map(m => (
                             <div
                               key={m.id}
-                              className={`text-sm px-3 py-2 rounded-md max-w-[85%] ${
+                              className={`text-sm px-3 py-2 md:px-4 md:py-3 rounded-md max-w-[85%] ${
                                 m.senderId === 'admin'
                                   ? 'self-end bg-primary/10 text-obsidian ml-auto border border-primary/20'
                                   : 'self-start bg-cream text-obsidian border border-sand'
@@ -709,6 +705,40 @@ function InboxPanel() {
                             >
                               Cancel
                             </Button>
+                            {messageTemplates.length > 0 && (
+                              <div className="relative">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => setShowReplyTemplates(s => !s)}
+                                  aria-label="Insert template"
+                                  title="Insert a saved message template"
+                                >
+                                  <BookText size={13} />
+                                </Button>
+                                {showReplyTemplates && (
+                                  <>
+                                    <div className="fixed inset-0 z-40" onClick={() => setShowReplyTemplates(false)} />
+                                    <div className="absolute right-0 bottom-full mb-2 w-64 max-h-60 overflow-y-auto bg-white rounded-lg shadow-panel border border-sand z-50 p-1.5 space-y-0.5">
+                                      {messageTemplates.map(t => (
+                                        <button
+                                          key={t.id}
+                                          type="button"
+                                          onClick={() => {
+                                            setReplyDraft(prev => (prev ? `${prev} ${t.body}` : t.body));
+                                            setShowReplyTemplates(false);
+                                          }}
+                                          className="w-full text-left px-3 py-2 hover:bg-cream rounded-md"
+                                        >
+                                          <p className="text-sm font-medium text-obsidian truncate">{t.title}</p>
+                                          <p className="text-xs text-muted truncate">{t.body}</p>
+                                        </button>
+                                      ))}
+                                    </div>
+                                  </>
+                                )}
+                              </div>
+                            )}
                           </div>
                         </div>
                       </motion.div>

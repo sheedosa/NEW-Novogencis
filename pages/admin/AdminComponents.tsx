@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Card } from '../../components/ui';
 import { Button, StatusBadge } from '../../components/ui';
-import { User as UserIcon, PlusCircle, Send, StickyNote, RefreshCw, CheckCircle, AlertCircle, Clock } from 'lucide-react';
-import { InternalNoteEntry } from '../../types';
+import { User as UserIcon, PlusCircle, Send, StickyNote, RefreshCw, CheckCircle, AlertCircle, Clock, BookText } from 'lucide-react';
+import { InternalNoteEntry, Template } from '../../types';
 
 // Re-export StatusBadge for any legacy import sites that look here
 export { StatusBadge };
@@ -25,14 +25,25 @@ export const MessageInputForm = ({
   showQuickActionsBtn = false,
   showQuickActions = false,
   onToggleQuickActions,
+  templates,
 }: {
   onSend: (message: string) => void;
   placeholder?: string;
   showQuickActionsBtn?: boolean;
   showQuickActions?: boolean;
   onToggleQuickActions?: () => void;
+  /** Saved message templates — when present, an insert-template picker shows. */
+  templates?: Template[];
 }) => {
   const [input, setInput] = useState('');
+  const [showTemplates, setShowTemplates] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const insertTemplate = (body: string) => {
+    setInput(prev => (prev ? `${prev} ${body}` : body));
+    setShowTemplates(false);
+    inputRef.current?.focus();
+  };
 
   return (
     <div className="w-full">
@@ -51,7 +62,40 @@ export const MessageInputForm = ({
             <PlusCircle size={14} />
           </Button>
         )}
+        {templates && templates.length > 0 && (
+          <div className="relative">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowTemplates(s => !s)}
+              aria-label="Insert template"
+              title="Insert a saved message template"
+            >
+              <BookText size={14} />
+            </Button>
+            {showTemplates && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setShowTemplates(false)} />
+                <div className="absolute left-0 bottom-full mb-2 w-64 max-h-60 overflow-y-auto bg-white rounded-lg shadow-panel border border-sand z-50 p-1.5 space-y-0.5">
+                  {templates.map(t => (
+                    <button
+                      key={t.id}
+                      type="button"
+                      onClick={() => insertTemplate(t.body)}
+                      className="w-full text-left px-3 py-2 hover:bg-cream rounded-md"
+                    >
+                      <p className="text-sm font-medium text-obsidian truncate">{t.title}</p>
+                      <p className="text-xs text-muted truncate">{t.body}</p>
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        )}
         <input
+          ref={inputRef}
           type="text"
           value={input}
           onChange={(e) => setInput(e.target.value)}

@@ -19,6 +19,7 @@ import { storage } from '../../firebase';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { processImageForUpload, validateImageFile, ACCEPTED_IMAGE_TYPES } from '../../imageUtils';
 import { logClinicalAction } from '../../utils/auditLogger';
+import { relativeTime, absoluteDateTime } from '../../utils/relativeTime';
 import { notifyFeedbackReceived, notifyFormSent, notifyPaymentSent } from '../../utils/notificationService';
 import { Appointment, TreatmentPlan, TreatmentPhase, Prescription, Payment } from '../../types';
 
@@ -61,6 +62,8 @@ const ClientRecord: React.FC = () => {
     formatDOB,
     calculateAge,
     getInitials,
+    getFirstName,
+    templates,
     selectedClientId,
     onUpdateAppointment,
     onSaveTreatmentPlan,
@@ -109,6 +112,8 @@ const ClientRecord: React.FC = () => {
   const [filesSubTab, setFilesSubTab] = useState<'forms' | 'photos'>('photos');
   /** Click-toggle "Send new form" dropdown (was hover-only, broken on touch). */
   const [showSendFormMenu, setShowSendFormMenu] = useState(false);
+  /** Separate state for the Activity tab's quick-action form menu. */
+  const [showActivityFormMenu, setShowActivityFormMenu] = useState(false);
 
   if (!selectedClient) return null;
 
@@ -668,15 +673,20 @@ const ClientRecord: React.FC = () => {
         {viewTab === 'activity' && (
           <div className="grid grid-cols-1 gap-4 md:gap-8">
             <div className="space-y-4 md:space-y-6">
-              <Card className="p-4 md:p-8 h-[450px] md:h-[600px] flex flex-col">
+              <Card className="p-4 md:p-8 max-h-[60vh] min-h-[320px] flex flex-col">
                 <h3 className="text-2xs md:text-xs font-medium text-muted mb-4 md:mb-6">Communication Log</h3>
-                <div className="flex-grow overflow-y-auto space-y-4 md:space-y-6 pr-2 no-scrollbar">
+                {/* min-h-0 is required: flex children default to min-height auto,
+                    which would defeat the max-h cap and stop inner scrolling. */}
+                <div className="flex-grow min-h-0 overflow-y-auto space-y-4 md:space-y-6 pr-2 no-scrollbar">
                   {(messages.filter(m => m.senderId === selectedClientId || m.recipientId === selectedClientId) || []).map((msg) => (
                     <div key={msg.id} className={`flex ${msg.senderId === 'admin' ? 'justify-end' : 'justify-start'}`}>
-                      <div className={`max-w-[90%] md:max-w-[80%] p-3 md:p-4 rounded-lg ${
+                      <div className={`max-w-[90%] md:max-w-[80%] px-3 py-2 md:px-4 md:py-3 rounded-lg ${
                         msg.senderId === 'admin'
                           ? 'bg-primary/10 text-obsidian border border-primary/20'
                           : 'bg-cream text-obsidian border border-sand'
+                      } ${
+                        msg.type === 'form' ? 'border-l-[3px] border-l-warning' :
+                        msg.type === 'payment' ? 'border-l-[3px] border-l-success' : ''
                       }`}>
                         {msg.type === 'form' ? (
                           <div className="space-y-2">
@@ -712,16 +722,59 @@ const ClientRecord: React.FC = () => {
                           <p className="text-2xs md:text-xs leading-relaxed mb-2">{msg.body}</p>
                         )}
                         <div className="flex justify-between items-center gap-4 mt-2">
-                          <span className="text-2xs font-medium opacity-50">{msg.senderId === 'admin' ? 'Clinic' : 'Client'}</span>
-                          <span className="text-2xs font-medium opacity-50">{msg.createdAt ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Recently'}</span>
+                          <span className="text-xs font-medium text-muted">{msg.senderId === 'admin' ? 'You' : getFirstName(selectedClient.name)}</span>
+                          <span className="text-xs text-hint" title={msg.createdAt ? absoluteDateTime(msg.createdAt) : undefined}>
+                            {msg.createdAt ? relativeTime(msg.createdAt) : 'Recently'}
+                          </span>
                         </div>
                       </div>
                     </div>
                   ))}
                 </div>
                 <div className="mt-4 md:mt-6 pt-4 md:pt-6 border-t border-black/5">
+                  {/* Quick actions — keep form-sending and payment requests inside
+                      the conversation instead of a tab-switch away. */}
+                  <div className="flex flex-wrap items-center gap-2 mb-2">
+                    <div className="relative">
+                      <UIButton
+                        variant="ghost"
+                        size="sm"
+                        leadingIcon={<FileText size={13} />}
+                        trailingIcon={<ChevronDown size={12} className={showActivityFormMenu ? 'rotate-180 transition-transform' : 'transition-transform'} />}
+                        onClick={() => setShowActivityFormMenu(s => !s)}
+                      >
+                        Send form
+                      </UIButton>
+                      {showActivityFormMenu && (
+                        <>
+                          <div className="fixed inset-0 z-40" onClick={() => setShowActivityFormMenu(false)} />
+                          <div className="absolute left-0 bottom-full mb-2 w-64 bg-white rounded-lg shadow-panel border border-sand z-50 p-2 space-y-1">
+                            {FORMS.map(form => (
+                              <button
+                                key={form.id}
+                                onClick={() => { handleSendForm(form.id); setShowActivityFormMenu(false); }}
+                                className="w-full text-left px-4 py-3 hover:bg-cream rounded-md text-sm font-medium text-obsidian flex items-center justify-between"
+                              >
+                                {form.title}
+                                <Send size={14} className="text-primary" />
+                              </button>
+                            ))}
+                          </div>
+                        </>
+                      )}
+                    </div>
+                    <UIButton
+                      variant="ghost"
+                      size="sm"
+                      leadingIcon={<CreditCard size={13} />}
+                      onClick={() => setViewTab('money')}
+                    >
+                      Request payment
+                    </UIButton>
+                  </div>
                   <MessageInputForm
                     onSend={(msg) => handleSendMessage(msg, selectedClientId || '')}
+                    templates={templates.filter(t => t.category === 'message')}
                   />
                 </div>
               </Card>
