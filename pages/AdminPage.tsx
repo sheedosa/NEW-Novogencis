@@ -959,8 +959,10 @@ const AdminPage: React.FC<AdminPageProps> = ({
                 ? Math.round((selectedTreatment.fullPricePence * selectedTreatment.depositPct) / 100)
                 : 0;
               return (
-                <form id="booking-form" onSubmit={handleBookingSubmit} className="flex flex-col gap-4">
-                  {/* Treatment first — drives duration + price + deposit */}
+                <form id="booking-form" onSubmit={handleBookingSubmit} className="flex flex-col gap-5">
+                  {/* What — treatment drives duration + price + deposit */}
+                  <div className="flex flex-col gap-3">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-muted">What</p>
                   <Select
                     label="Treatment"
                     required
@@ -1009,7 +1011,11 @@ const AdminPage: React.FC<AdminPageProps> = ({
                       </div>
                     </div>
                   )}
+                  </div>
 
+                  {/* Who */}
+                  <div className="flex flex-col gap-3">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-muted">Who</p>
                   <Select
                     label="Client"
                     required
@@ -1029,7 +1035,11 @@ const AdminPage: React.FC<AdminPageProps> = ({
                     <option value="" disabled>Choose a clinician…</option>
                     {CLINICIANS.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                   </Select>
+                  </div>
 
+                  {/* When */}
+                  <div className="flex flex-col gap-3">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-muted">When</p>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <Input
                       label="Date"
@@ -1058,9 +1068,10 @@ const AdminPage: React.FC<AdminPageProps> = ({
                     </div>
                   </div>
 
-                  {/* Live conflict warning — appears when clinician+date+time picked overlaps an existing booking */}
+                  {/* Live conflict warning — caution tone (it blocks submit, but the
+                      fix is just picking a different slot, not an error state) */}
                   {liveConflict && (
-                    <div className="rounded-md bg-danger-bg border border-danger/20 px-3 py-2.5 text-xs text-danger-text">
+                    <div className="rounded-md bg-warning-bg border border-warning/30 px-3 py-2.5 text-xs text-warning-text">
                       <div className="font-medium mb-0.5">Booking conflict</div>
                       {CLINICIANS.find(c => c.id === bookingForm.clinicianId)?.name ?? 'This clinician'} already has{' '}
                       <span className="font-medium">{liveConflict.type}</span> with{' '}
@@ -1068,7 +1079,11 @@ const AdminPage: React.FC<AdminPageProps> = ({
                       Pick a different time or clinician.
                     </div>
                   )}
+                  </div>
 
+                  {/* Notes */}
+                  <div className="flex flex-col gap-3">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-muted">Notes</p>
                   <Textarea
                     label="Clinical notes (optional)"
                     rows={3}
@@ -1076,6 +1091,7 @@ const AdminPage: React.FC<AdminPageProps> = ({
                     onChange={(e) => setBookingForm(prev => ({ ...prev, notes: e.target.value }))}
                     placeholder="Add any specific instructions or prep notes…"
                   />
+                  </div>
 
                   <div className="flex flex-wrap items-center justify-end gap-2 pt-2">
                     <Button variant="ghost" onClick={() => setShowBookingModal(false)}>Cancel</Button>

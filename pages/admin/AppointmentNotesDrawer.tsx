@@ -10,7 +10,7 @@
  */
 
 import React, { useEffect, useState } from 'react';
-import { Modal, Button, StatusBadge } from '../../components/ui';
+import { Modal, Button } from '../../components/ui';
 import { Appointment } from '../../types';
 import { Save, CalendarDays, User as UserIcon } from 'lucide-react';
 
@@ -84,16 +84,16 @@ export const AppointmentNotesDrawer: React.FC<AppointmentNotesDrawerProps> = ({
             </div>
           </div>
 
-          {/* Status */}
+          {/* Status — the selected pill IS the status display */}
           <div>
-            <label className="text-xs text-muted block mb-1.5">Status</label>
-            <div className="flex flex-wrap gap-1.5">
+            <label className="text-sm font-medium text-obsidian block mb-2">Status</label>
+            <div className="flex flex-wrap gap-2">
               {(['Confirmed','Pending','Awaiting deposit','Completed','Cancelled','No-Show'] as const).map((s) => (
                 <button
                   key={s}
                   type="button"
                   onClick={() => { setStatus(s); setDirty(true); }}
-                  className={`px-3 py-1.5 rounded-md text-xs transition-colors ${
+                  className={`px-3 py-2 rounded-md text-sm transition-colors ${
                     status === s
                       ? 'bg-obsidian text-white font-medium'
                       : 'bg-cream text-muted hover:text-obsidian'
@@ -102,9 +102,6 @@ export const AppointmentNotesDrawer: React.FC<AppointmentNotesDrawerProps> = ({
                   {s}
                 </button>
               ))}
-            </div>
-            <div className="mt-2">
-              <StatusBadge status={status} />
             </div>
           </div>
 
