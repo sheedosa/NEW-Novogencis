@@ -553,7 +553,7 @@ const ClientRecord: React.FC = () => {
                 and the intake is one tap away from the feedback editor. */}
             {selectedClient.assessmentData?.answers && (
               <details className="order-4">
-                <summary className="cursor-pointer text-sm font-medium text-obsidian py-2 px-3 bg-cream rounded-md flex items-center justify-between">
+                <summary className="cursor-pointer text-sm font-medium text-obsidian px-4 py-3 bg-white border border-sand rounded-md flex items-center justify-between">
                   <span>
                     Intake assessment
                     <span className="text-xs text-muted font-normal ml-2">
@@ -640,7 +640,7 @@ const ClientRecord: React.FC = () => {
             {/* Mobile-only: contact + notes accordion (since identity rail is hidden).
                 Open by default so contact details are glanceable; still collapsible. */}
             <details open className="lg:hidden">
-              <summary className="cursor-pointer text-sm font-medium text-obsidian py-2 px-3 bg-cream rounded-md flex items-center justify-between">
+              <summary className="cursor-pointer text-sm font-medium text-obsidian px-4 py-3 bg-white border border-sand rounded-md flex items-center justify-between">
                 <span>Contact & internal notes</span>
                 <ChevronDown size={14} />
               </summary>
@@ -886,9 +886,9 @@ const ClientRecord: React.FC = () => {
                 <table className="w-full text-left">
                   <thead className="bg-cream text-2xs text-muted border-b border-black/5">
                     <tr>
-                      <th className="px-8 py-5">Form Name & Status</th>
-                      <th className="px-8 py-5">Timeline</th>
-                      <th className="px-8 py-5 text-right">Actions</th>
+                      <th className="px-6 py-4">Form Name & Status</th>
+                      <th className="px-6 py-4">Timeline</th>
+                      <th className="px-6 py-4 text-right">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-50">
@@ -900,7 +900,7 @@ const ClientRecord: React.FC = () => {
                         const form = FORMS.find(f => f.id === msg.formId);
                         return (
                           <tr key={msg.id} className="hover:bg-cream/40 transition-colors">
-                            <td className="px-8 py-6">
+                            <td className="px-6 py-4">
                               <div className="flex flex-col items-start gap-2">
                                 <span className="font-medium text-sm text-obsidian">{form?.title || msg.subject}</span>
                                 <UIBadge variant={msg.isSigned ? 'active' : 'pending'}>
@@ -908,7 +908,7 @@ const ClientRecord: React.FC = () => {
                                 </UIBadge>
                               </div>
                             </td>
-                            <td className="px-8 py-6">
+                            <td className="px-6 py-4">
                               <div className="flex flex-col gap-1">
                                 <div className="flex items-center gap-2">
                                   <span className="text-2xs text-muted w-12">Sent</span>
@@ -920,7 +920,7 @@ const ClientRecord: React.FC = () => {
                                 </div>
                               </div>
                             </td>
-                            <td className="px-8 py-6 text-right">
+                            <td className="px-6 py-4 text-right">
                               <button
                                 onClick={() => setViewingForm(msg)}
                                 className="text-primary font-medium text-2xs hover:underline"
