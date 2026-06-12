@@ -295,9 +295,12 @@ function TodayPanel() {
                       onClick={() => { setSelectedClientId(apt.clientId); handleSidebarClick('patients'); }}
                       className={`w-full text-left px-4 py-3 hover:bg-cream/50 transition-colors ${idx > 0 ? 'border-t border-cream' : ''}`}
                     >
-                      <div className="flex items-start gap-3">
+                      {/* Line 1 is constant height: time | patient | status.
+                          Prep flags render on their own line beneath, aligned
+                          under the patient block, so rows keep a steady rhythm. */}
+                      <div className="flex items-center gap-3">
                         {/* Time column */}
-                        <div className="text-center shrink-0 w-12 pt-0.5">
+                        <div className="text-center shrink-0 w-12">
                           <p className="text-sm font-medium text-obsidian leading-none font-mono">
                             {apt.time?.split(' ')[0] || '—'}
                           </p>
@@ -315,27 +318,27 @@ function TodayPanel() {
                               )}
                             </div>
                             <p className="text-xs text-muted truncate">{apt.type}</p>
-                            {flags.length > 0 && (
-                              <div className="flex flex-wrap gap-1 mt-1.5">
-                                {flags.map(f => (
-                                  <span
-                                    key={f.id}
-                                    className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-medium ${
-                                      f.tone === 'danger'  ? 'bg-danger-bg text-danger-text border border-danger/25' :
-                                      f.tone === 'warning' ? 'bg-warning-bg text-warning-text border border-warning/30' :
-                                                             'bg-cream text-muted border border-sand'
-                                    }`}
-                                  >
-                                    {f.icon}
-                                    {f.label}
-                                  </span>
-                                ))}
-                              </div>
-                            )}
                           </div>
                         </div>
                         <StatusBadge status={apt.status} />
                       </div>
+                      {flags.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-1.5 pl-[73px]">
+                          {flags.map(f => (
+                            <span
+                              key={f.id}
+                              className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-medium ${
+                                f.tone === 'danger'  ? 'bg-danger-bg text-danger-text border border-danger/25' :
+                                f.tone === 'warning' ? 'bg-warning-bg text-warning-text border border-warning/30' :
+                                                       'bg-cream text-muted border border-sand'
+                              }`}
+                            >
+                              {f.icon}
+                              {f.label}
+                            </span>
+                          ))}
+                        </div>
+                      )}
                     </button>
                   );
                 })}

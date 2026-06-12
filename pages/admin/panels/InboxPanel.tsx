@@ -541,7 +541,7 @@ function InboxPanel() {
                       title={item.type === 'message' ? 'Tap to read the full conversation' : undefined}
                     >
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-[10px] font-medium uppercase tracking-wider text-hint">
+                        <span className="text-xs font-semibold uppercase tracking-wider text-muted">
                           {item.type === 'assessment' ? 'Assessment' :
                            item.type === 'message'    ? 'Message' :
                          item.type === 'reschedule' ? 'Reschedule' :
@@ -550,7 +550,7 @@ function InboxPanel() {
                            item.type === 'task'       ? 'Task' : 'Item'}
                         </span>
                         {item.priority === 'high' && (
-                          <span className="inline-flex items-center gap-0.5 text-[10px] font-medium uppercase tracking-wider text-danger">
+                          <span className="inline-flex items-center gap-0.5 text-xs font-medium uppercase tracking-wider text-danger">
                             <AlertTriangle size={10} /> Priority
                           </span>
                         )}
@@ -595,7 +595,7 @@ function InboxPanel() {
                     title={item.type === 'message' ? 'Click to read the full conversation' : undefined}
                   >
                     <div className="flex items-center gap-2">
-                      <span className="text-[10px] font-medium uppercase tracking-wider text-hint">
+                      <span className="text-xs font-semibold uppercase tracking-wider text-muted">
                         {item.type === 'assessment' ? 'Assessment' :
                          item.type === 'message'    ? 'Message' :
                          item.type === 'reschedule' ? 'Reschedule' :
@@ -604,7 +604,7 @@ function InboxPanel() {
                          item.type === 'task'       ? 'Task' : 'Item'}
                       </span>
                       {item.priority === 'high' && (
-                        <span className="inline-flex items-center gap-0.5 text-[10px] font-medium uppercase tracking-wider text-danger">
+                        <span className="inline-flex items-center gap-0.5 text-xs font-medium uppercase tracking-wider text-danger">
                           <AlertTriangle size={10} /> Priority
                         </span>
                       )}
