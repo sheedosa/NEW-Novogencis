@@ -1,7 +1,7 @@
 import React, { useMemo, useState, useRef, memo } from 'react';
 import {
-  Download, Search, CheckCircle, ChevronRight, Mail, Phone,
-  Users as UsersIcon, User as UserIcon, ChevronDown, ArrowLeft, ArrowRight,
+  Download, Search, CheckCircle, ChevronRight,
+  Users as UsersIcon, User as UserIcon, ArrowLeft,
   UserPlus, Clock, Activity, Moon, AlertTriangle,
 } from 'lucide-react';
 import { useVirtualizer } from '@tanstack/react-virtual';
@@ -11,8 +11,6 @@ import ClientRecord from '../ClientRecord';
 import {
   PageHeader, Stat, Card, Button, StatusBadge, EmptyState,
 } from '../../../components/ui';
-
-const STATUS_OPTIONS = ['All', 'New Inquiry', 'Assessment Submitted', 'Reviewed', 'Contacted', 'Converted', 'Active', 'Ongoing', 'Not Suitable'];
 
 function exportClientsToCSV(clients: { id: string; name: string; email: string; phone: string; status?: string; createdAt?: string }[]) {
   const header = ['ID', 'Name', 'Email', 'Phone', 'Status', 'Created'];
@@ -48,8 +46,6 @@ const ClientsPanel: React.FC = () => {
   } = useAdminContext();
 
   const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState('All');
-  const [showFilterMenu, setShowFilterMenu] = useState(false);
   const [segment, setSegment] = useState<'all' | 'new-leads' | 'due-followup' | 'active' | 'lapsed' | 'at-risk'>('all');
 
   // Smart-segment classifiers — computed once per client list.
@@ -110,11 +106,10 @@ const ClientsPanel: React.FC = () => {
     const segMatch = segmentMatcher[segment];
     return filteredClients.filter(c => {
       if (segment !== 'all' && !segMatch(c)) return false;
-      if (statusFilter !== 'All' && (c.status || 'Active') !== statusFilter) return false;
       if (!q) return true;
       return [c.name, c.email, c.id, c.phone].some(v => v?.toLowerCase().includes(q));
     });
-  }, [filteredClients, search, statusFilter, segment, segmentMatcher]);
+  }, [filteredClients, search, segment, segmentMatcher]);
 
   const stats = useMemo(() => {
     const now = Date.now();
@@ -138,12 +133,11 @@ const ClientsPanel: React.FC = () => {
   const sidebarScrollRef = useRef<HTMLDivElement>(null);
   const mobileScrollRef = useRef<HTMLDivElement>(null);
 
-  // Mobile rows are slightly taller because status badge appears under client name.
-  const isMobile = typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches;
+  // Desktop rows are 3 text lines tall (~90px); measureElement corrects per-row.
   const tableVirtualizer = useVirtualizer({
     count: visibleClients.length,
     getScrollElement: () => tableScrollRef.current,
-    estimateSize: () => isMobile ? 96 : 72,
+    estimateSize: () => 90,
     overscan: 5,
   });
   const sidebarVirtualizer = useVirtualizer({
@@ -211,8 +205,9 @@ const ClientsPanel: React.FC = () => {
             />
           </div>
 
-          {/* ── Smart segments — saved views that surface action ── */}
-          <div className="flex gap-1.5 overflow-x-auto no-scrollbar">
+          {/* ── Smart segments — saved views that surface action.
+              Wrap on phones so At-risk / Lapsed are never hidden off-screen. ── */}
+          <div className="flex flex-wrap gap-1.5">
             {([
               { id: 'all',           label: 'All',           icon: <UsersIcon size={13} /> },
               { id: 'new-leads',     label: 'New leads',     icon: <UserPlus size={13} /> },
@@ -280,10 +275,9 @@ const ClientsPanel: React.FC = () => {
                             <AssignedBadge isAssigned={isAssignedToMe(c)} />
                             {c.policiesAccepted && <CheckCircle size={12} className="text-success" />}
                           </div>
-                          <div className="flex items-center gap-2 text-xs text-muted">
-                            <span className="font-mono">{c.id}</span>
-                            <span className="w-1 h-1 bg-sand rounded-full" />
-                            <StatusBadge status={c.status || 'Active'} />
+                          <div className="flex items-center gap-2 text-xs text-muted min-w-0">
+                            <span className="truncate">{c.email}</span>
+                            <span className="shrink-0"><StatusBadge status={c.status || 'Active'} /></span>
                           </div>
                         </div>
                         <ChevronRight size={14} className="text-hint shrink-0" />
@@ -297,8 +291,9 @@ const ClientsPanel: React.FC = () => {
 
           {/* Desktop table */}
           <Card padded={false} className="hidden lg:block overflow-hidden">
-            <div className="px-4 py-3 border-b border-sand flex items-center justify-between gap-3">
-              <div className="search-wrap flex-1 max-w-md">
+            {/* Search only — the smart segments above are the one filter system */}
+            <div className="px-4 py-3 border-b border-sand">
+              <div className="search-wrap max-w-md">
                 <Search size={14} className="search-icon" />
                 <input
                   type="text"
@@ -308,32 +303,6 @@ const ClientsPanel: React.FC = () => {
                   className="search-input"
                 />
               </div>
-              <div className="relative">
-                <Button
-                  variant={statusFilter !== 'All' ? 'primary' : 'ghost'}
-                  size="sm"
-                  trailingIcon={<ChevronDown size={13} />}
-                  onClick={() => setShowFilterMenu(s => !s)}
-                >
-                  {statusFilter === 'All' ? 'All statuses' : statusFilter}
-                </Button>
-                {showFilterMenu && (
-                  <>
-                    <div className="fixed inset-0 z-10" onClick={() => setShowFilterMenu(false)} />
-                    <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-panel border border-sand z-20 overflow-hidden">
-                      {STATUS_OPTIONS.map(s => (
-                        <button
-                          key={s}
-                          onClick={() => { setStatusFilter(s); setShowFilterMenu(false); }}
-                          className={`w-full text-left px-3 py-2 text-sm transition-colors ${statusFilter === s ? 'bg-cream text-obsidian font-medium' : 'text-muted hover:bg-cream/60'}`}
-                        >
-                          {s}
-                        </button>
-                      ))}
-                    </div>
-                  </>
-                )}
-              </div>
             </div>
 
             {visibleClients.length === 0 ? (
@@ -342,65 +311,52 @@ const ClientsPanel: React.FC = () => {
                 title={filteredClients.length === 0 ? 'No clients yet' : 'No matches'}
               />
             ) : (
-              <>
-                {/* Headers visible only on desktop where the table layout exists */}
-                <div className="hidden md:grid grid-cols-[1fr_180px_100px] lg:grid-cols-[1fr_220px_120px] data-table">
-                  <div className="px-4 py-3 bg-cream text-xs text-hint uppercase tracking-wider font-medium">Client</div>
-                  <div className="px-4 py-3 bg-cream text-xs text-hint uppercase tracking-wider font-medium">Status</div>
-                  <div className="px-4 py-3 bg-cream text-xs text-hint uppercase tracking-wider font-medium text-right">Actions</div>
-                </div>
-                <div ref={tableScrollRef} style={{ maxHeight: '60vh', overflowY: 'auto' }}>
-                  <div style={{ height: tableVirtualizer.getTotalSize(), position: 'relative' }}>
-                    {tableVirtualizer.getVirtualItems().map(virtualRow => {
-                      const c = visibleClients[virtualRow.index];
-                      return (
-                        <div
-                          key={c.id}
-                          onClick={() => setSelectedClientId(c.id)}
-                          className="grid grid-cols-[1fr_auto] md:grid-cols-[1fr_180px_100px] lg:grid-cols-[1fr_220px_120px] hover:bg-cream/40 transition-colors cursor-pointer border-b border-cream items-center"
-                          style={{ position: 'absolute', top: 0, left: 0, right: 0, transform: `translateY(${virtualRow.start}px)` }}
-                        >
-                          <div className="px-4 py-3 flex items-center gap-3 min-w-0">
-                            <div className="avatar avatar-md shrink-0">{getInitials(c.name)}</div>
-                            <div className="min-w-0 flex-grow">
-                              <div className="flex items-center gap-2">
-                                <p className="text-sm font-medium text-obsidian truncate">{c.name}</p>
-                                <AssignedBadge isAssigned={isAssignedToMe(c)} />
-                              </div>
-                              <div className="flex items-center gap-2 text-xs text-muted mt-0.5 min-w-0">
-                                <span className="inline-flex items-center gap-1 min-w-0"><Mail size={11} className="shrink-0" /><span className="truncate">{c.email}</span></span>
-                                {c.phone && (
-                                  <span className="hidden sm:inline-flex items-center gap-1 shrink-0"><Phone size={11} />{c.phone}</span>
-                                )}
-                              </div>
-                              {/* Mobile-only: show status inline under name */}
-                              <div className="md:hidden mt-1.5">
-                                <StatusBadge status={c.status || 'Active'} />
-                              </div>
+              <div ref={tableScrollRef} style={{ maxHeight: '60vh', overflowY: 'auto' }}>
+                <div style={{ height: tableVirtualizer.getTotalSize(), position: 'relative' }}>
+                  {tableVirtualizer.getVirtualItems().map(virtualRow => {
+                    const c = visibleClients[virtualRow.index];
+                    return (
+                      <div
+                        key={c.id}
+                        ref={tableVirtualizer.measureElement}
+                        data-index={virtualRow.index}
+                        onClick={() => setSelectedClientId(c.id)}
+                        className="grid grid-cols-[1fr_auto] hover:bg-cream/40 transition-colors cursor-pointer border-b border-cream items-center"
+                        style={{ position: 'absolute', top: 0, left: 0, right: 0, transform: `translateY(${virtualRow.start}px)` }}
+                      >
+                        {/* One readable block per patient: who → how to reach them → where they are */}
+                        <div className="px-4 py-3.5 flex items-center gap-3 min-w-0">
+                          <div className="avatar avatar-md shrink-0">{getInitials(c.name)}</div>
+                          <div className="min-w-0 flex flex-col gap-0.5">
+                            <div className="flex items-center gap-2">
+                              <p className="text-sm font-medium text-obsidian truncate">{c.name}</p>
+                              <AssignedBadge isAssigned={isAssignedToMe(c)} />
+                            </div>
+                            <p className="text-xs text-muted truncate">
+                              {c.email}{c.phone ? ` · ${c.phone}` : ''}
+                            </p>
+                            <div className="flex items-center gap-2">
+                              <StatusBadge status={c.status || 'Active'} />
+                              <span className="text-xs text-hint">
+                                Added {c.createdAt ? new Date(c.createdAt).toLocaleDateString('en-GB') : 'recently'}
+                              </span>
                             </div>
                           </div>
-                          <div className="hidden md:flex px-4 py-3 flex-col gap-1 justify-center">
-                            <StatusBadge status={c.status || 'Active'} />
-                            <span className="text-xs text-hint">
-                              {c.createdAt ? new Date(c.createdAt).toLocaleDateString() : 'Recently'}
-                            </span>
-                          </div>
-                          <div className="px-3 md:px-4 py-3 flex items-center justify-end">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={(e) => { e.stopPropagation(); setSelectedClientId(c.id); }}
-                            >
-                              <span className="hidden sm:inline">View</span>
-                              <ArrowRight size={14} className="sm:hidden" />
-                            </Button>
-                          </div>
                         </div>
-                      );
-                    })}
-                  </div>
+                        <div className="px-4 py-3.5 flex items-center justify-end">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => { e.stopPropagation(); setSelectedClientId(c.id); }}
+                          >
+                            View
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
-              </>
+              </div>
             )}
           </Card>
         </>
