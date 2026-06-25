@@ -489,6 +489,14 @@ input:focus, textarea:focus  {
 /* Snappier chrome — interactions feel responsive (Linear-grade ~120ms). */
 .admin-elevated .nav-item { transition: background 0.12s ease, color 0.12s ease; }
 
+/* Shell refinement — subtle depth between recessed sidebar and the brighter
+   working content, plus roomier nav. Warm, never grey. */
+.admin-elevated .portal-sidebar { background: #F6F5F1; }
+.admin-elevated .nav-item { padding: 11px 12px; gap: 10px; }
+.admin-elevated .nav-item.active::before { width: 3px; left: -7px; }
+.admin-elevated .nav-section-label { margin: 16px 0 8px; }
+.admin-elevated .portal-topbar { gap: 16px; }
+
 /* ── Buttons ────────────────────────────────────────────────── */
 .btn {
   display: inline-flex;

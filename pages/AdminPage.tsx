@@ -790,7 +790,7 @@ const AdminPage: React.FC<AdminPageProps> = ({
             />
           </div>
 
-          <div className="mt-auto pt-3 border-t border-sand relative">
+          <div className="mt-auto pt-4 border-t border-sand relative">
             {showAccountSwitcher && (
               <motion.div
                 initial={{ opacity: 0, y: 6, scale: 0.98 }}
