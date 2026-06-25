@@ -458,6 +458,37 @@ input:focus, textarea:focus  {
 .stat-delta.down { color: var(--color-danger); }
 .stat-delta.ai   { color: var(--color-gold); }
 
+/* ── Admin elevated layer ───────────────────────────────────────
+   Scoped entirely under .admin-elevated, which lives ONLY on the admin
+   shell (AdminPage.tsx). The public marketing site and the patient portal
+   (ClientDashboard) share .card/.portal-*/.nav-* but never carry this
+   wrapper, so they are untouched by construction. */
+
+/* Cards get a faint resting lift so the admin reads as layered surfaces. */
+.admin-elevated .card { box-shadow: var(--shadow-card); }
+
+/* Opt-in interactivity: only cards that navigate/click get the hover lift,
+   so static cards don't all jiggle. */
+.admin-elevated .card-interactive {
+  cursor: pointer;
+  transition: box-shadow 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+}
+.admin-elevated .card-interactive:hover {
+  border-color: rgba(15, 15, 16, 0.10);
+  box-shadow: var(--shadow-panel);
+  transform: translateY(-1px);
+}
+.admin-elevated .card-interactive:focus-visible {
+  box-shadow: var(--shadow-focus);
+  outline: none;
+}
+
+/* Keyboard focus ring on buttons (belt-and-suspenders over the global outline). */
+.admin-elevated .btn:focus-visible { box-shadow: var(--shadow-focus); }
+
+/* Snappier chrome — interactions feel responsive (Linear-grade ~120ms). */
+.admin-elevated .nav-item { transition: background 0.12s ease, color 0.12s ease; }
+
 /* ── Buttons ────────────────────────────────────────────────── */
 .btn {
   display: inline-flex;

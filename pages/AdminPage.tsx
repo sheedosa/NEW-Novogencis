@@ -692,7 +692,7 @@ const AdminPage: React.FC<AdminPageProps> = ({
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <AdminContext.Provider value={ctx}>
-      <div className="portal-shell font-sans selection:bg-primary/20">
+      <div className="portal-shell admin-elevated font-sans selection:bg-primary/20">
         {/* Sidebar */}
         <aside className={`portal-sidebar ${isSidebarOpen ? 'open' : ''} ${isSidebarCollapsed ? 'collapsed' : ''}`}>
           <div className="flex items-center justify-between mb-4 px-2">
