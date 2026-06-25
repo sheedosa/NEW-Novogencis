@@ -501,6 +501,11 @@ input:focus, textarea:focus  {
    the same cadence instead of ad-hoc gap-4/gap-6 per panel. */
 .page-stack { display: flex; flex-direction: column; gap: 20px; }
 
+/* KPI cards share the same resting depth as .card, and the number gets a
+   touch more presence (size unchanged) so dashboards read as cohesive. */
+.admin-elevated .stat-card { box-shadow: var(--shadow-card); }
+.admin-elevated .stat-value { font-weight: 600; }
+
 /* ── Buttons ────────────────────────────────────────────────── */
 .btn {
   display: inline-flex;
