@@ -461,8 +461,8 @@ input:focus, textarea:focus  {
 /* ── Admin elevated layer ───────────────────────────────────────
    Scoped entirely under .admin-elevated, which lives ONLY on the admin
    shell (AdminPage.tsx). The public marketing site and the patient portal
-   (ClientDashboard) share .card/.portal-*/.nav-* but never carry this
-   wrapper, so they are untouched by construction. */
+   (ClientDashboard) share the card and portal nav classes but never carry
+   this wrapper, so they are untouched by construction. */
 
 /* Cards get a faint resting lift so the admin reads as layered surfaces. */
 .admin-elevated .card { box-shadow: var(--shadow-card); }
