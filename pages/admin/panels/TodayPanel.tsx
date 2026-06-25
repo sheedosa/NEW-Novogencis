@@ -122,7 +122,7 @@ function TodayPanel() {
   const firstName = (user?.fullName || '').split(' ')[0];
 
   return (
-    <div className="animate-fade-up flex flex-col gap-4">
+    <div className="animate-fade-up page-stack">
       <PageHeader
         title={`${greeting}${firstName ? ', ' + firstName : ''}`}
         subtitle={friendlyDate}

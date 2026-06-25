@@ -497,6 +497,10 @@ input:focus, textarea:focus  {
 .admin-elevated .nav-section-label { margin: 16px 0 8px; }
 .admin-elevated .portal-topbar { gap: 16px; }
 
+/* Unified vertical rhythm — every daily admin page frames its sections at
+   the same cadence instead of ad-hoc gap-4/gap-6 per panel. */
+.page-stack { display: flex; flex-direction: column; gap: 20px; }
+
 /* ── Buttons ────────────────────────────────────────────────── */
 .btn {
   display: inline-flex;

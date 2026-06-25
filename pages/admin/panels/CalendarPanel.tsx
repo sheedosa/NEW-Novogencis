@@ -168,7 +168,7 @@ function CalendarPanel() {
   const dayAppointments = (byDate[dayDateStr] || []).sort((a, b) => (a.time || '').localeCompare(b.time || ''));
 
   return (
-    <div className="animate-fade-up flex flex-col gap-3">
+    <div className="animate-fade-up page-stack">
       {ConfirmHost}
       <PageHeader
         title="Calendar"

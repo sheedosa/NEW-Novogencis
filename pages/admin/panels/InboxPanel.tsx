@@ -399,7 +399,7 @@ function InboxPanel() {
   };
 
   return (
-    <div className="animate-fade-up flex flex-col gap-4">
+    <div className="animate-fade-up page-stack">
       {ConfirmHost}
       <PageHeader
         title="Inbox"
