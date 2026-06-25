@@ -504,7 +504,7 @@ function InboxPanel() {
                 animate={{ opacity: 1, height: 'auto' }}
                 exit={{ opacity: 0, x: 80, height: 0, transition: { duration: 0.2 } }}
                 transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
-                className={`group px-4 py-3 hover:bg-cream/40 transition-colors relative ${idx > 0 ? 'border-t border-cream' : ''} ${item.priority === 'high' ? 'bg-danger-bg/40' : ''}`}
+                className={`group px-4 py-3 hover:bg-cream/60 transition-colors relative ${idx > 0 ? 'border-t border-cream' : ''} ${item.priority === 'high' ? 'bg-danger-bg/40' : ''}`}
               >
                 {/* Type accent stripe on the left — instant visual categorisation */}
                 <div className={`absolute left-0 top-0 bottom-0 w-[3px] ${

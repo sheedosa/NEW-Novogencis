@@ -321,7 +321,7 @@ const ClientsPanel: React.FC = () => {
                         ref={tableVirtualizer.measureElement}
                         data-index={virtualRow.index}
                         onClick={() => setSelectedClientId(c.id)}
-                        className="grid grid-cols-[1fr_auto] hover:bg-cream/40 transition-colors cursor-pointer border-b border-cream items-center"
+                        className="grid grid-cols-[1fr_auto] hover:bg-cream/60 transition-colors cursor-pointer border-b border-cream items-center"
                         style={{ position: 'absolute', top: 0, left: 0, right: 0, transform: `translateY(${virtualRow.start}px)` }}
                       >
                         {/* One readable block per patient: who → how to reach them → where they are */}

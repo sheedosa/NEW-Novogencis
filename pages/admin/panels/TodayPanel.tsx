@@ -293,7 +293,7 @@ function TodayPanel() {
                     <button
                       key={apt.id}
                       onClick={() => { setSelectedClientId(apt.clientId); handleSidebarClick('patients'); }}
-                      className={`w-full text-left px-4 py-3 hover:bg-cream/50 transition-colors ${idx > 0 ? 'border-t border-cream' : ''}`}
+                      className={`w-full text-left px-4 py-3 hover:bg-cream/60 transition-colors ${idx > 0 ? 'border-t border-cream' : ''}`}
                     >
                       {/* Line 1 is constant height: time | patient | status.
                           Prep flags render on their own line beneath, aligned
@@ -352,7 +352,7 @@ function TodayPanel() {
         <div className="flex flex-col sm:flex-row gap-2">
           <button
             onClick={() => handleSidebarClick('inbox')}
-            className="flex-1 flex items-center justify-between gap-3 px-4 py-3 rounded-md border border-sand bg-white hover:bg-cream/40 transition-colors text-left"
+            className="flex-1 flex items-center justify-between gap-3 px-4 py-3 rounded-md border border-sand bg-white hover:bg-cream/60 transition-colors text-left"
           >
             <span className="flex items-center gap-2.5 min-w-0">
               <AlertTriangle size={14} className={`shrink-0 ${(pendingTriage.length + unreadFromClients.length + openTasks.length) > 0 ? 'text-warning-text' : 'text-muted'}`} />
@@ -366,7 +366,7 @@ function TodayPanel() {
           </button>
           <button
             onClick={() => handleSidebarClick('schedule')}
-            className="flex-1 flex items-center justify-between gap-3 px-4 py-3 rounded-md border border-sand bg-white hover:bg-cream/40 transition-colors text-left"
+            className="flex-1 flex items-center justify-between gap-3 px-4 py-3 rounded-md border border-sand bg-white hover:bg-cream/60 transition-colors text-left"
           >
             <span className="flex items-center gap-2.5 min-w-0">
               <Sun size={14} className="text-muted shrink-0" />
