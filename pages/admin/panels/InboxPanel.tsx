@@ -412,8 +412,9 @@ function InboxPanel() {
       />
 
       {/* Filter chips — wrap on narrow screens so Forms/Payments are never
-          hidden behind an uncued horizontal scroll. */}
-      <div className="flex flex-wrap gap-2 pb-0.5">
+          hidden behind an uncued horizontal scroll. Sticky so you can re-filter
+          a long queue without scrolling back to the top. */}
+      <div className="sticky top-0 z-20 flex flex-wrap gap-2 bg-ivory/95 backdrop-blur-sm py-2">
         {filterChips.map(chip => (
           <button
             key={chip.id}

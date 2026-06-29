@@ -269,6 +269,22 @@ function CalendarPanel() {
         </div>
       </div>
 
+      {/* Load strap — answers "how busy am I" at a glance without leaving Schedule */}
+      {(() => {
+        const todayStr = new Date().toDateString();
+        const sow = new Date(); sow.setHours(0, 0, 0, 0); sow.setDate(sow.getDate() - ((sow.getDay() + 6) % 7));
+        const eow = new Date(sow); eow.setDate(sow.getDate() + 7);
+        const todayCount = visible.filter(a => new Date(a.date).toDateString() === todayStr).length;
+        const weekCount = visible.filter(a => { const d = new Date(a.date); return d >= sow && d < eow; }).length;
+        return (
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted px-1">
+            <span><span className="text-obsidian font-medium">{todayCount}</span> {todayCount === 1 ? 'session' : 'sessions'} today</span>
+            <span className="text-hint">·</span>
+            <span><span className="text-obsidian font-medium">{weekCount}</span> this week</span>
+          </div>
+        );
+      })()}
+
       {/* Workload heatmap moved to Practice → Operations (single source of truth).
           Schedule is for scheduling; Operations is for measuring capacity. */}
 
