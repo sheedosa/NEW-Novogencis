@@ -135,21 +135,38 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session): Promis
     return;
   }
 
-  // Mark this payment Paid + update PaymentIntent for refunds later
+  // Settle this payment + capture the PaymentIntent (used by refunds + saved-card capture).
+  const piId = typeof session.payment_intent === 'string'
+    ? session.payment_intent
+    : (session.payment_intent?.id ?? null);
   payments[idx] = {
     ...payments[idx],
     status: 'Paid',
     paidDate: new Date().toISOString(),
-    stripePaymentIntentId:
-      typeof session.payment_intent === 'string'
-        ? session.payment_intent
-        : (session.payment_intent?.id ?? null),
+    stripePaymentIntentId: piId,
   };
+
+  const updates: Record<string, unknown> = { payments };
+
+  // If a card was saved (Customer checkout with setup_future_usage), store its
+  // payment method so the clinic can charge a later balance off-session.
+  if (session.customer && piId) {
+    try {
+      const stripe = getStripe();
+      const pi = await stripe.paymentIntents.retrieve(piId);
+      const pmId = typeof pi.payment_method === 'string' ? pi.payment_method : (pi.payment_method?.id ?? null);
+      if (pmId) {
+        updates.stripeDefaultPaymentMethodId = pmId;
+        updates.hasSavedCard = true;
+      }
+    } catch (err) {
+      logger.warn(`[stripeWebhook] could not capture saved card for PI ${piId}: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
 
   // If this was a deposit and the appointment was 'Awaiting deposit',
   // advance it to 'Confirmed' so the doctor sees it as locked in.
   const appointmentId = session.metadata?.appointmentId;
-  const updates: Record<string, unknown> = { payments };
   if (appointmentId) {
     const aptRef = db.collection('appointments').doc(appointmentId);
     const aptSnap = await aptRef.get();
@@ -162,9 +179,6 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session): Promis
   await patientRef.update(updates);
 
   // Write a PI → clientId lookup doc so refund handler doesn't need a full collection scan.
-  const piId = typeof session.payment_intent === 'string'
-    ? session.payment_intent
-    : (session.payment_intent?.id ?? null);
   if (piId) {
     await db.collection('payment_intents').doc(piId).set({
       clientId: patientId,
@@ -231,9 +245,12 @@ async function handleChargeRefunded(charge: Stripe.Charge): Promise<void> {
   }
 
   const refundedAmount = charge.amount_refunded / 100;
+  // charge.refunded fires for partial refunds too — only mark fully 'Refunded'
+  // when the entire charge is refunded; otherwise it's 'Partially refunded'.
+  const fullyRefunded = charge.amount_refunded >= charge.amount;
   payments[idx] = {
     ...payments[idx],
-    status: 'Refunded',
+    status: fullyRefunded ? 'Refunded' : 'Partially refunded',
     refundAmount: refundedAmount,
     refundedAt: new Date().toISOString(),
   };

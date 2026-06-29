@@ -1549,6 +1549,12 @@ const ClientRecord: React.FC = () => {
                     </UIButton>
                   </div>
                 </div>
+                {selectedClient.hasSavedCard && (
+                  <div className="flex items-center gap-1.5 text-xs text-muted mb-3 -mt-1">
+                    <CreditCard size={13} className="text-success" />
+                    Card on file — saved for future charges
+                  </div>
+                )}
                 {!payList.length ? (
                   <UIEmptyState
                     icon={<CreditCard size={16} />}

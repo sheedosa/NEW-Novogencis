@@ -115,6 +115,12 @@ export interface Client {
   treatmentPlan?: TreatmentPlan;
   prescriptions?: Prescription[];
   payments?: Payment[];
+  /** Stripe Customer linkage — set on first checkout; enables saved cards + unified history. */
+  stripeCustomerId?: string;
+  /** Saved card's payment method id — set by the webhook when a card is stored (setup_future_usage). */
+  stripeDefaultPaymentMethodId?: string;
+  /** True once a reusable card is on file (drives the "card on file" UI + charge-saved-card). */
+  hasSavedCard?: boolean;
   leadSource?: LeadSource;
   /** Sprint 2: lifetime consent-form-sent flag. Once true, never re-send. */
   consentSent?: boolean;
@@ -223,11 +229,21 @@ export interface Payment {
   id: string;
   description: string;
   amount: number;
+  /** Precise pence amount on Stripe-backed payments (avoids float drift). */
+  amountPence?: number;
   currency: string;
-  status: 'Paid' | 'Pending' | 'Overdue' | 'Refunded';
+  status: 'Paid' | 'Pending' | 'Overdue' | 'Refunded' | 'Partially refunded';
   dueDate?: string;
   paidDate?: string;
   reference?: string;
+  /** Stripe linkage — present on Stripe-collected payments, absent on manual entries. */
+  type?: 'deposit' | 'balance' | 'standalone';
+  appointmentId?: string;
+  treatmentId?: string;
+  stripeCheckoutSessionId?: string;
+  stripePaymentIntentId?: string;
+  refundAmount?: number;
+  refundedAt?: string;
   createdAt: string;
 }
 

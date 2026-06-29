@@ -118,13 +118,36 @@ export const createCheckoutSession = onCall<CreateCheckoutInput, Promise<CreateC
 
     // ── Create Stripe Checkout session ───────────────────────────────────────
     const stripe = getStripe();
+
+    // Ensure a Stripe Customer for this patient — enables saving the card for
+    // future balances + a unified payment history in the Stripe Dashboard.
+    let stripeCustomerId: string | undefined =
+      typeof patient.stripeCustomerId === 'string' ? patient.stripeCustomerId : undefined;
+    if (!stripeCustomerId) {
+      try {
+        const customer = await stripe.customers.create({
+          email: patient.email,
+          name: patient.name,
+          metadata: { patientId },
+        });
+        stripeCustomerId = customer.id;
+        await patientRef.update({ stripeCustomerId });
+      } catch (err) {
+        // Non-fatal — fall back to an email-only guest checkout (no saved card).
+        logger.warn(`[createCheckoutSession] customer create failed for ${patientId}: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    }
+
     let session;
     try {
       session = await stripe.checkout.sessions.create({
         mode: 'payment',
-        payment_method_types: ['card'],
+        // Omit payment_method_types entirely so Checkout offers every method
+        // enabled in the Stripe Dashboard — including Apple Pay / Google Pay.
         currency: CLINIC_CURRENCY,
-        customer_email: patient.email,
+        // Attach to the Customer when we have one (so the card can be saved);
+        // otherwise a guest checkout keyed to their email.
+        ...(stripeCustomerId ? { customer: stripeCustomerId } : { customer_email: patient.email }),
         line_items: [{
           quantity: 1,
           price_data: {
@@ -132,12 +155,14 @@ export const createCheckoutSession = onCall<CreateCheckoutInput, Promise<CreateC
             unit_amount: amountPence,
             product_data: {
               name: description,
-              description: treatment?.name ? `Patient: ${patient.name}` : `Patient: ${patient.name}`,
+              description: `Patient: ${patient.name}`,
             },
           },
         }],
         success_url: validateRedirectUrl(successUrl, `${PORTAL_BASE_URL}/#client-dashboard?payment=success&session_id={CHECKOUT_SESSION_ID}`),
         cancel_url:  validateRedirectUrl(cancelUrl,  `${PORTAL_BASE_URL}/#client-dashboard?payment=cancelled`),
+        // Save the card to the Customer for future off-session balance charges.
+        ...(stripeCustomerId ? { payment_intent_data: { setup_future_usage: 'off_session' as const } } : {}),
         // Metadata is preserved on the session + payment intent — the webhook
         // uses this to reconcile back to our Firestore docs.
         metadata: {
