@@ -58,6 +58,7 @@ function CalendarPanel() {
     setSelectedClientId,
     setClientRecordTab,
     handleSidebarClick,
+    onAddPayment,
   } = useAdminContext();
 
   // Jump straight to a patient's Money tab when their deposit-pending badge
@@ -583,6 +584,7 @@ function CalendarPanel() {
         appointment={notesAppt}
         onClose={() => setNotesAppt(null)}
         onSave={(id, updates) => onUpdateAppointment(id, updates)}
+        onRecordPayment={onAddPayment}
       />
     </div>
   );

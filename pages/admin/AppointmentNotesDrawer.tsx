@@ -10,28 +10,36 @@
  */
 
 import React, { useEffect, useState } from 'react';
-import { Modal, Button } from '../../components/ui';
-import { Appointment } from '../../types';
-import { Save, CalendarDays, User as UserIcon } from 'lucide-react';
+import { Modal, Button, useToast } from '../../components/ui';
+import { Appointment, Payment } from '../../types';
+import { Save, CalendarDays, User as UserIcon, CreditCard } from 'lucide-react';
 
 interface AppointmentNotesDrawerProps {
   appointment: Appointment | null;
   onClose: () => void;
   onSave: (id: string, updates: Partial<Appointment>) => void | Promise<void>;
+  /** Optional: record a session payment in the same flow (shown only when Completed). */
+  onRecordPayment?: (clientId: string, payment: Payment) => void | Promise<void>;
 }
 
 export const AppointmentNotesDrawer: React.FC<AppointmentNotesDrawerProps> = ({
-  appointment, onClose, onSave,
+  appointment, onClose, onSave, onRecordPayment,
 }) => {
+  const { toast } = useToast();
   const [notes, setNotes] = useState('');
   const [status, setStatus] = useState<Appointment['status']>('Confirmed');
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
+  // Optional payment captured in the same flow when a session is completed.
+  const [payAmount, setPayAmount] = useState('');
+  const [payStatus, setPayStatus] = useState<'Paid' | 'Pending'>('Paid');
 
   useEffect(() => {
     if (appointment) {
       setNotes(appointment.notes || '');
       setStatus(appointment.status);
+      setPayAmount('');
+      setPayStatus('Paid');
       setDirty(false);
     }
   }, [appointment]);
@@ -41,6 +49,25 @@ export const AppointmentNotesDrawer: React.FC<AppointmentNotesDrawerProps> = ({
     setSaving(true);
     try {
       await onSave(appointment.id, { notes, status });
+      // Optional: record the session payment in the same step. Non-blocking —
+      // a payment hiccup must never lose the saved notes/status.
+      const amt = parseFloat(payAmount);
+      if (status === 'Completed' && onRecordPayment && payAmount && amt > 0) {
+        try {
+          await onRecordPayment(appointment.clientId, {
+            id: `sess-${appointment.id}-${Date.now()}`,
+            description: `${appointment.type} — session payment`,
+            amount: amt,
+            currency: 'GBP',
+            status: payStatus,
+            paidDate: payStatus === 'Paid' ? new Date().toISOString() : undefined,
+            createdAt: new Date().toISOString(),
+          });
+        } catch (err) {
+          console.error('Failed to record session payment:', err);
+          toast.error('Notes saved, but the payment was not recorded', { description: 'Add it from the patient’s Money tab.' });
+        }
+      }
       onClose();
     } finally {
       setSaving(false);
@@ -122,6 +149,42 @@ export const AppointmentNotesDrawer: React.FC<AppointmentNotesDrawerProps> = ({
               Notes are saved on the appointment record and visible inside the patient's record under this session.
             </p>
           </div>
+
+          {/* Optional payment — only when completing, so the session closes in one place */}
+          {status === 'Completed' && onRecordPayment && (
+            <div className="border-t border-sand pt-4">
+              <label className="text-sm font-medium text-obsidian flex items-center gap-1.5 mb-2">
+                <CreditCard size={14} className="text-muted" /> Payment <span className="text-xs text-hint font-normal">· optional</span>
+              </label>
+              <div className="flex items-center gap-2">
+                <div className="relative flex-grow">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted text-sm">£</span>
+                  <input
+                    type="number" min="0" step="0.01" inputMode="decimal"
+                    value={payAmount}
+                    onChange={(e) => { setPayAmount(e.target.value); setDirty(true); }}
+                    placeholder="0.00"
+                    className="w-full bg-cream border-transparent rounded-md pl-7 pr-3 py-2.5 text-base sm:text-sm focus:ring-2 focus:ring-primary/20"
+                  />
+                </div>
+                <div className="flex gap-1.5 shrink-0">
+                  {(['Paid', 'Pending'] as const).map((s) => (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => { setPayStatus(s); setDirty(true); }}
+                      className={`px-3 py-2.5 rounded-md text-sm transition-colors ${
+                        payStatus === s ? 'bg-obsidian text-white font-medium' : 'bg-cream text-muted hover:text-obsidian'
+                      }`}
+                    >
+                      {s === 'Pending' ? 'Invoice' : 'Paid'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <p className="text-xs text-hint mt-1.5">Record what the patient paid for this session, or leave blank.</p>
+            </div>
+          )}
         </div>
       )}
     </Modal>
