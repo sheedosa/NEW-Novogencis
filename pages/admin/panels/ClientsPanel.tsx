@@ -1,7 +1,7 @@
 import React, { useMemo, useState, useRef, memo } from 'react';
 import {
   Download, Search, CheckCircle, ChevronRight,
-  Users as UsersIcon, User as UserIcon, ArrowLeft,
+  Users as UsersIcon, User as UserIcon,
   UserPlus, Clock, Activity, Moon, AlertTriangle,
 } from 'lucide-react';
 import { useVirtualizer } from '@tanstack/react-virtual';
@@ -130,7 +130,6 @@ const ClientsPanel: React.FC = () => {
   }, [filteredClients]);
 
   const tableScrollRef = useRef<HTMLDivElement>(null);
-  const sidebarScrollRef = useRef<HTMLDivElement>(null);
   const mobileScrollRef = useRef<HTMLDivElement>(null);
 
   // Desktop rows are 3 text lines tall (~90px); measureElement corrects per-row.
@@ -138,12 +137,6 @@ const ClientsPanel: React.FC = () => {
     count: visibleClients.length,
     getScrollElement: () => tableScrollRef.current,
     estimateSize: () => 90,
-    overscan: 5,
-  });
-  const sidebarVirtualizer = useVirtualizer({
-    count: visibleClients.length,
-    getScrollElement: () => sidebarScrollRef.current,
-    estimateSize: () => 64,
     overscan: 5,
   });
   const mobileVirtualizer = useVirtualizer({
@@ -155,6 +148,9 @@ const ClientsPanel: React.FC = () => {
 
   return (
     <div className="animate-fade-up page-stack">
+      {/* Registry header only in list view — a focused patient record shows just
+          the record (its sticky bar carries the patient context + back arrow). */}
+      {!selectedClientId && (
       <PageHeader
         title="Clients"
         subtitle={`${stats.total} registered`}
@@ -182,6 +178,7 @@ const ClientsPanel: React.FC = () => {
           </>
         }
       />
+      )}
 
       {!selectedClientId ? (
         <>
@@ -361,57 +358,10 @@ const ClientsPanel: React.FC = () => {
           </Card>
         </>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-3">
-          <Card padded={false} className={`lg:col-span-4 flex flex-col lg:h-[calc(100vh-12rem)] overflow-hidden ${selectedClientId ? 'hidden lg:flex' : 'flex'}`}>
-            <div className="px-3 py-2.5 border-b border-sand flex items-center justify-between shrink-0">
-              <Button variant="ghost" size="sm" leadingIcon={<ArrowLeft size={13} />} onClick={() => setSelectedClientId(null)}>
-                Back to list
-              </Button>
-            </div>
-            <div className="search-wrap p-3 border-b border-sand">
-              <Search size={14} className="search-icon" />
-              <input
-                type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search registry…"
-                className="search-input"
-              />
-            </div>
-            <div ref={sidebarScrollRef} className="overflow-y-auto flex-grow" style={{ minHeight: 0 }}>
-              <div style={{ height: sidebarVirtualizer.getTotalSize(), position: 'relative' }}>
-                {sidebarVirtualizer.getVirtualItems().map(virtualRow => {
-                  const c = visibleClients[virtualRow.index];
-                  return (
-                    <button
-                      key={c.id}
-                      onClick={() => setSelectedClientId(c.id)}
-                      style={{ position: 'absolute', top: 0, left: 0, right: 0, transform: `translateY(${virtualRow.start}px)` }}
-                      className={`w-full flex items-center gap-3 px-3 py-2.5 border-b border-cream hover:bg-cream/60 transition-colors text-left relative ${
-                        selectedClientId === c.id ? 'bg-primary/5' : ''
-                      }`}
-                    >
-                      {selectedClientId === c.id && <div className="absolute left-0 top-0 bottom-0 w-[2px] bg-primary" />}
-                      <div className="avatar avatar-sm">{getInitials(c.name)}</div>
-                      <div className="min-w-0 flex-grow">
-                        <div className="flex items-center gap-2">
-                          <p className="text-sm font-medium text-obsidian truncate">{c.name}</p>
-                          <AssignedBadge isAssigned={isAssignedToMe(c)} />
-                        </div>
-                        <div className="flex items-center gap-2 text-xs text-hint">
-                          <span className="font-mono">{c.id}</span>
-                        </div>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          </Card>
-          <div className={`lg:col-span-8 ${selectedClientId ? 'block' : 'hidden lg:block'}`}>
-            <ClientRecord />
-          </div>
-        </div>
+        // A patient is open: show the full-width record so its rail + content
+        // have room (no nested list rail). Return to the registry via the
+        // record's sticky back arrow; jump to another patient with ⌘K search.
+        <ClientRecord />
       )}
     </div>
   );
