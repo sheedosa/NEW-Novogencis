@@ -5,7 +5,7 @@ import { FORMS } from '../constants';
 import { InteractiveForm } from '../components/InteractiveForm';
 import Logo from '../components/Logo';
 import { storage, db } from '../firebase';
-import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
+import { ref, uploadBytesResumable, getDownloadURL, deleteObject } from 'firebase/storage';
 import { collection, onSnapshot, query, where, doc, updateDoc, arrayUnion } from 'firebase/firestore';
 import {
   Camera, Upload, X, PanelLeftClose, PanelLeftOpen, Menu, Search, Bell,
@@ -57,6 +57,7 @@ const AdminPage: React.FC<AdminPageProps> = ({
   const [lightboxImage, setLightboxImage]           = useState<GalleryItem | null>(null);
   const [uploadProgress, setUploadProgress]         = useState(0);
   const [showBookingModal, setShowBookingModal]     = useState(false);
+  const [isSubmitting, setIsSubmitting]             = useState(false);
   const [appointmentView, setAppointmentView]       = useState<'list' | 'calendar'>('list');
   const [currentCalendarDate, setCurrentCalendarDate] = useState(new Date());
   const [viewingForm, setViewingForm]               = useState<Message | null>(null);
@@ -197,7 +198,18 @@ const AdminPage: React.FC<AdminPageProps> = ({
         source: 'Clinical',
       };
       // Use arrayUnion to avoid race conditions when two admins upload concurrently
-      await updateDoc(doc(db, 'clients', clientId), { gallery: arrayUnion(newItem) });
+      try {
+        await updateDoc(doc(db, 'clients', clientId), { gallery: arrayUnion(newItem) });
+      } catch (writeError) {
+        // The upload succeeded but the Firestore write failed — clean up the
+        // orphaned Storage object so we don't leave a dangling file.
+        try {
+          await deleteObject(storageRef);
+        } catch {
+          // Ignore cleanup failures — surface the original write error below.
+        }
+        throw writeError;
+      }
       setShowGalleryUpload(false);
       setGalleryUploadFile(null);
       setGalleryUploadLabel('');
@@ -368,6 +380,7 @@ const AdminPage: React.FC<AdminPageProps> = ({
 
   const handleBookingSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
     if (!(bookingForm.clientId && bookingForm.date && bookingForm.time && bookingForm.type)) return;
 
     // Conflict check — refuse silently overlapping bookings.
@@ -386,69 +399,80 @@ const AdminPage: React.FC<AdminPageProps> = ({
       return;
     }
 
-    const client = filteredClients.find(c => c.id === bookingForm.clientId);
-    const clinician = CLINICIANS.find(c => c.id === bookingForm.clinicianId);
-    const newAppointment: Appointment = {
-      id: '',
-      clientId: bookingForm.clientId,
-      clientName: client?.name || 'Unknown',
-      doctorId: clinician ? bookingForm.clinicianId : user?.id,
-      doctorName: clinician?.name ?? user?.fullName,
-      type: bookingForm.type as Appointment['type'],
-      date: bookingForm.date,
-      time: bookingForm.time,
-      status: (bookingForm.status as Appointment['status']) || 'Confirmed',
-      notes: bookingForm.notes || '',
-      createdAt: new Date().toISOString(),
-      durationMin: bookingForm.durationMin,
-      treatmentId: bookingForm.treatmentId,
-      clinicianId: bookingForm.clinicianId,
-    };
-    onAddAppointment(newAppointment);
+    setIsSubmitting(true);
+    try {
+      // Deposit follow-through — when the treatment carries a deposit, the
+      // booking sits in limbo until the doctor requests it. Surface the next
+      // step right in the confirmation toast.
+      const bookedTreatment = treatments.find(t => t.id === bookingForm.treatmentId);
+      const bookedClientId = bookingForm.clientId;
+      const depositPence = bookedTreatment && bookedTreatment.depositPct > 0
+        ? Math.round((bookedTreatment.fullPricePence * bookedTreatment.depositPct) / 100)
+        : 0;
 
-    // Deposit follow-through — when the treatment carries a deposit, the
-    // booking sits in limbo until the doctor requests it. Surface the next
-    // step right in the confirmation toast.
-    const bookedTreatment = treatments.find(t => t.id === bookingForm.treatmentId);
-    const bookedClientId = bookingForm.clientId;
-    const depositPence = bookedTreatment && bookedTreatment.depositPct > 0
-      ? Math.round((bookedTreatment.fullPricePence * bookedTreatment.depositPct) / 100)
-      : 0;
-    const depositAction = depositPence > 0 && bookedClientId
-      ? {
-          description: `${client?.name || 'Patient'} — ${bookingForm.date} at ${bookingForm.time}. Deposit due: £${(depositPence / 100).toFixed(2)}.`,
-          action: {
-            label: 'Open Money tab',
-            onClick: () => {
-              setShowBookingModal(false);
-              setSelectedClientId(bookedClientId);
-              setClientRecordTab('financials');
-              setActiveTab('patients');
+      const client = filteredClients.find(c => c.id === bookingForm.clientId);
+      const clinician = CLINICIANS.find(c => c.id === bookingForm.clinicianId);
+      const newAppointment: Appointment = {
+        id: '',
+        clientId: bookingForm.clientId,
+        clientName: client?.name || 'Unknown',
+        doctorId: clinician ? bookingForm.clinicianId : user?.id,
+        doctorName: clinician?.name ?? user?.fullName,
+        type: bookingForm.type as Appointment['type'],
+        date: bookingForm.date,
+        time: bookingForm.time,
+        // A deposit-bearing treatment can't be Confirmed until the deposit is
+        // taken — park it in 'Awaiting deposit' and remember how much is due.
+        status: depositPence > 0
+          ? 'Awaiting deposit'
+          : (bookingForm.status as Appointment['status']) || 'Confirmed',
+        notes: bookingForm.notes || '',
+        createdAt: new Date().toISOString(),
+        durationMin: bookingForm.durationMin,
+        treatmentId: bookingForm.treatmentId,
+        clinicianId: bookingForm.clinicianId,
+        ...(depositPence > 0 ? { depositPence } : {}),
+      };
+      onAddAppointment(newAppointment);
+
+      const depositAction = depositPence > 0 && bookedClientId
+        ? {
+            description: `${client?.name || 'Patient'} — ${bookingForm.date} at ${bookingForm.time}. Deposit due: £${(depositPence / 100).toFixed(2)}.`,
+            action: {
+              label: 'Open Money tab',
+              onClick: () => {
+                setShowBookingModal(false);
+                setSelectedClientId(bookedClientId);
+                setClientRecordTab('financials');
+                setActiveTab('patients');
+              },
             },
-          },
-          duration: 8000,
-        }
-      : null;
+            duration: 8000,
+          }
+        : null;
 
-    if (bookAnotherRef.current) {
-      // Keep the modal open for back-to-back booking: same treatment +
-      // clinician, fresh patient/date/time.
-      bookAnotherRef.current = false;
-      setBookingForm(prev => ({
-        type: prev.type,
-        treatmentId: prev.treatmentId,
-        durationMin: prev.durationMin,
-        clinicianId: prev.clinicianId,
-        status: 'Confirmed',
-        date: new Date().toISOString().split('T')[0],
-        time: '10:00 AM',
-        notes: '',
-      }));
-      toast.success('Appointment booked', depositAction ?? { description: `${client?.name || 'Patient'} booked — pick the next patient.` });
-    } else {
-      setShowBookingModal(false);
-      setBookingForm({ type: 'Initial Consultation', status: 'Confirmed', date: new Date().toISOString().split('T')[0], time: '10:00 AM' });
-      toast.success('Appointment booked', depositAction ?? { description: `${client?.name || 'Patient'} — ${bookingForm.date} at ${bookingForm.time}.` });
+      if (bookAnotherRef.current) {
+        // Keep the modal open for back-to-back booking: same treatment +
+        // clinician, fresh patient/date/time.
+        bookAnotherRef.current = false;
+        setBookingForm(prev => ({
+          type: prev.type,
+          treatmentId: prev.treatmentId,
+          durationMin: prev.durationMin,
+          clinicianId: prev.clinicianId,
+          status: 'Confirmed',
+          date: new Date().toISOString().split('T')[0],
+          time: '10:00 AM',
+          notes: '',
+        }));
+        toast.success('Appointment booked', depositAction ?? { description: `${client?.name || 'Patient'} booked — pick the next patient.` });
+      } else {
+        setShowBookingModal(false);
+        setBookingForm({ type: 'Initial Consultation', status: 'Confirmed', date: new Date().toISOString().split('T')[0], time: '10:00 AM' });
+        toast.success('Appointment booked', depositAction ?? { description: `${client?.name || 'Patient'} — ${bookingForm.date} at ${bookingForm.time}.` });
+      }
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -1098,7 +1122,7 @@ const AdminPage: React.FC<AdminPageProps> = ({
                     <Button
                       type="submit"
                       variant="secondary"
-                      disabled={!!liveConflict}
+                      disabled={!!liveConflict || isSubmitting}
                       onClick={() => { bookAnotherRef.current = true; }}
                     >
                       Book & add another
@@ -1106,7 +1130,7 @@ const AdminPage: React.FC<AdminPageProps> = ({
                     <Button
                       type="submit"
                       variant="primary"
-                      disabled={!!liveConflict}
+                      disabled={!!liveConflict || isSubmitting}
                       onClick={() => { bookAnotherRef.current = false; }}
                     >
                       Confirm appointment

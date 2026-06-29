@@ -14,7 +14,6 @@ export const EMAIL_TEMPLATES = {
   new_assessment: import.meta.env.VITE_EMAILJS_TEMPLATE_NEW_ASSESSMENT || '',
   new_message_admin: import.meta.env.VITE_EMAILJS_TEMPLATE_NEW_MESSAGE_ADMIN || '',
   form_signed: import.meta.env.VITE_EMAILJS_TEMPLATE_FORM_SIGNED || '',
-  daily_briefing: import.meta.env.VITE_EMAILJS_TEMPLATE_DAILY_BRIEFING || '',
 
   // Client-bound emails
   new_message_client: import.meta.env.VITE_EMAILJS_TEMPLATE_NEW_MESSAGE_CLIENT || '',

@@ -69,23 +69,6 @@ export interface LeadSource {
   capturedAt: string;     // ISO timestamp
 }
 
-// AI triage produced by the assessment Cloud Function. Doctor reviews, edits,
-// and approves draftFeedback before sending to the patient.
-export interface AITriage {
-  generatedAt: string;
-  model: string;
-  promptVersion: string;
-  impression: string;
-  redFlags: string[];
-  suitability: 'strong-candidate' | 'suitable-with-caveats' | 'not-suitable';
-  suitabilityReason: string;
-  recommendedTreatments: string[];
-  draftFeedback: string;
-  status: 'pending-review' | 'doctor-approved' | 'sent';
-  usage?: { input: number; output: number };
-  error?: string;
-}
-
 /**
  * A single entry in a patient's internal-notes log.
  * Notes are append-only — never overwrite an existing entry. Each entry
@@ -132,7 +115,6 @@ export interface Client {
   treatmentPlan?: TreatmentPlan;
   prescriptions?: Prescription[];
   payments?: Payment[];
-  aiTriage?: AITriage;
   leadSource?: LeadSource;
   /** Sprint 2: lifetime consent-form-sent flag. Once true, never re-send. */
   consentSent?: boolean;
@@ -177,6 +159,8 @@ export interface Appointment {
   durationMin?: number;
   /** Reference to a Treatment doc — drives default duration, price, deposit */
   treatmentId?: string;
+  /** Deposit owed on this booking, in pence (avoids floating point) */
+  depositPence?: number;
   /** Which clinician is assigned to deliver this appointment */
   clinicianId?: string;
   /** Reminder email queued/sent at this ISO timestamp — used to dedup the

@@ -3,7 +3,7 @@ import { Page } from '../types';
 import { ShieldCheck, X, User, FileUp, Camera, Eye, EyeOff, ArrowLeft, Check } from 'lucide-react';
 import { storage, auth } from '../firebase';
 import { signInAnonymously } from 'firebase/auth';
-import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
+import { ref, uploadBytesResumable, getDownloadURL, deleteObject } from 'firebase/storage';
 import { processImageForUpload, validateImageFile, ACCEPTED_IMAGE_TYPES } from '../imageUtils';
 import { useToast } from '../components/ui';
 
@@ -182,6 +182,9 @@ const AssessmentPage: React.FC<AssessmentPageProps> = ({ onNavigate, onIntakeCom
 
     setUploading(true);
     setError('');
+    // Tracked so that if state/Firestore handling fails *after* the bytes land,
+    // we can delete the orphaned Storage object in the catch below.
+    let uploadedRef: ReturnType<typeof ref> | null = null;
     try {
       // Ensure the user is signed in (anonymously if not already) so the
       // storage rule's `isAuthenticated()` + `isOwner(uid)` check passes.
@@ -213,6 +216,10 @@ const AssessmentPage: React.FC<AssessmentPageProps> = ({ onNavigate, onIntakeCom
       // isOwner(clientId) branch matches deterministically — no regex needed.
       const storagePath = `assessments/${uid}/${fileName}`;
       const storageRef = ref(storage, storagePath);
+      // Track the ref synchronously so a failure anywhere below can clean up the
+      // orphaned object in the catch. Best-effort: deleting a path whose bytes
+      // never landed is a harmless no-op.
+      uploadedRef = storageRef;
 
       const uploadTask = uploadBytesResumable(storageRef, blob, { contentType: 'image/jpeg' });
 
@@ -239,6 +246,16 @@ const AssessmentPage: React.FC<AssessmentPageProps> = ({ onNavigate, onIntakeCom
       });
       toast.success('Photo uploaded');
     } catch (err) {
+      // If the bytes already landed but state/Firestore handling failed,
+      // delete the now-orphaned Storage object before surfacing the error.
+      // Best-effort: ignore any delete failure.
+      if (uploadedRef) {
+        try {
+          await deleteObject(uploadedRef);
+        } catch {
+          /* ignore cleanup errors */
+        }
+      }
       const message =
         err instanceof Error ? err.message :
         (err as { message?: string })?.message ||

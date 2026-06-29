@@ -169,10 +169,18 @@ service cloud.firestore {
                      request.resource.data.body.size() <= 5000);
 
       // Recipient can mark read + complete a form.
+      // When signing a form (isSigned -> true), the signature must be a
+      // non-empty, bounded string (client sends a data-URL) and signedAt a
+      // string (client sends an ISO timestamp). Other updates are unaffected.
       // Admin can mutate anything (e.g. patch metadata).
       allow update: if isAdmin() ||
                     (isAuthenticated() && request.auth.uid == resource.data.recipientId &&
-                     fieldsOnly(['read', 'isSigned', 'signature', 'signedAt', 'formData']));
+                     fieldsOnly(['read', 'isSigned', 'signature', 'signedAt', 'formData']) &&
+                     (request.resource.data.isSigned != true ||
+                      (request.resource.data.signature is string &&
+                       request.resource.data.signature.size() > 0 &&
+                       request.resource.data.signature.size() < 200000 &&
+                       request.resource.data.signedAt is string)));
       allow delete: if isAdmin();
     }
 

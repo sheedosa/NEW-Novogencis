@@ -67,8 +67,10 @@ export const InteractiveForm: React.FC<InteractiveFormProps> = ({
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
     const rect = canvas.getBoundingClientRect();
-    const x = ('touches' in e) ? e.touches[0].clientX - rect.left : (e as React.MouseEvent).clientX - rect.left;
-    const y = ('touches' in e) ? e.touches[0].clientY - rect.top : (e as React.MouseEvent).clientY - rect.top;
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    const x = (('touches' in e) ? e.touches[0].clientX - rect.left : (e as React.MouseEvent).clientX - rect.left) * scaleX;
+    const y = (('touches' in e) ? e.touches[0].clientY - rect.top : (e as React.MouseEvent).clientY - rect.top) * scaleY;
     ctx.lineWidth = 2;
     ctx.lineCap = 'round';
     ctx.strokeStyle = '#1C1917';
@@ -143,7 +145,7 @@ export const InteractiveForm: React.FC<InteractiveFormProps> = ({
         <div className="flex flex-col gap-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <Input label="Full name"        type="text"  value={str('name')}            onChange={(e) => handleInputChange('name', e.target.value)}            disabled={isReadOnly} placeholder="Patient's full name" />
-            <Input label="Date of birth"    type="date"  value={str('dob')}             onChange={(e) => handleInputChange('dob', e.target.value)}             disabled={isReadOnly} />
+            <Input label="Date of birth"    type="date"  value={str('dob')}             onChange={(e) => handleInputChange('dob', e.target.value)}             disabled={isReadOnly} max={new Date().toISOString().split('T')[0]} />
             <Input className="md:col-span-2" label="Address" type="text" value={str('address')} onChange={(e) => handleInputChange('address', e.target.value)} disabled={isReadOnly} placeholder="Full residential address" />
             <Input label="Phone number"     type="tel"   value={str('phone')}           onChange={(e) => handleInputChange('phone', e.target.value)}           disabled={isReadOnly} placeholder="Contact number" />
             <Input label="Email"            type="email" value={str('email')}           onChange={(e) => handleInputChange('email', e.target.value)}           disabled={isReadOnly} placeholder="Email address" />

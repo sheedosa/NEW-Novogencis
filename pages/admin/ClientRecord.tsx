@@ -15,7 +15,7 @@ import {
 import { Card as UICard, CardHeader, Button as UIButton, Badge as UIBadge, StatusBadge as UIStatusBadge, EmptyState as UIEmptyState, useToast, Modal as UIModal, useConfirm } from '../../components/ui';
 
 type ViewTab = 'snapshot' | 'plan' | 'files' | 'activity' | 'money';
-import { storage } from '../../firebase';
+import { storage, requestCheckout, CreateCheckoutInput } from '../../firebase';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { processImageForUpload, validateImageFile, ACCEPTED_IMAGE_TYPES } from '../../imageUtils';
 import { logClinicalAction } from '../../utils/auditLogger';
@@ -102,6 +102,11 @@ const ClientRecord: React.FC = () => {
   const [showAddPayment, setShowAddPayment] = useState(false);
   const [paymentForm, setPaymentForm] = useState({ description: '', amount: '', currency: 'GBP', status: 'Pending' as Payment['status'], dueDate: '', reference: '' });
   const [paymentSaving, setPaymentSaving] = useState(false);
+
+  // Payment link (Stripe Checkout) state
+  const [showPaymentLink, setShowPaymentLink] = useState(false);
+  const [paymentLinkForm, setPaymentLinkForm] = useState({ type: 'standalone' as CreateCheckoutInput['type'], amount: '', description: '' });
+  const [paymentLinkSaving, setPaymentLinkSaving] = useState(false);
 
   // Gallery comparison
   const [compareMode, setCompareMode] = useState(false);
@@ -1223,7 +1228,16 @@ const ClientRecord: React.FC = () => {
                               <div className="flex items-center gap-2 shrink-0">
                                 <UIBadge variant={rxStatusVariant[rx.status] || 'inactive'}>{rx.status}</UIBadge>
                                 {rx.status === 'Active' && (
-                                  <button onClick={async () => { await onUpdatePrescription(selectedClient.id, rx.id, { status: 'Discontinued' }); }} className="btn-icon hover:!text-danger" title="Discontinue">
+                                  <button onClick={async () => {
+                                    const ok = await confirm({
+                                      title: `Discontinue ${rx.drugName}?`,
+                                      description: 'This marks the prescription as discontinued. You can add a new prescription later if needed.',
+                                      confirmLabel: 'Discontinue',
+                                      tone: 'danger',
+                                    });
+                                    if (!ok) return;
+                                    await onUpdatePrescription(selectedClient.id, rx.id, { status: 'Discontinued' });
+                                  }} className="btn-icon hover:!text-danger" title="Discontinue">
                                     <Ban size={13} />
                                   </button>
                                 )}
@@ -1472,9 +1486,14 @@ const ClientRecord: React.FC = () => {
               <UICard>
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-sm font-medium text-obsidian">Payment history</h3>
-                  <UIButton variant="primary" size="sm" leadingIcon={<Plus size={13} />} onClick={() => setShowAddPayment(true)}>
-                    Add entry
-                  </UIButton>
+                  <div className="flex items-center gap-2">
+                    <UIButton variant="primary" size="sm" leadingIcon={<Send size={13} />} onClick={() => setShowPaymentLink(true)}>
+                      Send payment link
+                    </UIButton>
+                    <UIButton variant="ghost" size="sm" leadingIcon={<Plus size={13} />} onClick={() => setShowAddPayment(true)}>
+                      Add entry
+                    </UIButton>
+                  </div>
                 </div>
                 {!payList.length ? (
                   <UIEmptyState
@@ -1595,6 +1614,97 @@ const ClientRecord: React.FC = () => {
                       <label className="text-xs text-muted block mb-1">Reference</label>
                       <input type="text" value={paymentForm.reference} onChange={e => setPaymentForm(p => ({ ...p, reference: e.target.value }))} placeholder="INV-001" className="w-full bg-cream border-transparent rounded-md px-4 py-3 text-base sm:text-sm font-medium focus:ring-2 focus:ring-primary/20" />
                     </div>
+                  </div>
+                </form>
+              </UIModal>
+
+              {/* Send Payment Link Modal — calls the deployed createCheckoutSession
+                  callable, which creates the Pending Payment server-side, then
+                  delivers the returned Stripe Checkout URL to the patient as a
+                  'payment' message. */}
+              <UIModal
+                open={showPaymentLink}
+                onClose={() => setShowPaymentLink(false)}
+                title="Send Payment Link"
+                subtitle="Generates a Stripe Checkout link and sends it to the patient."
+                size="md"
+                footer={
+                  <div className="flex gap-3 justify-end">
+                    <button type="button" onClick={() => setShowPaymentLink(false)} className="px-4 py-2 text-sm text-muted hover:text-obsidian">Cancel</button>
+                    <button
+                      type="submit"
+                      form="payment-link-form"
+                      disabled={paymentLinkSaving}
+                      className="bg-primary text-obsidian px-5 py-2 rounded-md text-sm font-medium disabled:opacity-50"
+                    >
+                      {paymentLinkSaving ? 'Sending…' : 'Send payment link'}
+                    </button>
+                  </div>
+                }
+              >
+                <form
+                  id="payment-link-form"
+                  onSubmit={async (e) => {
+                    e.preventDefault();
+                    setPaymentLinkSaving(true);
+                    // Track whether the Checkout link was created server-side, so a
+                    // delivery failure doesn't tempt a resend (which would create a
+                    // duplicate pending payment + Stripe session).
+                    let createdUrl: string | null = null;
+                    try {
+                      const amountPence = Math.round(parseFloat(paymentLinkForm.amount) * 100);
+                      const { url } = await requestCheckout({
+                        patientId: selectedClient.id,
+                        type: paymentLinkForm.type,
+                        amountPence,
+                        description: paymentLinkForm.description || undefined,
+                      });
+                      createdUrl = url;
+                      // Deliver the Checkout URL to the patient as a payment message.
+                      await onSendMessage({
+                        senderId: user?.id || 'admin',
+                        recipientId: selectedClient.id,
+                        subject: 'Payment Link',
+                        body: `${paymentLinkForm.description || 'Payment request'}: ${formatAmount(amountPence / 100)}`,
+                        type: 'payment',
+                        paymentUrl: url,
+                        read: false,
+                        createdAt: new Date().toISOString(),
+                      });
+                      await logClinicalAction(user?.id || 'admin', 'sent_payment_link', selectedClient.id, `Sent ${paymentLinkForm.type} payment link for ${formatAmount(amountPence / 100)}`);
+                      setPaymentLinkForm({ type: 'standalone', amount: '', description: '' });
+                      setShowPaymentLink(false);
+                      toast.success('Payment link sent');
+                    } catch (error) {
+                      console.error('Failed to send payment link:', error);
+                      if (createdUrl) {
+                        // Link exists but the message didn't send — surface the URL so
+                        // the admin delivers it manually instead of regenerating.
+                        toast.error('Link created but not delivered', { description: `Don't resend — copy this link to the patient: ${createdUrl}` });
+                      } else {
+                        toast.error('Failed to send payment link', { description: 'Please try again.' });
+                      }
+                    } finally {
+                      setPaymentLinkSaving(false);
+                    }
+                  }}
+                  className="space-y-4"
+                >
+                  <div>
+                    <label className="text-xs text-muted block mb-1">Type</label>
+                    <select value={paymentLinkForm.type} onChange={e => setPaymentLinkForm(p => ({ ...p, type: e.target.value as CreateCheckoutInput['type'] }))} className="w-full bg-cream border-transparent rounded-md px-4 py-3 text-base sm:text-sm font-medium focus:ring-2 focus:ring-primary/20">
+                      <option value="deposit">Deposit</option>
+                      <option value="balance">Balance</option>
+                      <option value="standalone">Standalone</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted block mb-1">Amount (£) *</label>
+                    <input required type="number" min="0" step="0.01" value={paymentLinkForm.amount} onChange={e => setPaymentLinkForm(p => ({ ...p, amount: e.target.value }))} placeholder="0.00" className="w-full bg-cream border-transparent rounded-md px-4 py-3 text-base sm:text-sm font-medium focus:ring-2 focus:ring-primary/20" />
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted block mb-1">Description</label>
+                    <input type="text" value={paymentLinkForm.description} onChange={e => setPaymentLinkForm(p => ({ ...p, description: e.target.value }))} placeholder="e.g. Deposit for PRP Session" className="w-full bg-cream border-transparent rounded-md px-4 py-3 text-base sm:text-sm font-medium focus:ring-2 focus:ring-primary/20" />
                   </div>
                 </form>
               </UIModal>

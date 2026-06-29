@@ -319,13 +319,19 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
 
     setIsUploading(true);
     setUploadProgress(0);
+    // Keep a reference to the uploaded Storage object so we can clean it up
+    // if the subsequent client update fails (otherwise it would be orphaned).
+    let storageRef: import('firebase/storage').StorageReference | null = null;
+    let deleteObject: ((ref: import('firebase/storage').StorageReference) => Promise<void>) | null = null;
     try {
       const { blob, fileName } = await processImageForUpload(galleryUploadFile);
       const { storage } = await import('../firebase');
-      const { ref, uploadBytesResumable, getDownloadURL } = await import('firebase/storage');
+      const storageModule = await import('firebase/storage');
+      const { ref, uploadBytesResumable, getDownloadURL } = storageModule;
+      deleteObject = storageModule.deleteObject;
       const storagePath = `gallery/${clientId}/${fileName}`;
-      const storageRef = ref(storage, storagePath);
-      
+      storageRef = ref(storage, storagePath);
+
       const uploadTask = uploadBytesResumable(storageRef, blob, { contentType: 'image/jpeg' });
 
       await new Promise<void>((resolve, reject) => {
@@ -358,6 +364,14 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
       setUploadProgress(0);
       toast.success('Photo uploaded');
     } catch (error) {
+      // Clean up the orphaned Storage object if the client update failed after upload.
+      if (storageRef && deleteObject) {
+        try {
+          await deleteObject(storageRef);
+        } catch (cleanupError) {
+          console.error('Failed to clean up orphaned gallery upload:', cleanupError);
+        }
+      }
       const msg = error instanceof Error ? error.message : 'Failed to upload photo. Please try again.';
       console.error('Error uploading gallery photo:', error);
       toast.error('Upload failed', { description: msg });
@@ -376,11 +390,16 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
       .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
   }, [messages, user?.id]);
 
+  // Track message ids already marked read this session so the effect doesn't
+  // re-mark already-processed messages every time userMessages changes.
+  const markedReadRef = React.useRef<Set<string>>(new Set());
+
   // Mark messages as read when entering messages tab
   React.useEffect(() => {
     if (activeTab === 'messages' && user) {
       userMessages.forEach(msg => {
-        if (!msg.read && msg.recipientId === user.id) {
+        if (!msg.read && msg.recipientId === user.id && !markedReadRef.current.has(msg.id)) {
+          markedReadRef.current.add(msg.id);
           onMarkMessageRead(msg.id);
         }
       });
@@ -1712,7 +1731,11 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
           isSaving={isFormSaving}
           onSave={async (formData, signature) => {
             setIsFormSaving(true);
+            const formTitle = FORMS.find(f => f.id === activeFormMessage.formId)?.title ?? activeFormMessage.subject ?? 'Form';
             try {
+              // CORE SAVE: update the message + save to the client account.
+              // These must both succeed before we treat the form as saved.
+
               // 1. Update the message itself
               await onUpdateMessage(activeFormMessage.id, {
                 isSigned: true,
@@ -1723,7 +1746,6 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
 
               // 2. Save to client account (completedForms array)
               if (currentClient) {
-                const formTitle = FORMS.find(f => f.id === activeFormMessage.formId)?.title || activeFormMessage.subject;
                 const newCompletedForm = {
                   formId: activeFormMessage.formId || 'unknown',
                   title: formTitle,
@@ -1731,9 +1753,9 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
                   formData,
                   signature
                 };
-                
+
                 const updatedForms = [...(currentClient.completedForms || []), newCompletedForm];
-                
+
                 const clientUpdates: Partial<Client> = {
                   completedForms: updatedForms
                 };
@@ -1746,33 +1768,47 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
 
                 await onUpdateClient(currentClient.id, clientUpdates);
               }
+            } catch (error) {
+              // Core save failed — keep the modal open so the patient can retry.
+              console.error('Failed to submit form:', error);
+              const msg = error instanceof Error ? error.message : 'Please try again.';
+              toast.error('Could not save form', { description: msg });
+              setIsFormSaving(false);
+              return;
+            } finally {
+              setIsFormSaving(false);
+            }
 
-              // 3. Notify both client and admin (send a new message)
+            // 3. Best-effort system notifications — a hiccup here must never
+            // fail the save or block the success path below.
+            try {
               await onSendMessage({
                 senderId: 'system',
                 recipientId: 'admin',
                 subject: 'Form Completed',
-                body: `Clinical Form "${FORMS.find(f => f.id === activeFormMessage.formId)?.title || activeFormMessage.subject}" has been completed and signed by ${user?.fullName}.`,
+                body: `Clinical Form "${formTitle}" has been completed and signed by ${user?.fullName}.`,
                 read: false,
                 createdAt: new Date().toISOString()
               });
 
-              await onSendMessage({
-                senderId: 'system',
-                recipientId: user?.id || '',
-                subject: 'Form Submitted',
-                body: `Thank you. Your form "${FORMS.find(f => f.id === activeFormMessage.formId)?.title || activeFormMessage.subject}" has been successfully submitted and saved to your clinical record.`,
-                read: false,
-                createdAt: new Date().toISOString()
-              });
-
-              setIsFormModalOpen(false);
-              setActiveFormMessage(null);
-            } catch (error) {
-              console.error('Failed to submit form:', error);
-            } finally {
-              setIsFormSaving(false);
+              if (user?.id) {
+                await onSendMessage({
+                  senderId: 'system',
+                  recipientId: user.id,
+                  subject: 'Form Submitted',
+                  body: `Thank you. Your form "${formTitle}" has been successfully submitted and saved to your clinical record.`,
+                  read: false,
+                  createdAt: new Date().toISOString()
+                });
+              }
+            } catch (notifyError) {
+              console.error('Failed to send form notification:', notifyError);
             }
+
+            // Core save succeeded — close the modal and confirm.
+            setIsFormModalOpen(false);
+            setActiveFormMessage(null);
+            toast.success('Form saved');
           } }
           onClose={() => {
             setIsFormModalOpen(false);

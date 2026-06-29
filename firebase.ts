@@ -8,6 +8,7 @@ import {
   Firestore,
 } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 import firebaseConfig from './firebase-applet-config.json';
 
 // Reuse the existing app on HMR reloads — Firebase throws if initializeApp is
@@ -32,6 +33,40 @@ function initDb(): Firestore {
 export const db = initDb();
 export const auth = getAuth(app);
 export const storage = getStorage(app);
+export const functions = getFunctions(app, 'europe-west2');
+
+// ── Cloud Functions: Stripe Checkout ───────────────────────────────────────
+// Mirrors the interfaces in functions/src/createCheckoutSession.ts so the
+// frontend can call the deployed callable with full typing.
+export interface CreateCheckoutInput {
+  patientId: string;
+  appointmentId?: string;
+  treatmentId?: string;
+  /** 'deposit' | 'balance' | 'standalone' — drives description + Payment.type */
+  type: 'deposit' | 'balance' | 'standalone';
+  /** Amount in pence. If omitted, derived from treatment + type. */
+  amountPence?: number;
+  /** Free-text label shown on Stripe Checkout (overrides treatment name) */
+  description?: string;
+  /** Optional success/cancel URLs (defaults to portal) */
+  successUrl?: string;
+  cancelUrl?: string;
+}
+
+export interface CreateCheckoutOutput {
+  url: string;
+  sessionId: string;
+  paymentId: string;
+  amountPence: number;
+  description: string;
+}
+
+/** Calls the deployed `createCheckoutSession` callable (admin-only, europe-west2). */
+export async function requestCheckout(input: CreateCheckoutInput): Promise<CreateCheckoutOutput> {
+  const fn = httpsCallable<CreateCheckoutInput, CreateCheckoutOutput>(functions, 'createCheckoutSession');
+  const res = await fn(input);
+  return res.data;
+}
 
 export enum OperationType {
   CREATE = 'create',
