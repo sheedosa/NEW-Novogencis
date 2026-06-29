@@ -156,6 +156,13 @@ const ClientRecord: React.FC = () => {
     return [];
   })();
 
+  // At-a-glance tab badges — surface what needs action so doctors don't have to
+  // open every tab to discover unsigned forms, unpaid invoices, or new messages.
+  const unsignedFormsCount = clientMessages.filter(m => m.type === 'form' && !m.isSigned).length;
+  const overduePaymentCount = (selectedClient.payments || []).filter(p => p.status === 'Overdue').length;
+  const openPaymentCount = overduePaymentCount + (selectedClient.payments || []).filter(p => p.status === 'Pending').length;
+  const unreadFromPatientCount = clientMessages.filter(m => !m.read && m.senderId === selectedClient.id).length;
+
   /** Parse "10:30 AM" into minutes since midnight for conflict checks. */
   const parseTime12h = (t: string | undefined): number | null => {
     if (!t) return null;
@@ -312,12 +319,12 @@ const ClientRecord: React.FC = () => {
       <div className="sticky top-[108px] z-20 -mx-4 sm:-mx-6 lg:-mx-4 px-4 sm:px-6 lg:px-4 py-2 bg-ivory/95 backdrop-blur border-b border-sand">
         <div className="flex gap-1 overflow-x-auto no-scrollbar">
           {([
-            { id: 'snapshot',   label: 'Snapshot',   icon: <UserIcon size={13} />,        show: true },
-            { id: 'plan',       label: 'Plan',       icon: <Activity size={13} />,        show: true },
-            { id: 'files',      label: 'Files',      icon: <FileText size={13} />,        show: true },
-            { id: 'activity',   label: 'Activity',   icon: <MessageSquare size={13} />,   show: true },
-            { id: 'money',      label: 'Money',      icon: <Receipt size={13} />,         show: true },
-          ] as const).filter(tab => tab.show).map(tab => (
+            { id: 'snapshot', label: 'Snapshot', icon: <UserIcon size={13} />,        badge: 0,                     danger: false },
+            { id: 'plan',     label: 'Plan',     icon: <Activity size={13} />,        badge: 0,                     danger: false },
+            { id: 'files',    label: 'Files',    icon: <FileText size={13} />,        badge: unsignedFormsCount,    danger: false },
+            { id: 'activity', label: 'Activity', icon: <MessageSquare size={13} />,   badge: unreadFromPatientCount, danger: false },
+            { id: 'money',    label: 'Money',    icon: <Receipt size={13} />,         badge: openPaymentCount,      danger: overduePaymentCount > 0 },
+          ] as { id: ViewTab; label: string; icon: React.ReactNode; badge: number; danger: boolean }[]).map(tab => (
             <button
               key={tab.id}
               onClick={() => setViewTab(tab.id)}
@@ -329,6 +336,13 @@ const ClientRecord: React.FC = () => {
             >
               {tab.icon}
               <span>{tab.label}</span>
+              {tab.badge > 0 && (
+                <span className={`ml-0.5 min-w-[16px] h-4 px-1 rounded-full text-[10px] font-semibold inline-flex items-center justify-center ${
+                  viewTab === tab.id ? 'bg-white/25 text-white'
+                    : tab.danger ? 'bg-danger text-white'
+                    : 'bg-primary/15 text-primary'
+                }`}>{tab.badge}</span>
+              )}
             </button>
           ))}
         </div>
@@ -488,6 +502,46 @@ const ClientRecord: React.FC = () => {
         <div className="min-w-0">
         {viewTab === 'snapshot' && (
           <div className="flex flex-col gap-5">
+            {/* Next appointment + prep — opens the record answering "why is this
+                patient here, and what's still outstanding" in one glance. */}
+            {(() => {
+              const nextApt = upcomingAppointments[0];
+              const prep: { label: string; danger: boolean }[] = [];
+              if (unsignedFormsCount > 0) prep.push({ label: `${unsignedFormsCount} form${unsignedFormsCount > 1 ? 's' : ''} unsigned`, danger: false });
+              if (openPaymentCount > 0) prep.push({ label: overduePaymentCount > 0 ? 'Payment overdue' : 'Payment pending', danger: overduePaymentCount > 0 });
+              if (!selectedClient.policiesAccepted) prep.push({ label: 'Policies pending', danger: true });
+              if (!nextApt && prep.length === 0) return null; // nothing to surface — avoid clutter
+              return (
+                <UICard className="order-0 max-sm:!px-3 max-sm:!py-2.5">
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                    <div className="flex items-center gap-2.5 min-w-0 flex-grow">
+                      <CalendarClock size={16} className="text-primary shrink-0" />
+                      {nextApt ? (
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-obsidian truncate">
+                            {nextApt.type} · {new Date(nextApt.date).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })} · {nextApt.time}
+                          </p>
+                          <p className="text-xs text-muted truncate">{nextApt.doctorName || 'Unassigned'}</p>
+                        </div>
+                      ) : (
+                        <p className="text-sm text-muted">No upcoming session booked</p>
+                      )}
+                    </div>
+                    {prep.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5">
+                        {prep.map((p, i) => (
+                          <span key={i} className={`inline-flex items-center px-2 py-0.5 rounded-sm text-xs ${p.danger ? 'bg-danger-bg text-danger-text' : 'bg-cream text-obsidian'}`}>{p.label}</span>
+                        ))}
+                      </div>
+                    )}
+                    <UIButton variant={nextApt ? 'secondary' : 'primary'} size="sm" onClick={() => openBookingModal(selectedClient.id)}>
+                      {nextApt ? 'Book follow-up' : 'Book'}
+                    </UIButton>
+                  </div>
+                </UICard>
+              );
+            })()}
+
             {/* Mobile: contact + status compressed into a single line shown only when rail is hidden */}
             <div className="lg:hidden flex items-center gap-2 px-1 order-1">
               <UIStatusBadge status={selectedClient.status || 'Active'} />

@@ -133,7 +133,7 @@ function TodayPanel() {
         }
       />
 
-      {/* ── Up next hero (mobile-only, when there's an imminent appointment) ── */}
+      {/* ── Up next hero — shown to all doctors when there's an imminent appointment ── */}
       {(() => {
         const now = new Date();
         const next = todayAppointments.find(a => {
@@ -164,7 +164,7 @@ function TodayPanel() {
         if (!timing) return null;        // not "imminent enough" to surface as a hero
 
         return (
-          <div className="lg:hidden order-0">
+          <div className="order-0">
             <Card accent="gold" className="!p-0 overflow-hidden">
               <div className="p-4 flex flex-col gap-3">
                 <div className="flex items-center justify-between gap-2">
