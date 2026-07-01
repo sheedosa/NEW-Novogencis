@@ -229,7 +229,10 @@ const App: React.FC = () => {
     });
 
     return () => unsubscribe();
-  }, [isAuthReady, currentUser]);
+    // Depend on the stable identity fields only (not the whole currentUser
+    // object) so an unrelated user-doc field change doesn't tear down + refetch
+    // every listener.
+  }, [isAuthReady, currentUser?.id, currentUser?.role, currentUser?.email]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Firestore Sync: Appointments
   useEffect(() => {
@@ -267,7 +270,10 @@ const App: React.FC = () => {
     });
 
     return () => unsubscribe();
-  }, [isAuthReady, currentUser]);
+    // Depend on the stable identity fields only (not the whole currentUser
+    // object) so an unrelated user-doc field change doesn't tear down + refetch
+    // every listener.
+  }, [isAuthReady, currentUser?.id, currentUser?.role, currentUser?.email]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Firestore Sync: Messages
   useEffect(() => {
@@ -303,7 +309,10 @@ const App: React.FC = () => {
     });
 
     return () => unsubscribe();
-  }, [isAuthReady, currentUser]);
+    // Depend on the stable identity fields only (not the whole currentUser
+    // object) so an unrelated user-doc field change doesn't tear down + refetch
+    // every listener.
+  }, [isAuthReady, currentUser?.id, currentUser?.role, currentUser?.email]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Firestore Sync: Notifications
   useEffect(() => {
@@ -340,7 +349,10 @@ const App: React.FC = () => {
     });
 
     return () => unsubscribe();
-  }, [isAuthReady, currentUser]);
+    // Depend on the stable identity fields only (not the whole currentUser
+    // object) so an unrelated user-doc field change doesn't tear down + refetch
+    // every listener.
+  }, [isAuthReady, currentUser?.id, currentUser?.role, currentUser?.email]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Firestore Sync: Tasks (admin-only collection)
   useEffect(() => {
@@ -356,7 +368,10 @@ const App: React.FC = () => {
       console.error('[Tasks] Subscription error:', error);
     });
     return () => unsubscribe();
-  }, [isAuthReady, currentUser]);
+    // Depend on the stable identity fields only (not the whole currentUser
+    // object) so an unrelated user-doc field change doesn't tear down + refetch
+    // every listener.
+  }, [isAuthReady, currentUser?.id, currentUser?.role, currentUser?.email]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleAddTask = async (task: Omit<Task, 'id' | 'createdAt' | 'createdBy'>) => {
     if (!currentUser) return;
@@ -403,7 +418,10 @@ const App: React.FC = () => {
       console.error('[Templates] Subscription error:', error);
     });
     return () => unsubscribe();
-  }, [isAuthReady, currentUser]);
+    // Depend on the stable identity fields only (not the whole currentUser
+    // object) so an unrelated user-doc field change doesn't tear down + refetch
+    // every listener.
+  }, [isAuthReady, currentUser?.id, currentUser?.role, currentUser?.email]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleAddTemplate = async (tpl: Omit<Template, 'id' | 'createdAt' | 'createdBy'>) => {
     if (!currentUser) return;
