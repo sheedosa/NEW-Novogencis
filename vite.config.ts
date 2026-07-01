@@ -25,11 +25,12 @@ export default defineConfig({
             './pages/admin/panels/CalendarPanel',
             './pages/admin/panels/ClientsPanel',
             './pages/admin/panels/MoneyPanel',
-            './pages/admin/panels/InsightsPanel',
-            './pages/admin/panels/MarketingPanel',
             './pages/admin/panels/PlatformHealthPanel',
             './pages/admin/ClientRecord',
           ],
+          // InsightsPanel + MarketingPanel are intentionally NOT listed here:
+          // they're React.lazy-loaded in PracticePanel so Recharts splits into
+          // its own on-demand chunk instead of bloating admin-panels.
         },
       },
     },

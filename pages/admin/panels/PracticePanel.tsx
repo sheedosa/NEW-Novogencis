@@ -14,16 +14,20 @@
  *   - Operations   — workload heatmap + future staff utilisation
  */
 
-import React, { memo } from 'react';
+import React, { memo, Suspense, lazy } from 'react';
 import { useAdminContext } from '../context';
 import {
   Receipt, BarChart3, TrendingUp, Activity, LayoutDashboard,
 } from 'lucide-react';
 import MoneyPanel from './MoneyPanel';
-import InsightsPanel from './InsightsPanel';
-import MarketingPanel from './MarketingPanel';
 import PracticeOverviewSubPanel from './PracticeOverviewSubPanel';
 import OperationsSubPanel from './OperationsSubPanel';
+
+// Insights + Marketing pull in Recharts (heavy). Lazy-load them so the chart
+// library only downloads when a user actually opens those sub-tabs — it's no
+// longer in the always-loaded admin bundle.
+const InsightsPanel = lazy(() => import('./InsightsPanel'));
+const MarketingPanel = lazy(() => import('./MarketingPanel'));
 
 const TABS: { id: 'overview' | 'money' | 'insights' | 'marketing' | 'operations'; label: string; icon: React.ReactNode }[] = [
   { id: 'overview',   label: 'Overview',   icon: <LayoutDashboard size={14} /> },
@@ -63,8 +67,12 @@ const PracticePanel: React.FC = () => {
       <div>
         {practiceTab === 'overview' && <PracticeOverviewSubPanel />}
         {practiceTab === 'money' && <MoneyPanel />}
-        {practiceTab === 'insights' && <InsightsPanel />}
-        {practiceTab === 'marketing' && <MarketingPanel />}
+        {(practiceTab === 'insights' || practiceTab === 'marketing') && (
+          <Suspense fallback={<div className="py-16 text-center text-sm text-muted">Loading…</div>}>
+            {practiceTab === 'insights' && <InsightsPanel />}
+            {practiceTab === 'marketing' && <MarketingPanel />}
+          </Suspense>
+        )}
         {practiceTab === 'operations' && <OperationsSubPanel />}
       </div>
     </div>
