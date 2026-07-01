@@ -1,6 +1,7 @@
 import React, { memo, useState, useMemo } from 'react';
 import { useAdminContext } from '../context';
 import type { Appointment } from '../../../types';
+import { parseTime12hParts as parseTime12h } from '../../../utils/time';
 import {
   ChevronLeft, ChevronRight, Plus, Calendar as CalendarIcon,
   List, LayoutGrid, Users as UsersIcon, User as UserIcon, Filter,
@@ -35,17 +36,7 @@ function getWeekDates(date: Date): Date[] {
   return out;
 }
 
-function parseTime12h(t: string): { h: number; m: number } | null {
-  // "09:30 AM" → { h: 9, m: 30 }
-  const match = t?.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
-  if (!match) return null;
-  let h = parseInt(match[1], 10);
-  const m = parseInt(match[2], 10);
-  const ampm = match[3].toUpperCase();
-  if (ampm === 'PM' && h < 12) h += 12;
-  if (ampm === 'AM' && h === 12) h = 0;
-  return { h, m };
-}
+// parseTime12h (returns { h, m }) is imported from utils/time as parseTime12hParts.
 
 function CalendarPanel() {
   const {

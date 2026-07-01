@@ -18,6 +18,7 @@ import type { CommandItem } from '../components/ui';
 import { processImageForUpload, validateImageFile, ACCEPTED_IMAGE_TYPES } from '../imageUtils';
 import { logClinicalAction } from '../utils/auditLogger';
 import { notifyPaymentSent, notifyTreatmentPlanReady, notifyPrescriptionAdded } from '../utils/notificationService';
+import { parseTime12h, formatMinutes12h } from '../utils/time';
 
 import {
   AdminContext,
@@ -309,30 +310,7 @@ const AdminPage: React.FC<AdminPageProps> = ({
     { id: 'waqas',  name: 'Dr Waqas Farid',  adminType: 'doctor-male'   as const },
   ], []);
 
-  /**
-   * Parse "10:30 AM" / "02:00 PM" into minutes since midnight.
-   * Returns null if the string can't be parsed.
-   */
-  const parseTime12h = (t: string | undefined): number | null => {
-    if (!t) return null;
-    const m = t.trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
-    if (!m) return null;
-    let h = parseInt(m[1], 10);
-    const min = parseInt(m[2], 10);
-    const ampm = m[3].toUpperCase();
-    if (ampm === 'PM' && h !== 12) h += 12;
-    if (ampm === 'AM' && h === 12) h = 0;
-    return h * 60 + min;
-  };
-
-  /** Inverse of parseTime12h — render minutes-since-midnight as "h:mm AM/PM". */
-  const formatMinutes12h = (mins: number): string => {
-    const h24 = Math.floor(mins / 60) % 24;
-    const m = mins % 60;
-    const ampm = h24 >= 12 ? 'PM' : 'AM';
-    const h12 = h24 % 12 === 0 ? 12 : h24 % 12;
-    return `${h12}:${String(m).padStart(2, '0')} ${ampm}`;
-  };
+  // parseTime12h + formatMinutes12h are imported from utils/time (shared).
 
   /**
    * Returns the conflicting appointment (if any) for a proposed booking.

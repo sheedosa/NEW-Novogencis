@@ -21,6 +21,7 @@ import { processImageForUpload, validateImageFile, ACCEPTED_IMAGE_TYPES } from '
 import { logClinicalAction } from '../../utils/auditLogger';
 import { relativeTime, absoluteDateTime } from '../../utils/relativeTime';
 import { notifyFeedbackReceived, notifyFormSent, notifyPaymentSent } from '../../utils/notificationService';
+import { parseTime12h } from '../../utils/time';
 import { Appointment, TreatmentPlan, TreatmentPhase, Prescription, Payment } from '../../types';
 
 const ClientRecord: React.FC = () => {
@@ -163,18 +164,7 @@ const ClientRecord: React.FC = () => {
   const openPaymentCount = overduePaymentCount + (selectedClient.payments || []).filter(p => p.status === 'Pending').length;
   const unreadFromPatientCount = clientMessages.filter(m => !m.read && m.senderId === selectedClient.id).length;
 
-  /** Parse "10:30 AM" into minutes since midnight for conflict checks. */
-  const parseTime12h = (t: string | undefined): number | null => {
-    if (!t) return null;
-    const m = t.trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
-    if (!m) return null;
-    let h = parseInt(m[1], 10);
-    const min = parseInt(m[2], 10);
-    const ampm = m[3].toUpperCase();
-    if (ampm === 'PM' && h !== 12) h += 12;
-    if (ampm === 'AM' && h === 12) h = 0;
-    return h * 60 + min;
-  };
+  // parseTime12h is imported from utils/time (shared).
 
   const openReschedule = (apt: Appointment) => {
     setRescheduleApt(apt);

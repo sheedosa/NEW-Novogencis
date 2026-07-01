@@ -2,6 +2,7 @@ import React, { memo, useMemo, useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAdminContext } from '../context';
 import { Task, Message } from '../../../types';
+import { parseTime12h } from '../../../utils/time';
 import {
   ClipboardList, MessageSquare, FileText, CreditCard, ListChecks,
   Plus, Check, X, Snowflake, ArrowRight, Inbox as InboxIcon,
@@ -64,18 +65,7 @@ function InboxPanel() {
   const messageTemplates = templates.filter(t => t.category === 'message');
   const [showReplyTemplates, setShowReplyTemplates] = useState(false);
 
-  /** Parse "10:30 AM" into minutes since midnight (null if unparseable). */
-  const parseTime12h = (t: string | undefined): number | null => {
-    if (!t) return null;
-    const m = t.trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
-    if (!m) return null;
-    let h = parseInt(m[1], 10);
-    const min = parseInt(m[2], 10);
-    const ampm = m[3].toUpperCase();
-    if (ampm === 'PM' && h !== 12) h += 12;
-    if (ampm === 'AM' && h === 12) h = 0;
-    return h * 60 + min;
-  };
+  // parseTime12h is imported from utils/time (shared).
 
   // ── Accept-reschedule modal state ─────────────────────────────────────────
   const [acceptingMsg, setAcceptingMsg] = useState<Message | null>(null);
