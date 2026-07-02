@@ -259,6 +259,51 @@ const DEFAULT_TREATMENTS = [
     category: 'consultation',
     isActive: true,
   },
+  // ── PRF (platelet-rich fibrin) ──────────────────────────────────────────────
+  {
+    id: 'prf-starter',
+    name: 'PRF Starter',
+    description: 'PRF starter package — 4 PRF treatments + 4 microneedling sessions.',
+    durationMin: 75,
+    fullPricePence: 92000,       // £920
+    depositPct: 30,              // £276 deposit
+    refundPolicy: 'prp',
+    category: 'prf',
+    isActive: true,
+  },
+  {
+    id: 'prf-intensive',
+    name: 'PRF Intensive',
+    description: 'PRF intensive package — 6 PRF treatments + 6 microneedling sessions.',
+    durationMin: 75,
+    fullPricePence: 138000,      // £1,380
+    depositPct: 30,              // £414 deposit
+    refundPolicy: 'prp',
+    category: 'prf',
+    isActive: true,
+  },
+  {
+    id: 'prf-elite',
+    name: 'PRF Elite',
+    description: 'PRF + Exosome elite package — 6 PRF treatments, 1 autologous exosome therapy, 7 microneedling sessions.',
+    durationMin: 90,
+    fullPricePence: 190000,      // £1,900
+    depositPct: 30,              // £570 deposit
+    refundPolicy: 'prp',
+    category: 'prf',
+    isActive: true,
+  },
+  {
+    id: 'prf-microneedling',
+    name: 'PRF + Microneedling',
+    description: 'Single PRF scalp injection with microneedling session.',
+    durationMin: 75,
+    fullPricePence: 28000,       // £280
+    depositPct: 30,              // £84 deposit
+    refundPolicy: 'prp',
+    category: 'prf',
+    isActive: true,
+  },
 ];
 
 async function seedTreatments() {

@@ -157,7 +157,7 @@ export interface Appointment {
   clientName: string;
   doctorId?: string;
   doctorName?: string;
-  type: 'PRP + Microneedling' | 'EV Enriched Plasma / Autologous Exosomes + Microneedling' | 'Face to Face Consultation' | 'Initial Consultation' | 'Follow-up Consultation' | 'PRP Session' | 'EV-Enriched Plasma Session' | 'Hair Assessment' | 'Microneedling Session';
+  type: 'PRP + Microneedling' | 'EV Enriched Plasma / Autologous Exosomes + Microneedling' | 'Face to Face Consultation' | 'Initial Consultation' | 'Follow-up Consultation' | 'PRP Session' | 'EV-Enriched Plasma Session' | 'Hair Assessment' | 'Microneedling Session' | 'PRF Starter' | 'PRF Intensive' | 'PRF Elite' | 'PRF + Microneedling';
   date: string;
   time: string;
   status: 'Confirmed' | 'Pending' | 'Awaiting deposit' | 'Completed' | 'Cancelled' | 'No-Show';
@@ -373,7 +373,7 @@ export interface Treatment {
   /** Optional default clinician — admin can override per booking */
   defaultClinicianId?: string;
   /** Treatment-mix category for analytics + AI recommendations */
-  category?: 'consultation' | 'prp' | 'exosome' | 'microneedling' | 'combo';
+  category?: 'consultation' | 'prp' | 'prf' | 'exosome' | 'microneedling' | 'combo';
   isActive: boolean;
   createdAt: string;
   updatedAt?: string;

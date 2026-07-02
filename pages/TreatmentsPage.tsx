@@ -6,8 +6,18 @@ interface TreatmentsPageProps {
   onNavigate: (page: Page) => void;
 }
 
+interface TreatmentInfo {
+  title: string;
+  desc: string;
+  works: string;
+  benefits: string[];
+  ideal: string[];
+  /** Optional PRP comparison block — currently only PRF sets this. */
+  compare?: string;
+}
+
 const TreatmentsPage: React.FC<TreatmentsPageProps> = ({ onNavigate }) => {
-  const treatments = [
+  const treatments: TreatmentInfo[] = [
     {
       title: "EV-Enriched Plasma (Autologous Exosome Therapy)",
       desc: "The most advanced regenerative treatment available for hair restoration. EV-Enriched Plasma harnesses exosomes - tiny vesicles that carry growth factors and regenerative signals to stimulate hair follicle activity and promote natural regrowth.",
@@ -21,6 +31,14 @@ const TreatmentsPage: React.FC<TreatmentsPageProps> = ({ onNavigate }) => {
       works: "We draw a small amount of your blood, process it to concentrate the platelets rich in growth factors, and inject this into the scalp areas experiencing thinning or loss.",
       benefits: ["Clinically proven results", "Uses your body's own healing factors", "Stimulates dormant follicles", "Improves hair density and thickness", "No foreign substances"],
       ideal: ["Early-stage hair loss", "Hair thinning", "Androgenetic alopecia", "Maintaining hair density"]
+    },
+    {
+      title: "PRF (Platelet-Rich Fibrin) for Hair Loss",
+      desc: "A regenerative therapy that uses a natural fibrin matrix from your own blood to deliver a slower, longer-lasting release of growth factors to the scalp.",
+      works: "We draw a small amount of your blood without anticoagulant, allowing it to naturally form a platelet-rich fibrin matrix, then inject this into areas of thinning to stimulate follicle regeneration.",
+      benefits: ["Slower, longer-lasting release of growth factors", "Uses only your own blood — no anticoagulant or additives", "Forms a natural platelet-rich fibrin matrix", "A longer-acting alternative to standard PRP"],
+      ideal: ["Early-stage thinning", "A longer-acting PRP alternative", "Pattern hair loss", "Maintaining hair density"],
+      compare: "PRF and PRP both use your own blood to stimulate hair follicles, but they're processed differently. PRP is spun with an anticoagulant and releases its growth factors quickly, within hours, while PRF is spun without one, allowing platelets to form a natural fibrin matrix that releases growth factors gradually over several days. Some studies suggest this slower release may support more sustained follicle stimulation, making PRF a good option for patients seeking a longer-acting alternative to standard PRP — though as a newer technique, it has a smaller body of clinical evidence behind it than PRP."
     },
     {
       title: "Hair Microneedling",
@@ -91,6 +109,13 @@ const TreatmentsPage: React.FC<TreatmentsPageProps> = ({ onNavigate }) => {
                   <h4 className="font-medium text-primary uppercase text-[11px] tracking-[0.2em] mb-4">How it works:</h4>
                   <p className="text-muted leading-relaxed text-lg">{t.works}</p>
                 </div>
+
+                {t.compare && (
+                  <div className="p-8 border-l-2 border-primary/20">
+                    <h4 className="font-medium text-primary uppercase text-[11px] tracking-[0.2em] mb-4">How PRF compares to PRP:</h4>
+                    <p className="text-muted leading-relaxed text-lg">{t.compare}</p>
+                  </div>
+                )}
               </div>
 
               <div className="lg:col-span-5 flex flex-col gap-6">

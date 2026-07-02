@@ -1,6 +1,6 @@
 import React from 'react';
 import { Page } from '../types';
-import { CalendarDays, Stethoscope, Star, ArrowRight } from 'lucide-react';
+import { CalendarDays, Droplets, Stethoscope, Star, ArrowRight } from 'lucide-react';
 
 interface PricingPageProps {
   onNavigate: (page: Page) => void;
@@ -78,7 +78,7 @@ const PricingPage: React.FC<PricingPageProps> = ({ onNavigate }) => {
     { 
       title: "FOUNDATION PACKAGE", 
       price: "£795",
-      subtitle: "For early thinning or those starting treatment",
+      subtitle: "early-stage thinning",
       features: [
         "3 PRP treatments",
         "3 Microneedling sessions",
@@ -109,8 +109,42 @@ const PricingPage: React.FC<PricingPageProps> = ({ onNavigate }) => {
     },
   ];
 
+  const prfPackages: PriceItem[] = [
+    {
+      title: "PRF STARTER PACKAGE",
+      price: "£920",
+      subtitle: "For early-stage thinning",
+      features: [
+        "4 PRF treatments",
+        "4 Microneedling sessions"
+      ]
+    },
+    {
+      title: "PRF INTENSIVE PACKAGE",
+      price: "£1,380",
+      subtitle: "For moderate or progressive thinning",
+      isPopular: true,
+      features: [
+        "6 PRF treatments",
+        "6 Microneedling sessions"
+      ]
+    },
+    {
+      title: "PRF + EXOSOME ELITE PACKAGE",
+      price: "£1,900",
+      subtitle: "For more significant or long-standing hair loss",
+      features: [
+        "6 PRF treatments",
+        "1 Autologous Exosome therapy",
+        "7 Microneedling sessions",
+        "Long-term regenerative strategy"
+      ]
+    },
+  ];
+
   const singleTreatments: PriceItem[] = [
     { title: "Single PRP + Microneedling", price: "£300" },
+    { title: "Single PRF + Microneedling", price: "£280" },
     { title: "Single Exosome + Microneedling", price: "£680" },
   ];
 
@@ -165,6 +199,8 @@ const PricingPage: React.FC<PricingPageProps> = ({ onNavigate }) => {
         <div className="max-w-[1440px] mx-auto">
           
           <PricingSection title="Restoration Packages" items={packages} icon={<CalendarDays size={24} />} isPackages={true} onNavigate={onNavigate} />
+
+          <PricingSection title="PRF Packages" items={prfPackages} icon={<Droplets size={24} />} isPackages={true} onNavigate={onNavigate} />
 
           <PricingSection title="Single / Top Up Treatments" items={singleTreatments} icon={<Stethoscope size={24} />} onNavigate={onNavigate} />
 

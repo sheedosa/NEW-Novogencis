@@ -14,7 +14,7 @@ import {
 
 type View = 'week' | 'day' | 'list';
 type DoctorFilter = 'all' | 'female' | 'male' | 'mine';
-type TypeFilter = 'all' | 'PRP Session' | 'EV-Enriched Plasma Session' | 'Microneedling Session' | 'Initial Consultation' | 'Follow-up Consultation' | 'Hair Assessment';
+type TypeFilter = 'all' | 'PRP Session' | 'EV-Enriched Plasma Session' | 'Microneedling Session' | 'Initial Consultation' | 'Follow-up Consultation' | 'Hair Assessment' | 'PRF Starter' | 'PRF Intensive' | 'PRF Elite' | 'PRF + Microneedling';
 
 const HOURS = [9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22];  // 09:00–22:00
 const SLOT_HEIGHT = 60;                                     // px per hour row
