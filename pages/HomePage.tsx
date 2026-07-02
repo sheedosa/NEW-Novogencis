@@ -45,7 +45,7 @@ interface HomePageProps {
 }
 
 const HeroImage = ({ className = "" }: { className?: string }) => {
-  const heroImgUrl = "https://lh3.googleusercontent.com/d/1SNFDgxNELvdVd8ifLazIcDRwwnr2Cmb3";
+  const heroImgUrl = "/hero-clinic.jpg";
   const reviewsUrl = "https://www.google.com/search?q=novogenics#lrd=0x487bb3b413601afd:0x4d09d8314222a8e3,1,,,,";
 
   return (
@@ -56,10 +56,8 @@ const HeroImage = ({ className = "" }: { className?: string }) => {
       <div className="relative z-10 w-full aspect-[4/3] min-h-[250px] bg-cream shadow-[0_32px_64px_-16px_rgba(208,187,149,0.25)] overflow-hidden border-[6px] md:border-[12px] border-white organic-shape animate-fade-up">
         <img
           src={heroImgUrl}
-          alt="Dr Aminah Amer consulting with a client at Novogenics clinic"
+          alt="A Novogenics clinician performing a scalp analysis for a patient"
           className="w-full h-full object-cover lg:transition-transform lg:duration-[3s] lg:ease-out lg:hover:scale-105"
-          referrerPolicy="no-referrer"
-          crossOrigin="anonymous"
           loading="eager"
           decoding="async"
         />
