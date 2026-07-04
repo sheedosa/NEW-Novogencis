@@ -64,6 +64,39 @@ export const sendEmailNotification = async (
   }
 };
 
+/**
+ * Send a website contact-form enquiry to the clinic inbox via EmailJS.
+ * Unlike sendEmailNotification this is NOT silent — the contact form is an
+ * anonymous visitor's only channel (Firestore writes require auth), so the
+ * caller must know whether to show the success panel or the phone/email
+ * fallback.
+ */
+export const sendContactFormEmail = async (
+  name: string,
+  email: string,
+  preferredMethod: string,
+  message: string
+): Promise<boolean> => {
+  const templateId = EMAIL_TEMPLATES['new_message_admin'];
+  if (!EMAIL_CONFIG.serviceId || !EMAIL_CONFIG.publicKey || !templateId) {
+    console.warn('[EmailJS] Contact form email skipped — config not set');
+    return false;
+  }
+  try {
+    ensureEmailJS();
+    await emailjs.send(EMAIL_CONFIG.serviceId, templateId, {
+      to_email: EMAIL_CONFIG.adminEmail,
+      client_name: `${name} (website enquiry)`,
+      message_preview: `Reply to: ${email} · Preferred contact: ${preferredMethod}\n\n${message}`.slice(0, 900),
+      dashboard_url: window.location.origin,
+    });
+    return true;
+  } catch (error) {
+    console.error('[EmailJS] Contact form email failed:', error);
+    return false;
+  }
+};
+
 // ─── Convenience notification creators ─────────────────────────────────────
 
 /** Notify all admins that a new assessment was submitted */
