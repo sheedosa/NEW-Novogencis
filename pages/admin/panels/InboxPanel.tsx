@@ -681,6 +681,9 @@ function InboxPanel() {
                                   if (item.messageId) await onMarkMessageRead(item.messageId);
                                   setReplyDraft('');
                                   setExpandedReplyId(null);
+                                } catch {
+                                  // Draft is preserved (only cleared on success above).
+                                  toast.error('Reply not sent', { description: 'Your draft is still here — please try again.' });
                                 } finally {
                                   setReplySending(false);
                                 }

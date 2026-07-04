@@ -25,6 +25,16 @@ export function parseTime12h(t: string | undefined): number | null {
   return parts ? parts.h * 60 + parts.m : null;
 }
 
+/**
+ * Today's date as YYYY-MM-DD in the user's LOCAL timezone. Prefer this over
+ * `new Date().toISOString().split('T')[0]`, which uses UTC and flips to
+ * yesterday's date between midnight and 1am during British Summer Time.
+ * (en-CA formats dates as YYYY-MM-DD.)
+ */
+export function localTodayISO(): string {
+  return new Date().toLocaleDateString('en-CA');
+}
+
 /** Inverse of parseTime12h — render minutes-since-midnight as "h:mm AM/PM". */
 export function formatMinutes12h(mins: number): string {
   const h24 = Math.floor(mins / 60) % 24;

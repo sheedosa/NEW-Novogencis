@@ -21,7 +21,7 @@ import { processImageForUpload, validateImageFile, ACCEPTED_IMAGE_TYPES } from '
 import { logClinicalAction } from '../../utils/auditLogger';
 import { relativeTime, absoluteDateTime } from '../../utils/relativeTime';
 import { notifyFeedbackReceived, notifyFormSent, notifyPaymentSent } from '../../utils/notificationService';
-import { parseTime12h } from '../../utils/time';
+import { parseTime12h, localTodayISO } from '../../utils/time';
 import { Appointment, TreatmentPlan, TreatmentPhase, Prescription, Payment } from '../../types';
 
 const ClientRecord: React.FC = () => {
@@ -98,6 +98,10 @@ const ClientRecord: React.FC = () => {
   const [showAddRx, setShowAddRx] = useState(false);
   const [rxForm, setRxForm] = useState({ drugName: '', dosage: '', instructions: '', startDate: '', endDate: '', prescribedBy: '' });
   const [rxSaving, setRxSaving] = useState(false);
+  // In-flight guards: disable the clicked row action so a slow Firestore
+  // write can't be double-fired, and surface failures via toast.
+  const [busyPaymentId, setBusyPaymentId] = useState<string | null>(null);
+  const [busyRxId, setBusyRxId] = useState<string | null>(null);
 
   // Payment state
   const [showAddPayment, setShowAddPayment] = useState(false);
@@ -262,6 +266,33 @@ const ClientRecord: React.FC = () => {
       await logClinicalAction(user?.id || 'admin', 'sent_message', threadId, 'Sent clinical update message');
     } catch (error) {
       console.error('Failed to send message:', error);
+      toast.error('Message not sent', { description: 'Please check your connection and send it again.' });
+    }
+  };
+
+  /**
+   * Mark a payment as paid with failure feedback + double-click guard.
+   * Mirrors the Stripe webhook: a deposit marked paid also confirms its
+   * linked appointment (webhook does this automatically; the manual path
+   * previously left the appointment stuck on "Awaiting deposit").
+   */
+  const handleMarkPaid = async (paymentId: string) => {
+    if (busyPaymentId) return;
+    setBusyPaymentId(paymentId);
+    try {
+      await onUpdatePayment(selectedClient.id, paymentId, { status: 'Paid', paidDate: localTodayISO() });
+      const pay = (selectedClient.payments || []).find(p => p.id === paymentId);
+      if (pay?.appointmentId) {
+        const apt = appointments.find(a => a.id === pay.appointmentId);
+        if (apt?.status === 'Awaiting deposit') {
+          await onUpdateAppointment(apt.id, { status: 'Confirmed' });
+        }
+      }
+      toast.success('Marked as paid');
+    } catch {
+      toast.error('Could not mark as paid', { description: 'Please check your connection and try again.' });
+    } finally {
+      setBusyPaymentId(null);
     }
   };
 
@@ -378,6 +409,7 @@ const ClientRecord: React.FC = () => {
                       await onUpdateClient(selectedClient.id, { status: nextStatus });
                     } catch (error) {
                       console.error('Failed to update client status:', error);
+                      toast.error('Could not update patient stage', { description: 'The change was not saved — please try again.' });
                     }
                   }}
                   className="w-full bg-cream border border-sand text-obsidian text-base sm:text-sm rounded-md px-3 py-2 focus:ring-2 focus:ring-primary/20 cursor-pointer"
@@ -1221,10 +1253,15 @@ const ClientRecord: React.FC = () => {
                                     <button onClick={async () => {
                                       if (!plan) return;
                                       setTreatmentPlanSaving(true);
-                                      const updatedPhases = plan.phases.map(ph => ph.id === phase.id ? { ...ph, ...editPhaseForm } : ph);
-                                      await onSaveTreatmentPlan(selectedClient.id, { ...plan, phases: updatedPhases, updatedAt: new Date().toISOString() });
-                                      setEditingPhaseId(null);
-                                      setTreatmentPlanSaving(false);
+                                      try {
+                                        const updatedPhases = plan.phases.map(ph => ph.id === phase.id ? { ...ph, ...editPhaseForm } : ph);
+                                        await onSaveTreatmentPlan(selectedClient.id, { ...plan, phases: updatedPhases, updatedAt: new Date().toISOString() });
+                                        setEditingPhaseId(null);
+                                      } catch {
+                                        toast.error('Could not save the phase', { description: 'Your edits are still here — please try again.' });
+                                      } finally {
+                                        setTreatmentPlanSaving(false);
+                                      }
                                     }} disabled={treatmentPlanSaving} className="bg-obsidian text-white px-4 py-1.5 rounded-md text-xs font-medium disabled:opacity-50">
                                       {treatmentPlanSaving ? 'Saving…' : 'Save'}
                                     </button>
@@ -1280,8 +1317,15 @@ const ClientRecord: React.FC = () => {
                                       tone: 'danger',
                                     });
                                     if (!ok) return;
-                                    await onUpdatePrescription(selectedClient.id, rx.id, { status: 'Discontinued' });
-                                  }} className="btn-icon hover:!text-danger" title="Discontinue">
+                                    setBusyRxId(rx.id);
+                                    try {
+                                      await onUpdatePrescription(selectedClient.id, rx.id, { status: 'Discontinued' });
+                                    } catch {
+                                      toast.error('Could not discontinue prescription', { description: 'The change was not saved — please try again.' });
+                                    } finally {
+                                      setBusyRxId(null);
+                                    }
+                                  }} disabled={busyRxId === rx.id} className="btn-icon hover:!text-danger disabled:opacity-50" title="Discontinue">
                                     <Ban size={13} />
                                   </button>
                                 )}
@@ -1374,15 +1418,21 @@ const ClientRecord: React.FC = () => {
                     const updatedPlan: TreatmentPlan = existingPlan
                       ? { ...existingPlan, phases: [...existingPlan.phases, newPhase], title: planTitle || existingPlan.title, updatedAt: new Date().toISOString() }
                       : { id: `plan-${Date.now()}`, clientId: selectedClient.id, title: planTitle || 'Treatment Plan', phases: [newPhase], createdAt: new Date().toISOString() };
-                    await onSaveTreatmentPlan(selectedClient.id, updatedPlan);
-                    setPhaseForm({ name: '', description: '', sessionsPlanned: 1, notes: '' });
-                    if (addAnotherRef.current) {
+                    try {
+                      await onSaveTreatmentPlan(selectedClient.id, updatedPlan);
+                      setPhaseForm({ name: '', description: '', sessionsPlanned: 1, notes: '' });
+                      if (addAnotherRef.current) {
+                        addAnotherRef.current = false;
+                        toast.success('Phase added', { description: 'Form cleared — add the next phase or close.' });
+                      } else {
+                        setShowAddPhase(false);
+                      }
+                    } catch {
                       addAnotherRef.current = false;
-                      toast.success('Phase added', { description: 'Form cleared — add the next phase or close.' });
-                    } else {
-                      setShowAddPhase(false);
+                      toast.error('Could not save the phase', { description: 'Your entries are still in the form — please try again.' });
+                    } finally {
+                      setTreatmentPlanSaving(false);
                     }
-                    setTreatmentPlanSaving(false);
                   }}
                   className="space-y-4"
                 >
@@ -1455,15 +1505,21 @@ const ClientRecord: React.FC = () => {
                       status: 'Active',
                       createdAt: new Date().toISOString(),
                     };
-                    await onAddPrescription(selectedClient.id, newRx);
-                    setRxForm({ drugName: '', dosage: '', instructions: '', startDate: '', endDate: '', prescribedBy: '' });
-                    if (addAnotherRef.current) {
+                    try {
+                      await onAddPrescription(selectedClient.id, newRx);
+                      setRxForm({ drugName: '', dosage: '', instructions: '', startDate: '', endDate: '', prescribedBy: '' });
+                      if (addAnotherRef.current) {
+                        addAnotherRef.current = false;
+                        toast.success('Prescription added', { description: 'Form cleared — add the next one or close.' });
+                      } else {
+                        setShowAddRx(false);
+                      }
+                    } catch {
                       addAnotherRef.current = false;
-                      toast.success('Prescription added', { description: 'Form cleared — add the next one or close.' });
-                    } else {
-                      setShowAddRx(false);
+                      toast.error('Could not add the prescription', { description: 'Your entries are still in the form — please try again.' });
+                    } finally {
+                      setRxSaving(false);
                     }
-                    setRxSaving(false);
                   }}
                   className="space-y-4"
                 >
@@ -1571,9 +1627,10 @@ const ClientRecord: React.FC = () => {
                               variant="ghost"
                               size="sm"
                               leadingIcon={<Check size={13} />}
-                              onClick={async () => { await onUpdatePayment(selectedClient.id, pay.id, { status: 'Paid', paidDate: new Date().toISOString().split('T')[0] }); }}
+                              onClick={() => handleMarkPaid(pay.id)}
+                              disabled={busyPaymentId === pay.id}
                             >
-                              Mark paid
+                              {busyPaymentId === pay.id ? 'Saving…' : 'Mark paid'}
                             </UIButton>
                           )}
                         </div>
@@ -1627,15 +1684,21 @@ const ClientRecord: React.FC = () => {
                       reference: paymentForm.reference || undefined,
                       createdAt: new Date().toISOString(),
                     };
-                    await onAddPayment(selectedClient.id, newPay);
-                    setPaymentForm({ description: '', amount: '', currency: 'GBP', status: 'Pending', dueDate: '', reference: '' });
-                    if (addAnotherRef.current) {
+                    try {
+                      await onAddPayment(selectedClient.id, newPay);
+                      setPaymentForm({ description: '', amount: '', currency: 'GBP', status: 'Pending', dueDate: '', reference: '' });
+                      if (addAnotherRef.current) {
+                        addAnotherRef.current = false;
+                        toast.success('Payment entry added', { description: 'Form cleared — add the next one or close.' });
+                      } else {
+                        setShowAddPayment(false);
+                      }
+                    } catch {
                       addAnotherRef.current = false;
-                      toast.success('Payment entry added', { description: 'Form cleared — add the next one or close.' });
-                    } else {
-                      setShowAddPayment(false);
+                      toast.error('Could not add the payment entry', { description: 'Your entries are still in the form — please try again.' });
+                    } finally {
+                      setPaymentSaving(false);
                     }
-                    setPaymentSaving(false);
                   }}
                   className="space-y-4"
                 >

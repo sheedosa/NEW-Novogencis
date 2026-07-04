@@ -6,8 +6,9 @@ import {
   Receipt, TrendingUp, Clock, Hourglass,
 } from 'lucide-react';
 import {
-  PageHeader, Card, CardHeader, Button, Stat, EmptyState, Badge,
+  PageHeader, Card, CardHeader, Button, Stat, EmptyState, Badge, useToast,
 } from '../../../components/ui';
+import { localTodayISO } from '../../../utils/time';
 
 type Filter = 'outstanding' | 'paid' | 'all';
 
@@ -22,6 +23,7 @@ function MoneyPanel() {
     filteredClients,
     appointments,
     onUpdatePayment,
+    onUpdateAppointment,
     setSelectedClientId,
     setClientRecordTab,
     handleSidebarClick,
@@ -29,6 +31,38 @@ function MoneyPanel() {
 
   const [filter, setFilter] = useState<Filter>('outstanding');
   const [search, setSearch] = useState('');
+  const { toast } = useToast();
+  // Payment currently being marked paid — disables its button so a slow
+  // write can't be double-fired, and failures surface instead of silently
+  // leaving the row unchanged while the doctor believes it saved.
+  const [busyPaymentId, setBusyPaymentId] = useState<string | null>(null);
+
+  const handleMarkPaid = async (clientId: string, paymentId: string) => {
+    if (busyPaymentId) return;
+    setBusyPaymentId(paymentId);
+    try {
+      await onUpdatePayment(clientId, paymentId, {
+        status: 'Paid',
+        paidDate: localTodayISO(),
+      });
+      // Mirror the Stripe webhook: a deposit marked paid also confirms its
+      // linked appointment (previously the manual path left the appointment
+      // stuck on "Awaiting deposit" until a second manual step).
+      const client = filteredClients.find(c => c.id === clientId);
+      const pay = (client?.payments || []).find(p => p.id === paymentId);
+      if (pay?.appointmentId) {
+        const apt = appointments.find(a => a.id === pay.appointmentId);
+        if (apt?.status === 'Awaiting deposit') {
+          await onUpdateAppointment(apt.id, { status: 'Confirmed' });
+        }
+      }
+      toast.success('Marked as paid');
+    } catch {
+      toast.error('Could not mark as paid', { description: 'Please check your connection and try again.' });
+    } finally {
+      setBusyPaymentId(null);
+    }
+  };
 
   const formatGBP = (n: number, currency = 'GBP') =>
     new Intl.NumberFormat('en-GB', { style: 'currency', currency }).format(n);
@@ -408,14 +442,10 @@ function MoneyPanel() {
                           variant="ghost"
                           size="sm"
                           leadingIcon={<Check size={13} />}
-                          onClick={async () => {
-                            await onUpdatePayment(row.clientId, p.id, {
-                              status: 'Paid',
-                              paidDate: new Date().toISOString().split('T')[0],
-                            });
-                          }}
+                          onClick={() => handleMarkPaid(row.clientId, p.id)}
+                          disabled={busyPaymentId === p.id}
                         >
-                          Mark paid
+                          {busyPaymentId === p.id ? 'Saving…' : 'Mark paid'}
                         </Button>
                       )}
                     </div>
@@ -452,14 +482,10 @@ function MoneyPanel() {
                           variant="ghost"
                           size="sm"
                           leadingIcon={<Check size={13} />}
-                          onClick={async () => {
-                            await onUpdatePayment(row.clientId, p.id, {
-                              status: 'Paid',
-                              paidDate: new Date().toISOString().split('T')[0],
-                            });
-                          }}
+                          onClick={() => handleMarkPaid(row.clientId, p.id)}
+                          disabled={busyPaymentId === p.id}
                         >
-                          Mark paid
+                          {busyPaymentId === p.id ? 'Saving…' : 'Mark paid'}
                         </Button>
                       )}
                     </div>

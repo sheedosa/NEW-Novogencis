@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 import AppointmentNotesDrawer from '../AppointmentNotesDrawer';
 import {
-  PageHeader, Card, Button, StatusBadge, EmptyState, Badge, useConfirm,
+  PageHeader, Card, Button, StatusBadge, EmptyState, Badge, useConfirm, useToast,
 } from '../../../components/ui';
 
 type View = 'week' | 'day' | 'list';
@@ -61,6 +61,7 @@ function CalendarPanel() {
   };
 
   const { confirm, ConfirmHost } = useConfirm();
+  const { toast } = useToast();
   const [notesAppt, setNotesAppt] = useState<Appointment | null>(null);
 
   const handleDelete = async (id: string, clientName: string) => {
@@ -70,7 +71,12 @@ function CalendarPanel() {
       confirmLabel: 'Delete',
       tone: 'danger',
     });
-    if (ok) await onDeleteAppointment(id);
+    if (!ok) return;
+    try {
+      await onDeleteAppointment(id);
+    } catch {
+      toast.error('Could not delete the appointment', { description: 'It is still on the schedule — please try again.' });
+    }
   };
 
   // Default to day view below 768px — matches the Week toggle's `md:` visibility
@@ -531,14 +537,21 @@ function CalendarPanel() {
                   </div>
                   <select
                     value={apt.status}
-                    onChange={(e) => {
+                    onChange={async (e) => {
                       const next = e.target.value as Appointment['status'];
-                      onUpdateAppointment(apt.id, { status: next });
-                      // When the doctor flips status to Completed, immediately
-                      // open the notes drawer so SOAP notes get captured in
-                      // the moment (closes the long-standing notes-skipped gap).
-                      if (next === 'Completed' && apt.status !== 'Completed') {
-                        setNotesAppt({ ...apt, status: next });
+                      const wasCompleted = apt.status === 'Completed';
+                      try {
+                        await onUpdateAppointment(apt.id, { status: next });
+                        // When the doctor flips status to Completed, immediately
+                        // open the notes drawer so SOAP notes get captured in
+                        // the moment (closes the long-standing notes-skipped gap).
+                        // Only after the write succeeds — a failed write must not
+                        // open the drawer against a stale status.
+                        if (next === 'Completed' && !wasCompleted) {
+                          setNotesAppt({ ...apt, status: next });
+                        }
+                      } catch {
+                        toast.error('Could not update the appointment status', { description: 'The change was not saved — please try again.' });
                       }
                     }}
                     className="text-base sm:text-sm bg-cream/60 border border-sand/40 rounded-lg px-2 py-2 font-medium focus:ring-2 focus:ring-primary/20 cursor-pointer"

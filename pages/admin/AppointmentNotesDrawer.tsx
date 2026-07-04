@@ -69,6 +69,9 @@ export const AppointmentNotesDrawer: React.FC<AppointmentNotesDrawerProps> = ({
         }
       }
       onClose();
+    } catch {
+      // Keep the drawer open with the doctor's notes intact.
+      toast.error('Could not save the notes', { description: 'Your notes are still here — please try again.' });
     } finally {
       setSaving(false);
     }
