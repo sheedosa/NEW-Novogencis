@@ -8,13 +8,13 @@ interface AboutPageProps {
 
 const AboutPage: React.FC<AboutPageProps> = ({ onNavigate }) => {
   // Direct serving URL for Dr. Amer's image
-  const drAmerImgUrl = "https://lh3.googleusercontent.com/d/1YZP8Ey7efS4TDkira7M9cTkzDNo9zwW7";
+  const drAmerImgUrl = "/images/dr-aminah.jpg";
   
   // Direct serving URL for Dr. Farid's image
-  const drFaridImgUrl = "https://lh3.googleusercontent.com/d/1ytEpSn_daHfMDF9qcMlKXuVp9uy78OUG";
+  const drFaridImgUrl = "/images/dr-waqas.jpg";
   
   // Direct serving URL for the Clinic Space image
-  const clinicSpaceImgUrl = "https://lh3.googleusercontent.com/d/1_OpdNoH5ZzlXJuAbP5Yf0QeDW5KpXmlh";
+  const clinicSpaceImgUrl = "/images/clinic-space.jpg";
 
   return (
     <div className="animate-fade-in bg-cream">

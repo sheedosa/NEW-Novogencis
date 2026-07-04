@@ -11,19 +11,19 @@
   "categories": ["medical", "health", "productivity"],
   "icons": [
     {
-      "src": "https://lh3.googleusercontent.com/d/1e_7ol4_MvFJsM4dGkVA5SLLbI70gL9Gz",
+      "src": "/icons/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "https://lh3.googleusercontent.com/d/1e_7ol4_MvFJsM4dGkVA5SLLbI70gL9Gz",
+      "src": "/icons/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "https://lh3.googleusercontent.com/d/1e_7ol4_MvFJsM4dGkVA5SLLbI70gL9Gz",
+      "src": "/icons/icon-maskable-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"

@@ -95,7 +95,7 @@ const Footer: React.FC<FooterProps> = React.memo(({ onNavigate }) => {
               <div className="flex items-center gap-3">
                  <span className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted/60">We accept</span>
                  <img 
-                    src="https://lh3.googleusercontent.com/d/1G4qDbkBW0teKcS1IaKy7oaly8CVTKkQK" 
+                    src="/images/klarna.jpg" 
                     alt="Klarna Logo" 
                     className="h-5 w-auto object-contain opacity-80 hover:opacity-100 transition-opacity"
                     referrerPolicy="no-referrer"

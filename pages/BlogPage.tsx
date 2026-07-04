@@ -35,8 +35,8 @@ const BlogPage: React.FC<BlogPageProps> = ({ onNavigate }) => {
       readTime: "2 min read",
       category: "Medical Insights",
       excerpt: "Exosomes are tiny extracellular vesicles - microscopic messengers released by your body’s own cells. Discover how this breakthrough in regenerative medicine is helping clients restore hair density.",
-      thumbnail: "https://lh3.googleusercontent.com/d/1rYma56lbUvSDU5DVEb1vhT7kw690f4EJ",
-      authorImage: "https://lh3.googleusercontent.com/d/1YZP8Ey7efS4TDkira7M9cTkzDNo9zwW7"
+      thumbnail: "/images/blog-exosomes.jpg",
+      authorImage: "/images/dr-aminah.jpg"
     }
   ];
 
@@ -131,7 +131,7 @@ const BlogPage: React.FC<BlogPageProps> = ({ onNavigate }) => {
             
             <div className="flex items-center gap-4 py-6 border-y border-black/5">
               <div className="w-12 h-12 bg-primary/20 rounded-full flex items-center justify-center overflow-hidden">
-                 <img src="https://lh3.googleusercontent.com/d/1YZP8Ey7efS4TDkira7M9cTkzDNo9zwW7" alt="Dr Aminah Amer" className="w-full h-full object-cover" referrerPolicy="no-referrer" loading="lazy" decoding="async" />
+                 <img src="/images/dr-aminah.jpg" alt="Dr Aminah Amer" className="w-full h-full object-cover" referrerPolicy="no-referrer" loading="lazy" decoding="async" />
               </div>
               <div>
                 <p className="text-sm font-medium text-obsidian">Dr Aminah Amer</p>
@@ -162,7 +162,7 @@ const BlogPage: React.FC<BlogPageProps> = ({ onNavigate }) => {
             <figure className="my-12">
               <div className="rounded-[2rem] overflow-hidden shadow-2xl border-8 border-white">
                 <img 
-                  src="https://lh3.googleusercontent.com/d/1rYma56lbUvSDU5DVEb1vhT7kw690f4EJ" 
+                  src="/images/blog-exosomes.jpg" 
                   alt="Novogenics infographic exosome" 
                   className="w-full h-auto grayscale-[20%] hover:grayscale-0 transition-all duration-700"
                   referrerPolicy="no-referrer"

@@ -10,7 +10,7 @@ const Logo: React.FC<LogoProps> = React.memo(({ size = 'md', className = '' }) =
   
   // Updated to a more reliable Google Drive image serving endpoint
   // ID extracted from: 1B6HV1f06_qb78MsilSwpN-l1-LpwHB2k
-  const logoSrc = "https://lh3.googleusercontent.com/d/1B6HV1f06_qb78MsilSwpN-l1-LpwHB2k";
+  const logoSrc = "/images/logo-mark.png";
 
   const heights = {
     sm: 'h-14 md:h-16',

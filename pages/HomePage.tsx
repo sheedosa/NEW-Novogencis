@@ -191,7 +191,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
                <span className="text-[10px] font-medium uppercase tracking-[0.3em] text-muted/60">Payment plans available via</span>
                <div className="h-4 flex items-center">
                   <img 
-                    src="https://lh3.googleusercontent.com/d/1G4qDbkBW0teKcS1IaKy7oaly8CVTKkQK" 
+                    src="/images/klarna.jpg" 
                     alt="Klarna Logo" 
                     className="h-full w-auto object-contain opacity-70 transition-all hover:opacity-100"
                     referrerPolicy="no-referrer"
@@ -238,7 +238,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
               <div className="hidden lg:block absolute -inset-4 border-2 border-primary/10 rounded-[2rem] -z-10 animate-pulse" />
               <div className="relative z-10 rounded-[2.5rem] overflow-hidden shadow-[0_48px_80px_-24px_rgba(208,187,149,0.25)] border-8 border-white bg-cream">
                 <img 
-                  src="https://lh3.googleusercontent.com/d/1Jb1arkWJebGZjOaHX1PYRms2zPtYiI5P" 
+                  src="/images/tlab-prp-chart.jpg" 
                   alt="T-Lab #1 Ranked PRP System IMCAS 2025 Data Chart" 
                   className="w-full object-cover transition-transform duration-1000 hover:scale-105"
                   referrerPolicy="no-referrer"
@@ -366,7 +366,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
                 <img 
                   loading="lazy"
                   decoding="async"
-                  src="https://lh3.googleusercontent.com/d/1uoDkwYFGc3Ffdawu71C8fGKdt2eB1NLp" 
+                  src="/images/virtual-assessment.png" 
                   alt="Virtual Assessment Clinical Image" 
                   className="relative z-10 rounded-3xl w-full object-cover shadow-2xl grayscale-[30%] group-hover:grayscale-0 transition-all duration-1000 transform"
                   referrerPolicy="no-referrer"

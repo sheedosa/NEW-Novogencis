@@ -181,7 +181,7 @@ const PricingPage: React.FC<PricingPageProps> = ({ onNavigate }) => {
                <span className="text-[10px] font-medium uppercase tracking-[0.3em] text-muted/60">Payment plans available via</span>
                <div className="h-5 flex items-center">
                   <img 
-                    src="https://lh3.googleusercontent.com/d/1G4qDbkBW0teKcS1IaKy7oaly8CVTKkQK" 
+                    src="/images/klarna.jpg" 
                     alt="Klarna Logo" 
                     className="h-full w-auto object-contain opacity-70 transition-all hover:opacity-100"
                     referrerPolicy="no-referrer"
@@ -231,7 +231,7 @@ const PricingPage: React.FC<PricingPageProps> = ({ onNavigate }) => {
                   <img 
                     loading="lazy"
                     decoding="async"
-                    src="https://lh3.googleusercontent.com/d/1uoDkwYFGc3Ffdawu71C8fGKdt2eB1NLp" 
+                    src="/images/virtual-assessment.png" 
                     alt="Virtual Assessment Clinical Image" 
                     className="relative z-10 rounded-3xl w-full object-cover shadow-2xl grayscale-[30%] group-hover:grayscale-0 transition-all duration-1000 transform"
                     referrerPolicy="no-referrer"
