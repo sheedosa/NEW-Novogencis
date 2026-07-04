@@ -833,8 +833,34 @@ const App: React.FC = () => {
   // Sync state with hash (Initial and Back/Forward)
   useEffect(() => {
     const handleHashChange = () => {
-      const hash = window.location.hash.replace('#', '') as Page;
-      const validPage = Object.values(Page).includes(hash) ? hash : Page.Home;
+      const rawHash = window.location.hash.replace('#', '');
+      // Stripe Checkout redirects append query params to the hash fragment
+      // (e.g. "client-dashboard?payment=success&session_id=..."). Split them
+      // off so the page part still matches the Page enum — otherwise a
+      // patient who just paid would fall through to the homepage.
+      const [pagePart, queryPart] = rawHash.split('?');
+      const validPage = Object.values(Page).includes(pagePart as Page) ? (pagePart as Page) : Page.Home;
+
+      if (queryPart) {
+        const params = new URLSearchParams(queryPart);
+        const payment = params.get('payment');
+        if (payment === 'success') {
+          notify.success('Payment received — thank you', {
+            description: 'Your confirmation will appear on your dashboard shortly.',
+            duration: 8000,
+          });
+        } else if (payment === 'cancelled') {
+          notify.info('Payment not completed', {
+            description: 'No charge was made. Your payment link is still available in Messages.',
+            duration: 8000,
+          });
+        }
+        if (payment) {
+          // Strip the params so refresh / back-forward doesn't re-toast.
+          window.history.replaceState(null, '', `${window.location.pathname}#${validPage}`);
+        }
+      }
+
       setCurrentPage(prev => {
         if (prev === validPage) return prev;
         return validPage;
