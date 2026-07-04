@@ -690,10 +690,21 @@ const App: React.FC = () => {
       const pendingAssessmentMatch = sessionStorage.getItem('pendingAssessment') || localStorage.getItem('pendingAssessment');
       if (pendingAssessmentMatch) {
         try {
-          const pendingData = JSON.parse(pendingAssessmentMatch);
-          // Expire health data after 30 minutes (GDPR data minimisation)
+          let pendingData;
+          try {
+            pendingData = JSON.parse(pendingAssessmentMatch);
+          } catch (parseError) {
+            // Corrupt stash can never be recovered — discard it so it doesn't
+            // linger as unparseable health data.
+            sessionStorage.removeItem('pendingAssessment');
+            localStorage.removeItem('pendingAssessment');
+            throw parseError;
+          }
+          // Expire health data after 30 minutes (GDPR data minimisation).
+          // A missing timestamp is treated as expired — freshness can't be
+          // verified, so err on the side of discarding.
           const THIRTY_MINUTES = 30 * 60 * 1000;
-          if (pendingData._storedAt && Date.now() - pendingData._storedAt > THIRTY_MINUTES) {
+          if (!pendingData._storedAt || Date.now() - pendingData._storedAt > THIRTY_MINUTES) {
             sessionStorage.removeItem('pendingAssessment');
             localStorage.removeItem('pendingAssessment');
             throw new Error('Pending assessment expired');
@@ -752,6 +763,14 @@ const App: React.FC = () => {
       // Leaving preview mode on logout — otherwise the flag persists in
       // localStorage and the next sign-in lands in the dummy-patient view.
       setViewAsTestPatient(false);
+      // Clear any stashed assessment health data on explicit logout so it
+      // never outlives the session on a shared device. (The signup-failure
+      // recovery path signs out directly, not via here, so its stash for
+      // the sign-in-to-finish flow is unaffected.)
+      try {
+        sessionStorage.removeItem('pendingAssessment');
+        localStorage.removeItem('pendingAssessment');
+      } catch { /* storage unavailable */ }
       navigateTo(Page.Home);
     } catch (error) {
       console.error('Logout error:', error);

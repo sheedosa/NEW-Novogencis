@@ -159,6 +159,7 @@ const MessagesTab = memo(function MessagesTab({ userMessages, user, onSendMessag
                       </a>
                       <p className="text-xs text-muted leading-relaxed">
                         Opens our secure payment page. Your booking is confirmed as soon as payment is made.
+                        This link is valid for 24 hours — if it has expired, just message us and we'll send a fresh one.
                       </p>
                     </div>
                   ) : (
@@ -909,9 +910,9 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
                      </div>
                      <div className="grid grid-cols-2 gap-3">
                         {currentClient?.gallery?.slice(0, 4).map((item, i) => (
-                           <div key={i} className="aspect-square bg-cream rounded-md overflow-hidden relative cursor-pointer" onClick={() => setLightboxImage(item)}>
+                           <button key={i} type="button" aria-label={`View photo: ${item.label}`} className="aspect-square bg-cream rounded-md overflow-hidden relative cursor-pointer" onClick={() => setLightboxImage(item)}>
                               <img src={item.url} alt={item.label} className="w-full h-full object-cover" />
-                           </div>
+                           </button>
                         ))}
                         {(!currentClient?.gallery || currentClient.gallery.length === 0) && (
                            <button
