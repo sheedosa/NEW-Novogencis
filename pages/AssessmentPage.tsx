@@ -463,6 +463,8 @@ const AssessmentPage: React.FC<AssessmentPageProps> = ({ onNavigate, onIntakeCom
         setError('email_exists'); // Use a specific error state
       } else if (authError.code === 'auth/weak-password') {
         setError('Password is too weak. Please use at least 6 characters.');
+      } else if (authError.code === 'clinic/assessment-save-failed') {
+        setError('Your account was created, but we could not save your assessment just now. Please sign in with your new email and password — your answers will be attached automatically.');
       } else {
         setError('A clinical configuration error occurred. Please contact the clinic for assistance.');
       }

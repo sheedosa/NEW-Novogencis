@@ -19,6 +19,8 @@ import { InteractiveForm } from '../components/InteractiveForm';
 import Logo from '../components/Logo';
 import PolicyConfirmationModal from '../components/PolicyConfirmationModal';
 import { processImageForUpload, validateImageFile, ACCEPTED_IMAGE_TYPES } from '../imageUtils';
+import { auth } from '../firebase';
+import { sendEmailVerification } from 'firebase/auth';
 
 interface ClientDashboardProps {
   user: User | null;
@@ -236,6 +238,13 @@ const MessagesTab = memo(function MessagesTab({ userMessages, user, onSendMessag
 const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNavigate, appointments, clients, messages, notifications, onMarkNotificationRead, onSendMessage, onMarkMessageRead, onUpdateMessage, onUpdateClient, onAcceptPolicies }) => {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<Tab>('home');
+  // Soft email-verification banner — only for the patient's own live session
+  // (auth uid must match the user prop, so admin "view as test patient"
+  // preview mode never shows it). Dismissible; never blocks anything.
+  const [verifyBannerDismissed, setVerifyBannerDismissed] = useState(false);
+  const [verifyEmailResent, setVerifyEmailResent] = useState(false);
+  const needsEmailVerification =
+    !!auth.currentUser && auth.currentUser.uid === user?.id && !auth.currentUser.emailVerified;
   // Sub-tab inside My Care — null means "auto": Treatment when a plan exists,
   // Assessment otherwise.
   const [careSubTab, setCareSubTab] = useState<CareSubTab | null>(null);
@@ -1706,6 +1715,41 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
             </button>
           </div>
         </header>
+        {needsEmailVerification && !verifyBannerDismissed && (
+          <div className="mx-4 md:mx-6 mt-3 flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
+            <Info size={16} className="mt-0.5 shrink-0 text-amber-700" />
+            <div className="flex-1 min-w-0 text-sm text-amber-900">
+              <p className="font-medium">Please verify your email address</p>
+              <p className="text-xs mt-0.5 text-amber-800">
+                We sent a link to {user?.email}. Verifying makes sure appointment updates from the clinic reach you.
+              </p>
+              {verifyEmailResent ? (
+                <p className="text-xs mt-1.5 font-medium">Verification email sent — please check your inbox.</p>
+              ) : (
+                <button
+                  onClick={async () => {
+                    try {
+                      if (auth.currentUser) await sendEmailVerification(auth.currentUser);
+                      setVerifyEmailResent(true);
+                    } catch {
+                      toast.error('Could not send the email just now — please try again shortly.');
+                    }
+                  }}
+                  className="text-xs mt-1.5 font-medium underline underline-offset-2 hover:text-amber-700"
+                >
+                  Resend verification email
+                </button>
+              )}
+            </div>
+            <button
+              onClick={() => setVerifyBannerDismissed(true)}
+              aria-label="Dismiss verification reminder"
+              className="shrink-0 w-8 h-8 -mr-1 -mt-1 inline-flex items-center justify-center text-amber-700 hover:text-amber-900 rounded-md"
+            >
+              <X size={14} />
+            </button>
+          </div>
+        )}
         <div className="portal-content mx-auto pb-20 lg:pb-4" data-scroll key={activeTab}>
           {/* Per-section CSS fade-in is more reliable than AnimatePresence here
               (which can leave opacity stuck at 0 on rapid tab changes). */}

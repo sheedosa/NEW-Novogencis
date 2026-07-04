@@ -1,5 +1,5 @@
 import React, { useState, useEffect, Suspense, lazy, Component, ErrorInfo, ReactNode } from 'react';
-import { onAuthStateChanged, createUserWithEmailAndPassword, signOut } from 'firebase/auth';
+import { onAuthStateChanged, createUserWithEmailAndPassword, signOut, sendEmailVerification } from 'firebase/auth';
 import { collection, onSnapshot, doc, getDoc, getDocs, setDoc, query, orderBy, limit, deleteDoc, updateDoc, where, or } from 'firebase/firestore';
 import { Page, User, Client, Appointment, Message, GalleryItem, AppNotification, Task, Template } from './types';
 import { DUMMY_PATIENT, dummyPatientUser, buildDummyPatientSeed } from './utils/dummyPatient';
@@ -749,6 +749,9 @@ const App: React.FC = () => {
     try {
       await signOut(auth);
       setCurrentUser(null);
+      // Leaving preview mode on logout — otherwise the flag persists in
+      // localStorage and the next sign-in lands in the dummy-patient view.
+      setViewAsTestPatient(false);
       navigateTo(Page.Home);
     } catch (error) {
       console.error('Logout error:', error);
@@ -932,6 +935,10 @@ const App: React.FC = () => {
         // Small delay to ensure Firestore is ready before navigation
         await new Promise(resolve => setTimeout(resolve, 500));
       } catch (error) {
+        // The Auth account was created but its profile doc failed — delete the
+        // orphan Auth user so the patient can simply retry with the same email
+        // (otherwise the retry hits email-already-in-use with no profile).
+        try { await userCredential.user.delete(); } catch { /* best effort */ }
         handleFirestoreError(error, OperationType.CREATE, `users/${uid}`);
       }
 
@@ -982,14 +989,44 @@ const App: React.FC = () => {
           await setDoc(doc(db, 'clients', uid), cleanData(newClient));
           // Clear so a future visit by the same browser starts a fresh capture.
           clearCapturedLeadSource();
-        } catch (error) {
-          handleFirestoreError(error, OperationType.CREATE, `clients/${uid}`);
+        } catch (firstError) {
+          // One retry — transient network/quota blips are the common case.
+          try {
+            await new Promise(resolve => setTimeout(resolve, 1200));
+            await setDoc(doc(db, 'clients', uid), cleanData(newClient));
+            clearCapturedLeadSource();
+          } catch (retryError) {
+            // The account exists but the clinical record couldn't be written.
+            // Stash the assessment in the exact shape handleLogin recovers
+            // from, sign out, and tell the patient to sign in to finish —
+            // the login flow merges the stash into their client record.
+            try {
+              sessionStorage.setItem('pendingAssessment', JSON.stringify({
+                answers,
+                formData: intakeData,
+                gender: intakeData.gender,
+                _storedAt: Date.now(),
+              }));
+            } catch { /* storage unavailable — recovery via clinic instead */ }
+            try { await signOut(auth); } catch { /* best effort */ }
+            console.error('Client record write failed after retry:', retryError);
+            const friendly = new Error(
+              'Account created, but your assessment could not be saved.'
+            ) as Error & { code?: string };
+            friendly.code = 'clinic/assessment-save-failed';
+            throw friendly;
+          }
         }
 
-        // Fire welcome notifications for new client
+        // Fire welcome notifications for new client (skipped if the record
+        // write above threw — we must not claim success to the clinic).
         notifyWelcome(uid, authEmail, normalizedFullName);
         notifyNewAssessment(normalizedFullName, uid, authEmail);
       }
+
+      // Soft email verification — catches typo'd signup emails without
+      // blocking access. The portal shows a gentle banner until verified.
+      sendEmailVerification(userCredential.user).catch(() => { /* non-blocking */ });
       
       // Manually set current user to avoid race condition with Auth listener
       setCurrentUser(newUser);
