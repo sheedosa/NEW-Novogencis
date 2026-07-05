@@ -341,16 +341,46 @@ const AdminPage: React.FC<AdminPageProps> = ({
     return null;
   }, [appointments]);
 
-  const openBookingModal = (clientId?: string, prefill?: { date?: string; time?: string }) => {
+  const openBookingModal = (
+    clientId?: string,
+    prefill?: { date?: string; time?: string; phaseId?: string; isPlanSession?: boolean },
+  ) => {
     setBookingForm(prev => {
-      const next = { ...prev };
+      const next: Partial<Appointment> = { ...prev };
       if (clientId) {
         const client = filteredClients.find(c => c.id === clientId);
         next.clientId = clientId;
         next.clientName = client?.name;
       }
-      if (prefill?.date) next.date = prefill.date;
-      if (prefill?.time) next.time = prefill.time;
+      if (prefill?.isPlanSession && clientId) {
+        // Plan follow-up: continue from the client's last session. Copy the
+        // treatment/clinician/slot, suggest a date 4 weeks on, and mark it a
+        // price-free plan session (no deposit, straight to Confirmed).
+        next.isPlanSession = true;
+        next.phaseId = prefill.phaseId;
+        next.status = 'Confirmed';
+        next.treatmentId = undefined; // no price/deposit attached to plan sessions
+        const prior = appointments
+          .filter(a => a.clientId === clientId && a.status !== 'Cancelled' && a.status !== 'No-Show')
+          .sort((a, b) => a.date !== b.date
+            ? b.date.localeCompare(a.date)
+            : (parseTime12h(b.time) ?? 0) - (parseTime12h(a.time) ?? 0));
+        const last = prior.find(a => a.phaseId === prefill.phaseId) ?? prior[0];
+        if (last) {
+          next.type = last.type;
+          next.durationMin = last.durationMin;
+          next.clinicianId = last.clinicianId;
+          next.time = last.time;
+          const d = new Date(`${last.date}T00:00:00`);
+          d.setDate(d.getDate() + 28); // suggest +4 weeks; doctor can adjust
+          next.date = d.toISOString().split('T')[0];
+        }
+      } else {
+        next.isPlanSession = undefined;
+        next.phaseId = undefined;
+        if (prefill?.date) next.date = prefill.date;
+        if (prefill?.time) next.time = prefill.time;
+      }
       return next;
     });
     setShowBookingModal(true);
@@ -379,12 +409,13 @@ const AdminPage: React.FC<AdminPageProps> = ({
 
     setIsSubmitting(true);
     try {
-      // Deposit follow-through — when the treatment carries a deposit, the
-      // booking sits in limbo until the doctor requests it. Surface the next
-      // step right in the confirmation toast.
+      // Plan follow-up sessions are price-free — no deposit, straight to
+      // Confirmed, linked to the plan phase. Everything else keeps the deposit
+      // follow-through (park in 'Awaiting deposit' until the deposit is taken).
+      const isPlanSession = !!bookingForm.isPlanSession;
       const bookedTreatment = treatments.find(t => t.id === bookingForm.treatmentId);
       const bookedClientId = bookingForm.clientId;
-      const depositPence = bookedTreatment && bookedTreatment.depositPct > 0
+      const depositPence = !isPlanSession && bookedTreatment && bookedTreatment.depositPct > 0
         ? Math.round((bookedTreatment.fullPricePence * bookedTreatment.depositPct) / 100)
         : 0;
 
@@ -407,9 +438,11 @@ const AdminPage: React.FC<AdminPageProps> = ({
         notes: bookingForm.notes || '',
         createdAt: new Date().toISOString(),
         durationMin: bookingForm.durationMin,
-        treatmentId: bookingForm.treatmentId,
+        treatmentId: isPlanSession ? undefined : bookingForm.treatmentId,
         clinicianId: bookingForm.clinicianId,
         ...(depositPence > 0 ? { depositPence } : {}),
+        ...(bookingForm.phaseId ? { phaseId: bookingForm.phaseId } : {}),
+        ...(isPlanSession ? { isPlanSession: true } : {}),
       };
       onAddAppointment(newAppointment);
 
@@ -610,6 +643,7 @@ const AdminPage: React.FC<AdminPageProps> = ({
     tasks, onAddTask, onUpdateTask, onDeleteTask,
     onSaveTreatmentPlan, onAddPrescription, onUpdatePrescription,
     onAddPayment, onUpdatePayment,
+    clinicians: CLINICIANS,
     // State
     activeTab, setActiveTab,
     practiceTab, setPracticeTab,
@@ -656,7 +690,7 @@ const AdminPage: React.FC<AdminPageProps> = ({
     onSendMessage, onMarkMessageRead, onUpdateMessage, onUpdateClient,
     onMarkNotificationRead, tasks, onAddTask, onUpdateTask, onDeleteTask,
     onSaveTreatmentPlan, onAddPrescription, onUpdatePrescription,
-    onAddPayment, onUpdatePayment,
+    onAddPayment, onUpdatePayment, CLINICIANS,
     activeTab, practiceTab, effectiveAdminType, selectedClientId, clientRecordTab,
     isSidebarOpen, isSidebarCollapsed, lightboxImage,
     uploadProgress, showBookingModal, appointmentView, currentCalendarDate,
@@ -944,8 +978,8 @@ const AdminPage: React.FC<AdminPageProps> = ({
           <Modal
             open={showBookingModal}
             onClose={() => setShowBookingModal(false)}
-            title="Book appointment"
-            subtitle="Schedule a clinical session"
+            title={bookingForm.isPlanSession ? 'Book next session' : 'Book appointment'}
+            subtitle={bookingForm.isPlanSession ? 'Continuing the treatment plan — no charge' : 'Schedule a clinical session'}
             size="md"
           >
             {(() => {
@@ -987,9 +1021,14 @@ const AdminPage: React.FC<AdminPageProps> = ({
                     ))}
                   </Select>
 
+                  {bookingForm.isPlanSession && (
+                    <div className="rounded-md bg-primary/5 border border-primary/20 px-3 py-2.5 text-xs text-obsidian">
+                      Plan follow-up session — continuing from the last session. No charge or deposit is attached.
+                    </div>
+                  )}
                   {/* Treatment summary — duration, price, deposit shown so doctors
                       don't have to leave the modal to check pricing. */}
-                  {selectedTreatment && (
+                  {selectedTreatment && !bookingForm.isPlanSession && (
                     <div className="rounded-md bg-cream/60 border border-sand px-3 py-2.5 text-xs">
                       <div className="grid grid-cols-3 gap-2">
                         <div>

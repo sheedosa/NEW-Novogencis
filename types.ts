@@ -178,6 +178,12 @@ export interface Appointment {
   aftercareSentAt?: string;
   /** Marks which appointment triggered the once-per-lifetime consent send. */
   consentTriggered?: boolean;
+  /** Links this booking to a TreatmentPhase (plan follow-up sessions). One plan
+   *  per client, so the plan is implicit. Drives precise session counting. */
+  phaseId?: string;
+  /** True for a price-free plan follow-up session — no deposit; shows the
+   *  treatment name on the calendar without a price attached. */
+  isPlanSession?: boolean;
   notes: string;
   createdAt: string;
 }

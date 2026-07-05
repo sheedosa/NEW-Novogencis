@@ -500,32 +500,46 @@ const App: React.FC = () => {
         }
       }
 
-      // Auto-sync: when an appointment is marked Completed, increment the
-      // active treatment-plan phase's sessionsCompleted counter for the patient.
-      // Closes the silent-drift bug where doctors had to remember to bump
-      // the phase counter manually.
-      if (updates.status === 'Completed') {
+      // Keep treatment-plan session counts in sync with appointment completion.
+      // A plan-linked appointment (has phaseId) adjusts its OWN phase precisely
+      // and reversibly; legacy/untagged appointments fall back to the previous
+      // "first active phase" guess, on completion only (can't safely roll back).
+      if (updates.status !== undefined) {
         const appt = appointments.find(a => a.id === id);
         if (appt) {
-          const wasNotCompleted = appt.status !== 'Completed';
-          if (wasNotCompleted) {
+          const oldStatus = appt.status;
+          const newStatus = updates.status;
+          const becameCompleted = newStatus === 'Completed' && oldStatus !== 'Completed';
+          const becameUncompleted = oldStatus === 'Completed' && newStatus !== 'Completed';
+
+          if (becameCompleted || becameUncompleted) {
             const client = clients.find(c => c.id === appt.clientId);
             const plan = client?.treatmentPlan;
             if (plan && plan.phases?.length) {
-              // Active phase = first 'Active' phase, else first non-'Completed' phase
-              const activeIdx = plan.phases.findIndex(p => p.status === 'Active');
-              const phaseIdx = activeIdx >= 0
-                ? activeIdx
-                : plan.phases.findIndex(p => p.status !== 'Completed');
+              // Which phase does this session count against?
+              let phaseIdx = appt.phaseId
+                ? plan.phases.findIndex(p => p.id === appt.phaseId)
+                : -1;
+              // Untagged appointment being completed → old best-effort guess.
+              if (phaseIdx < 0 && becameCompleted && !appt.phaseId) {
+                const activeIdx = plan.phases.findIndex(p => p.status === 'Active');
+                phaseIdx = activeIdx >= 0
+                  ? activeIdx
+                  : plan.phases.findIndex(p => p.status !== 'Completed');
+              }
               if (phaseIdx >= 0) {
                 const phase = plan.phases[phaseIdx];
-                const newCompleted = (phase.sessionsCompleted || 0) + 1;
+                const delta = becameCompleted ? 1 : -1;
+                const newCompleted = Math.max(0, (phase.sessionsCompleted || 0) + delta);
                 const updatedPhases = [...plan.phases];
                 updatedPhases[phaseIdx] = {
                   ...phase,
                   sessionsCompleted: newCompleted,
-                  // Auto-mark phase Completed if all planned sessions are done
-                  status: newCompleted >= phase.sessionsPlanned ? 'Completed' : phase.status,
+                  // Complete the phase once all planned sessions are done; reopen
+                  // it (Completed → Active) if a rollback drops it below planned.
+                  status: newCompleted >= phase.sessionsPlanned
+                    ? 'Completed'
+                    : (phase.status === 'Completed' ? 'Active' : phase.status),
                 };
                 const updatedPlan = { ...plan, phases: updatedPhases, updatedAt: new Date().toISOString() };
                 await setDoc(

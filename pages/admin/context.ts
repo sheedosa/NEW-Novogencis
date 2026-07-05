@@ -126,7 +126,9 @@ export interface AdminContextValue extends AdminPageProps {
   // Handlers
   handleFileSelect: (e: React.ChangeEvent<HTMLInputElement>) => void;
   handleSidebarClick: (id: AdminTab) => void;
-  openBookingModal: (clientId?: string, prefill?: { date?: string; time?: string }) => void;
+  /** Clinician roster (derived in AdminPage), for booking + edit dropdowns. */
+  clinicians: { id: string; name: string; adminType?: string }[];
+  openBookingModal: (clientId?: string, prefill?: { date?: string; time?: string; phaseId?: string; isPlanSession?: boolean }) => void;
   handleBookingSubmit: (e: React.FormEvent) => void;
   handleSendForm: (formId: string) => Promise<void>;
   changeMonth: (offset: number) => void;

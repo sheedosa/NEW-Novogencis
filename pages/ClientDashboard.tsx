@@ -774,6 +774,23 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
                     {plan.phases.filter(p => p.status === 'Completed').length} of {plan.phases.length} steps complete
                   </div>
                 </div>
+                {(() => {
+                  // Surface the patient's next booked plan session, if any.
+                  const today = new Date().toLocaleDateString('en-CA');
+                  const next = appointments
+                    .filter(a => a.clientId === user?.id && (a.isPlanSession || a.phaseId)
+                      && (a.status === 'Confirmed' || a.status === 'Pending') && a.date >= today)
+                    .sort((a, b) => a.date !== b.date ? a.date.localeCompare(b.date) : a.time.localeCompare(b.time))[0];
+                  return next ? (
+                    <div className="mb-6 flex items-center gap-3 rounded-lg border border-primary/20 bg-primary/5 px-4 py-3">
+                      <CalendarCheck size={18} className="text-primary shrink-0" />
+                      <p className="text-sm text-obsidian">
+                        <span className="font-medium">Next session:</span>{' '}
+                        {new Date(`${next.date}T00:00:00`).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })} at {next.time}
+                      </p>
+                    </div>
+                  ) : null;
+                })()}
                 <div className="space-y-4">
                   {plan.phases.map((phase, i) => {
                     const pct = phase.sessionsPlanned > 0 ? Math.round((phase.sessionsCompleted / phase.sessionsPlanned) * 100) : 0;

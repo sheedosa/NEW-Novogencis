@@ -8,7 +8,7 @@ import { FORMS } from '../../constants';
 import {
   Camera, Upload, X, Plus, Image as ImageIcon, Loader2, ArrowLeft, CheckCircle,
   CalendarClock, FileText, CreditCard, ChevronDown, Send, GitCompare,
-  Stethoscope, Pencil, Check,
+  Stethoscope, Pencil, Check, Trash2,
   User as UserIcon, MessageSquare, Activity, Receipt, Ban,
   Phone, Mail, MapPin, Siren, Calendar as CalendarIcon,
 } from 'lucide-react';
@@ -67,6 +67,8 @@ const ClientRecord: React.FC = () => {
     templates,
     selectedClientId,
     onUpdateAppointment,
+    onDeleteAppointment,
+    clinicians,
     onSaveTreatmentPlan,
     onAddPrescription,
     onUpdatePrescription,
@@ -75,7 +77,7 @@ const ClientRecord: React.FC = () => {
   } = useAdminContext();
 
   const [rescheduleApt, setRescheduleApt] = useState<Appointment | null>(null);
-  const [rescheduleForm, setRescheduleForm] = useState({ date: '', time: '' });
+  const [rescheduleForm, setRescheduleForm] = useState({ date: '', time: '', clinicianId: '', notes: '' });
   const [rescheduleStatus, setRescheduleStatus] = useState<'idle' | 'saving' | 'error'>('idle');
   const [rescheduleConflict, setRescheduleConflict] = useState(false);
   // "Save & add another" flag for the Add Phase / Prescription / Payment modals.
@@ -172,7 +174,7 @@ const ClientRecord: React.FC = () => {
 
   const openReschedule = (apt: Appointment) => {
     setRescheduleApt(apt);
-    setRescheduleForm({ date: apt.date, time: apt.time });
+    setRescheduleForm({ date: apt.date, time: apt.time, clinicianId: apt.clinicianId || '', notes: apt.notes || '' });
     setRescheduleStatus('idle');
     setRescheduleConflict(false);
   };
@@ -181,8 +183,9 @@ const ClientRecord: React.FC = () => {
     e.preventDefault();
     if (!rescheduleApt || !rescheduleForm.date || !rescheduleForm.time) return;
 
-    // Conflict check — same logic as BookingModal, excluding the appointment being rescheduled
-    const clinicianId = rescheduleApt.clinicianId;
+    // Conflict check — same logic as BookingModal, excluding the appointment being edited.
+    // Use the (possibly reassigned) clinician from the form.
+    const clinicianId = rescheduleForm.clinicianId || rescheduleApt.clinicianId;
     if (clinicianId && rescheduleForm.date && rescheduleForm.time) {
       const start = parseTime12h(rescheduleForm.time);
       if (start !== null) {
@@ -213,8 +216,15 @@ const ClientRecord: React.FC = () => {
 
     setRescheduleStatus('saving');
     try {
-      await onUpdateAppointment(rescheduleApt.id, { date: rescheduleForm.date, time: rescheduleForm.time });
-      await logClinicalAction(user?.id || 'admin', 'reschedule_appointment', selectedClient.id, `Rescheduled ${rescheduleApt.type} from ${rescheduleApt.date} ${rescheduleApt.time} to ${rescheduleForm.date} ${rescheduleForm.time}`);
+      const editClinician = clinicians.find(c => c.id === rescheduleForm.clinicianId);
+      await onUpdateAppointment(rescheduleApt.id, {
+        date: rescheduleForm.date,
+        time: rescheduleForm.time,
+        clinicianId: rescheduleForm.clinicianId || undefined,
+        ...(editClinician ? { doctorId: editClinician.id, doctorName: editClinician.name } : {}),
+        notes: rescheduleForm.notes,
+      });
+      await logClinicalAction(user?.id || 'admin', 'edit_appointment', selectedClient.id, `Edited ${rescheduleApt.type} — ${rescheduleForm.date} ${rescheduleForm.time}`);
       setRescheduleApt(null);
     } catch (error) {
       console.error('Failed to reschedule:', error);
@@ -276,6 +286,21 @@ const ClientRecord: React.FC = () => {
    * linked appointment (webhook does this automatically; the manual path
    * previously left the appointment stuck on "Awaiting deposit").
    */
+  const handleDeleteAppointment = async (apt: Appointment) => {
+    const ok = await confirm({
+      title: 'Delete this appointment?',
+      description: `This permanently removes ${apt.clientName}'s ${apt.type} on ${apt.date} at ${apt.time}. This can't be undone.`,
+      confirmLabel: 'Delete',
+      tone: 'danger',
+    });
+    if (!ok) return;
+    try {
+      await onDeleteAppointment(apt.id);
+    } catch {
+      toast.error('Could not delete the appointment', { description: 'It is still booked — please try again.' });
+    }
+  };
+
   const handleMarkPaid = async (paymentId: string) => {
     if (busyPaymentId) return;
     setBusyPaymentId(paymentId);
@@ -1229,6 +1254,45 @@ const ClientRecord: React.FC = () => {
                               </div>
                               {phase.notes && <p className="text-xs text-muted mt-3 leading-relaxed">"{phase.notes}"</p>}
                               {phase.startDate && <p className="text-xs text-hint mt-2">Started {new Date(phase.startDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</p>}
+
+                              {/* Plan sessions — upcoming bookings linked to this phase, plus a
+                                  one-tap "Book next session" (price-free, continues from the last). */}
+                              {phase.status !== 'Completed' && (() => {
+                                const today = localTodayISO();
+                                const phaseUpcoming = appointments
+                                  .filter(a => a.clientId === selectedClient.id && a.phaseId === phase.id
+                                    && (a.status === 'Confirmed' || a.status === 'Pending') && a.date >= today)
+                                  .sort((a, b) => a.date !== b.date
+                                    ? a.date.localeCompare(b.date)
+                                    : (parseTime12h(a.time) ?? 0) - (parseTime12h(b.time) ?? 0));
+                                const nextNum = Math.min(phase.sessionsCompleted + phaseUpcoming.length + 1, phase.sessionsPlanned);
+                                return (
+                                  <div className="mt-4 pt-4 border-t border-black/5 space-y-2">
+                                    {phaseUpcoming.map(apt => (
+                                      <div key={apt.id} className="flex items-center gap-2 text-xs">
+                                        <CalendarClock size={13} className="text-primary shrink-0" />
+                                        <span className="text-obsidian font-medium whitespace-nowrap">
+                                          {new Date(`${apt.date}T00:00:00`).toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'short' })} · {apt.time}
+                                        </span>
+                                        <span className="text-muted truncate">{apt.type}</span>
+                                        <div className="ml-auto flex items-center gap-1 shrink-0">
+                                          <button onClick={() => openReschedule(apt)} className="btn-icon" aria-label="Edit session"><Pencil size={12} /></button>
+                                          <button onClick={() => handleDeleteAppointment(apt)} className="btn-icon hover:!text-danger" aria-label="Delete session"><Trash2 size={12} /></button>
+                                        </div>
+                                      </div>
+                                    ))}
+                                    <UIButton
+                                      variant="secondary"
+                                      size="sm"
+                                      leadingIcon={<CalendarClock size={13} />}
+                                      onClick={() => openBookingModal(selectedClient.id, { phaseId: phase.id, isPlanSession: true })}
+                                    >
+                                      Book next session
+                                      <span className="text-hint font-normal ml-1">· session {nextNum} of {phase.sessionsPlanned}</span>
+                                    </UIButton>
+                                  </div>
+                                );
+                              })()}
                               {/* Inline edit panel */}
                               {editingPhaseId === phase.id && (
                                 <div className="mt-4 pt-4 border-t border-black/5 space-y-3">
@@ -1833,7 +1897,7 @@ const ClientRecord: React.FC = () => {
       <UIModal
         open={!!rescheduleApt}
         onClose={() => setRescheduleApt(null)}
-        title="Reschedule Appointment"
+        title="Edit appointment"
         subtitle={rescheduleApt ? `${rescheduleApt.type} — currently ${rescheduleApt.date} ${rescheduleApt.time}` : undefined}
         size="md"
         footer={
@@ -1845,7 +1909,7 @@ const ClientRecord: React.FC = () => {
               disabled={rescheduleStatus === 'saving' || !rescheduleForm.date || !rescheduleForm.time}
               className="bg-primary text-obsidian px-5 py-2 rounded-md text-sm font-medium disabled:opacity-50"
             >
-              {rescheduleStatus === 'saving' ? 'Saving…' : 'Confirm Reschedule'}
+              {rescheduleStatus === 'saving' ? 'Saving…' : 'Save changes'}
             </button>
           </div>
         }
@@ -1883,6 +1947,27 @@ const ClientRecord: React.FC = () => {
               {rescheduleConflict && (
                 <p className="text-xs font-medium text-danger mt-1.5">Pick a different time — that slot is taken.</p>
               )}
+            </div>
+            <div>
+              <label className="text-xs text-muted block mb-2">Clinician</label>
+              <select
+                value={rescheduleForm.clinicianId}
+                onChange={(e) => { setRescheduleForm(p => ({ ...p, clinicianId: e.target.value })); setRescheduleConflict(false); }}
+                className="w-full bg-cream border-transparent rounded-md px-4 py-3 text-base sm:text-sm font-medium focus:ring-2 focus:ring-primary/20"
+              >
+                <option value="">Unassigned</option>
+                {clinicians.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="text-xs text-muted block mb-2">Notes</label>
+              <textarea
+                rows={2}
+                value={rescheduleForm.notes}
+                onChange={(e) => setRescheduleForm(p => ({ ...p, notes: e.target.value }))}
+                placeholder="Optional appointment notes"
+                className="w-full bg-cream border-transparent rounded-md px-4 py-3 text-base sm:text-sm font-medium focus:ring-2 focus:ring-primary/20 resize-none"
+              />
             </div>
             {rescheduleStatus === 'error' && (
               <p className="text-xs font-medium text-red-500">Failed to reschedule. Please try again.</p>

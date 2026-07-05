@@ -5,11 +5,11 @@ import { parseTime12hParts as parseTime12h } from '../../../utils/time';
 import {
   ChevronLeft, ChevronRight, Plus, Calendar as CalendarIcon,
   List, LayoutGrid, Users as UsersIcon, User as UserIcon, Filter,
-  Clock, CheckCircle, X as XIcon, Trash2, StickyNote,
+  Clock, CheckCircle, X as XIcon, Trash2, StickyNote, Pencil,
 } from 'lucide-react';
 import AppointmentNotesDrawer from '../AppointmentNotesDrawer';
 import {
-  PageHeader, Card, Button, StatusBadge, EmptyState, Badge, useConfirm, useToast,
+  PageHeader, Card, Button, StatusBadge, EmptyState, Badge, Modal, useConfirm, useToast,
 } from '../../../components/ui';
 
 type View = 'week' | 'day' | 'list';
@@ -45,6 +45,8 @@ function CalendarPanel() {
     openBookingModal,
     onUpdateAppointment,
     onDeleteAppointment,
+    appointments,
+    clinicians,
     getFirstName,
     setSelectedClientId,
     setClientRecordTab,
@@ -63,6 +65,51 @@ function CalendarPanel() {
   const { confirm, ConfirmHost } = useConfirm();
   const { toast } = useToast();
   const [notesAppt, setNotesAppt] = useState<Appointment | null>(null);
+
+  // Edit-appointment modal (date/time/clinician/notes) straight from the schedule.
+  const [editAppt, setEditAppt] = useState<Appointment | null>(null);
+  const [editForm, setEditForm] = useState({ date: '', time: '', clinicianId: '', notes: '' });
+  const [editSaving, setEditSaving] = useState(false);
+  const openEdit = (apt: Appointment) => {
+    setEditAppt(apt);
+    setEditForm({ date: apt.date, time: apt.time, clinicianId: apt.clinicianId || '', notes: apt.notes || '' });
+  };
+  const timeToMins = (t: string) => { const p = parseTime12h(t); return p ? p.h * 60 + p.m : null; };
+  const handleEditSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editAppt || !editForm.date || !editForm.time || editSaving) return;
+    const clinicianId = editForm.clinicianId || editAppt.clinicianId;
+    const start = timeToMins(editForm.time);
+    if (clinicianId && start !== null) {
+      const end = start + (editAppt.durationMin ?? 30);
+      const clash = appointments.find(a => {
+        if (a.id === editAppt.id || a.clinicianId !== clinicianId || a.date !== editForm.date) return false;
+        if (a.status === 'Cancelled' || a.status === 'No-Show') return false;
+        const aStart = timeToMins(a.time);
+        return aStart !== null && start < aStart + (a.durationMin ?? 30) && end > aStart;
+      });
+      if (clash) {
+        toast.error('Scheduling conflict', { description: `${clash.doctorName ?? 'This clinician'} already has ${clash.time} on ${clash.date}. Pick another time.`, duration: 8000 });
+        return;
+      }
+    }
+    setEditSaving(true);
+    try {
+      const clin = clinicians.find(c => c.id === editForm.clinicianId);
+      await onUpdateAppointment(editAppt.id, {
+        date: editForm.date,
+        time: editForm.time,
+        clinicianId: editForm.clinicianId || undefined,
+        ...(clin ? { doctorId: clin.id, doctorName: clin.name } : {}),
+        notes: editForm.notes,
+      });
+      setEditAppt(null);
+    } catch {
+      toast.error('Could not save the changes', { description: 'Please try again.' });
+    } finally {
+      setEditSaving(false);
+    }
+  };
 
   const handleDelete = async (id: string, clientName: string) => {
     const ok = await confirm({
@@ -562,6 +609,13 @@ function CalendarPanel() {
                   </select>
                   <div className="flex items-center gap-1 shrink-0">
                     <button
+                      onClick={() => openEdit(apt)}
+                      className="btn-icon"
+                      title="Edit appointment"
+                    >
+                      <Pencil size={13} />
+                    </button>
+                    <button
                       onClick={() => setNotesAppt(apt)}
                       className="btn-icon"
                       title="Notes & status"
@@ -582,6 +636,51 @@ function CalendarPanel() {
           )}
         </Card>
       )}
+
+      {/* Edit appointment modal (from the schedule) */}
+      <Modal
+        open={!!editAppt}
+        onClose={() => setEditAppt(null)}
+        title="Edit appointment"
+        subtitle={editAppt ? `${editAppt.clientName} · ${editAppt.type}` : undefined}
+        size="md"
+        footer={
+          <div className="flex gap-3 justify-end">
+            <button type="button" onClick={() => setEditAppt(null)} className="px-4 py-2 text-sm text-muted hover:text-obsidian">Cancel</button>
+            <button type="submit" form="cal-edit-form" disabled={editSaving || !editForm.date || !editForm.time} className="bg-primary text-obsidian px-5 py-2 rounded-md text-sm font-medium disabled:opacity-50">
+              {editSaving ? 'Saving…' : 'Save changes'}
+            </button>
+          </div>
+        }
+      >
+        {editAppt && (
+          <form id="cal-edit-form" onSubmit={handleEditSave} className="space-y-4">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs text-muted block mb-2">Date</label>
+                <input type="date" required value={editForm.date} onChange={e => setEditForm(p => ({ ...p, date: e.target.value }))} className="w-full bg-cream border-transparent rounded-md px-3 py-2.5 text-base sm:text-sm font-medium focus:ring-2 focus:ring-primary/20" />
+              </div>
+              <div>
+                <label className="text-xs text-muted block mb-2">Time</label>
+                <select required value={editForm.time} onChange={e => setEditForm(p => ({ ...p, time: e.target.value }))} className="w-full bg-cream border-transparent rounded-md px-3 py-2.5 text-base sm:text-sm font-medium focus:ring-2 focus:ring-primary/20">
+                  {['09:00 AM','09:30 AM','10:00 AM','10:30 AM','11:00 AM','11:30 AM','12:00 PM','12:30 PM','01:00 PM','01:30 PM','02:00 PM','02:30 PM','03:00 PM','03:30 PM','04:00 PM','04:30 PM','05:00 PM','05:30 PM','06:00 PM','06:30 PM','07:00 PM','07:30 PM','08:00 PM','08:30 PM','09:00 PM','09:30 PM','10:00 PM'].map(t => <option key={t} value={t}>{t}</option>)}
+                </select>
+              </div>
+            </div>
+            <div>
+              <label className="text-xs text-muted block mb-2">Clinician</label>
+              <select value={editForm.clinicianId} onChange={e => setEditForm(p => ({ ...p, clinicianId: e.target.value }))} className="w-full bg-cream border-transparent rounded-md px-3 py-2.5 text-base sm:text-sm font-medium focus:ring-2 focus:ring-primary/20">
+                <option value="">Unassigned</option>
+                {clinicians.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="text-xs text-muted block mb-2">Notes</label>
+              <textarea rows={2} value={editForm.notes} onChange={e => setEditForm(p => ({ ...p, notes: e.target.value }))} placeholder="Optional appointment notes" className="w-full bg-cream border-transparent rounded-md px-3 py-2.5 text-base sm:text-sm font-medium focus:ring-2 focus:ring-primary/20 resize-none" />
+            </div>
+          </form>
+        )}
+      </Modal>
 
       {/* Legend */}
       <div className="flex items-center justify-center gap-2 sm:gap-4 text-xs text-muted pt-1">
