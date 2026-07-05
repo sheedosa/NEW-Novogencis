@@ -19,7 +19,7 @@
  *     appointment doc is updated again after we stamp it.
  *
  * SECRETS REQUIRED:
- *   MAILERLITE_API_KEY (see emailService.ts)
+ *   MAILERSEND_API_KEY (see emailService.ts)
  */
 
 import { onDocumentWritten } from 'firebase-functions/v2/firestore';
@@ -30,7 +30,7 @@ import {
   sendEmail,
   buildEmailHtml,
   buildEmailText,
-  MAILERLITE_API_KEY,
+  MAILERSEND_API_KEY,
   FROM_NOREPLY,
   maskEmail,
 } from './emailService.js';
@@ -43,7 +43,7 @@ export const sendConsentForm = onDocumentWritten(
     document: 'appointments/{appointmentId}',
     database: 'ai-studio-ffbd754d-87bd-4895-950f-a8738f36064a',
     region: 'europe-west2',
-    secrets: [MAILERLITE_API_KEY],
+    secrets: [MAILERSEND_API_KEY],
     maxInstances: 10,
     timeoutSeconds: 60,
     memory: '512MiB',

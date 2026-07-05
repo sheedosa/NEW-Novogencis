@@ -8,11 +8,13 @@
  *
  * Swapping providers later means touching only `sendViaMailerLite` below.
  *
- * Secrets required (set via `firebase functions:secrets:set MAILERLITE_API_KEY`):
- *   MAILERLITE_API_KEY   — from MailerLite Dashboard → Integrations → API
+ * Secrets required (set via `firebase functions:secrets:set MAILERSEND_API_KEY`):
+ *   MAILERSEND_API_KEY   — MailerSend Dashboard → API tokens (Email full access)
  *
- * Sender domain `novogenics.co.uk` must be verified in MailerLite before
- * transactional email will deliver. Do this once in MailerLite → Domains.
+ * Transactional email is sent via MailerSend (MailerLite's transactional
+ * sibling product — MailerLite itself has NO send-email API). The sender
+ * domain `novogenics.co.uk` must be verified in MailerSend → Domains before
+ * transactional email will deliver.
  */
 
 import { defineSecret } from 'firebase-functions/params';
@@ -22,7 +24,7 @@ import { db } from './index.js';
 
 // ── Secret ───────────────────────────────────────────────────────────────────
 
-export const MAILERLITE_API_KEY = defineSecret('MAILERLITE_API_KEY');
+export const MAILERSEND_API_KEY = defineSecret('MAILERSEND_API_KEY');
 
 // ── PII masking (GDPR data minimisation — no raw emails in logs) ────────────
 
@@ -82,48 +84,44 @@ export const FROM_HELLO = 'hello@novogenics.co.uk';
 
 const FROM_NAME = 'Novogenics';
 
-// ── MailerLite transport ──────────────────────────────────────────────────────
+// ── MailerSend transport ──────────────────────────────────────────────────────
 
 /**
- * Sends via MailerLite Transactional Email API.
- * Docs: https://developers.mailerlite.com/docs/transactional-email
+ * Sends via the MailerSend transactional Email API.
+ * Docs: https://developers.mailersend.com/api/v1/email.html
+ *
+ * (MailerLite has no transactional send-email endpoint — MailerSend is its
+ * dedicated transactional sibling. Requires a verified sender domain.)
  */
-async function sendViaMailerLite(message: EmailMessage): Promise<void> {
-  const apiKey = MAILERLITE_API_KEY.value();
+async function sendViaMailerSend(message: EmailMessage): Promise<void> {
+  const apiKey = MAILERSEND_API_KEY.value();
   if (!apiKey) {
-    throw new Error('MAILERLITE_API_KEY secret is not configured.');
+    throw new Error('MAILERSEND_API_KEY secret is not configured.');
   }
 
-  // Build request body
   const body: Record<string, unknown> = {
-    from: message.from ?? FROM_NOREPLY,
-    from_name: FROM_NAME,
-    to: [
-      {
-        email: message.to.email,
-        name: message.to.name ?? '',
-      },
-    ],
+    from: { email: message.from ?? FROM_NOREPLY, name: FROM_NAME },
+    to: [{ email: message.to.email, name: message.to.name ?? '' }],
     subject: message.subject,
     text: message.text,
     html: message.html,
   };
 
-  // Attach PDFs as base64
+  // Attach PDFs as base64 (MailerSend attachment shape).
   if (message.attachments && message.attachments.length > 0) {
     body.attachments = message.attachments.map((att) => ({
-      filename: att.filename,
       content: Buffer.from(att.content).toString('base64'),
-      type: att.contentType,
+      filename: att.filename,
       disposition: 'attachment',
     }));
   }
 
-  const response = await fetch('https://connect.mailerlite.com/api/emails', {
+  const response = await fetch('https://api.mailersend.com/v1/email', {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${apiKey}`,
       'Content-Type': 'application/json',
+      'X-Requested-With': 'XMLHttpRequest',
       Accept: 'application/json',
     },
     body: JSON.stringify(body),
@@ -131,7 +129,7 @@ async function sendViaMailerLite(message: EmailMessage): Promise<void> {
 
   if (!response.ok) {
     const errorText = await response.text().catch(() => '(no body)');
-    throw new Error(`MailerLite ${response.status}: ${errorText}`);
+    throw new Error(`MailerSend ${response.status}: ${errorText}`);
   }
 }
 
@@ -172,12 +170,12 @@ async function writeToOutbox(
  * whether to propagate or swallow the error.
  *
  * Usage:
- *   import { sendEmail, MAILERLITE_API_KEY } from './emailService.js';
- *   // declare MAILERLITE_API_KEY in your function's secrets: [...] config
+ *   import { sendEmail, MAILERSEND_API_KEY } from './emailService.js';
+ *   // declare MAILERSEND_API_KEY in your function's secrets: [...] config
  */
 export async function sendEmail(message: EmailMessage): Promise<void> {
   try {
-    await sendViaMailerLite(message);
+    await sendViaMailerSend(message);
     logger.info(
       `[emailService] ✓ sent "${message.subject}" → ${maskEmail(message.to.email)}`,
       { metadata: message.metadata },

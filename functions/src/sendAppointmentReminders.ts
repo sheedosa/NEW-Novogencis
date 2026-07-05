@@ -19,7 +19,7 @@
  *   at-least-once); the field check makes it safe.
  *
  * SECRETS REQUIRED:
- *   MAILERLITE_API_KEY (see emailService.ts)
+ *   MAILERSEND_API_KEY (see emailService.ts)
  */
 
 import { onSchedule } from 'firebase-functions/v2/scheduler';
@@ -30,7 +30,7 @@ import {
   sendEmail,
   buildEmailHtml,
   buildEmailText,
-  MAILERLITE_API_KEY,
+  MAILERSEND_API_KEY,
   FROM_NOREPLY,
   maskEmail,
 } from './emailService.js';
@@ -66,7 +66,7 @@ export const sendAppointmentReminders = onSchedule(
     schedule: '0 10 * * *',           // 10:00 every day
     timeZone: 'Europe/London',
     region: 'europe-west2',
-    secrets: [MAILERLITE_API_KEY],
+    secrets: [MAILERSEND_API_KEY],
     maxInstances: 1,
     timeoutSeconds: 300,
     memory: '512MiB',

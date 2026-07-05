@@ -5,7 +5,7 @@
  *
  * The React app writes an in-app notification (via createNotification) for
  * every patient/clinic event. This function turns the *emailable* subset of
- * those notifications into a branded MailerLite email — so email delivery is
+ * those notifications into a branded email (via emailService/MailerSend) — so delivery is
  * a pure server-side concern (no email keys shipped in the browser bundle).
  *
  * Only the types in EMAIL_POLICY generate an email (this matches the coverage
@@ -16,7 +16,7 @@
  * RETRY_POLICY_DO_NOT_RETRY, so a send failure is captured in the `outbox`
  * collection (by sendEmail) rather than retried into a loop.
  *
- * SECRETS REQUIRED: MAILERLITE_API_KEY (see emailService.ts)
+ * SECRETS REQUIRED: MAILERSEND_API_KEY (see emailService.ts)
  */
 
 import { onDocumentCreated } from 'firebase-functions/v2/firestore';
@@ -27,7 +27,7 @@ import {
   sendEmail,
   buildEmailHtml,
   buildEmailText,
-  MAILERLITE_API_KEY,
+  MAILERSEND_API_KEY,
   FROM_NOREPLY,
   FROM_MESSAGES,
   maskEmail,
@@ -77,7 +77,7 @@ export const onNotificationCreated = onDocumentCreated(
     document: 'notifications/{notificationId}',
     database: DATABASE_ID,
     region: 'europe-west2',
-    secrets: [MAILERLITE_API_KEY],
+    secrets: [MAILERSEND_API_KEY],
     maxInstances: 10,
     timeoutSeconds: 60,
     memory: '256MiB',

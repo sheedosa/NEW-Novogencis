@@ -3,11 +3,11 @@
  *
  * Public HTTPS callable (NO auth — anonymous website visitors submit it).
  * Validates input, drops honeypot-tripped bot submissions, and emails the
- * enquiry to the clinic via the shared MailerLite pipeline. Replaces the old
+ * enquiry to the clinic via the shared server-side email pipeline. Replaces the old
  * browser-side EmailJS path so the form has no dependency on bundled email
  * keys and shares one verified sending domain.
  *
- * SECRETS REQUIRED: MAILERLITE_API_KEY (see emailService.ts)
+ * SECRETS REQUIRED: MAILERSEND_API_KEY (see emailService.ts)
  */
 
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
@@ -16,7 +16,7 @@ import {
   sendEmail,
   buildEmailHtml,
   buildEmailText,
-  MAILERLITE_API_KEY,
+  MAILERSEND_API_KEY,
   FROM_HELLO,
 } from './emailService.js';
 
@@ -41,7 +41,7 @@ interface ContactOutput {
 export const submitContactForm = onCall<ContactInput, Promise<ContactOutput>>(
   {
     region: 'europe-west2',
-    secrets: [MAILERLITE_API_KEY],
+    secrets: [MAILERSEND_API_KEY],
     maxInstances: 5,
     timeoutSeconds: 30,
     memory: '256MiB',
