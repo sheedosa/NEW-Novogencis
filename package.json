@@ -20,7 +20,6 @@
     "deploy:verify": "bash scripts/deploy.sh verify"
   },
   "dependencies": {
-    "@emailjs/browser": "^4.4.1",
     "@tanstack/react-virtual": "^3.13.24",
     "firebase": "^12.10.0",
     "lucide-react": "^0.575.0",

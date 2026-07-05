@@ -1,20 +1,22 @@
-import { collection, addDoc, serverTimestamp, query, where, updateDoc, doc } from 'firebase/firestore';
-import emailjs from '@emailjs/browser';
+import { collection, addDoc, serverTimestamp, updateDoc, doc } from 'firebase/firestore';
 import { db } from '../firebase';
-import { EMAIL_CONFIG, EMAIL_TEMPLATES, EmailTemplateKey } from './emailTemplates';
 import type { AppNotification } from '../types';
 
-// Initialise EmailJS once
-let emailjsInitialised = false;
-function ensureEmailJS() {
-  if (!emailjsInitialised && EMAIL_CONFIG.publicKey) {
-    emailjs.init({ publicKey: EMAIL_CONFIG.publicKey });
-    emailjsInitialised = true;
-  }
-}
+/*
+ * In-app notifications only. EMAIL is handled server-side: the
+ * `onNotificationCreated` Cloud Function watches the `notifications` collection
+ * and sends the emailable subset via MailerLite (functions/src/emailService.ts).
+ * So these helpers just write the Firestore notification — the email follows
+ * automatically. (The old browser-side EmailJS path was removed: it shipped a
+ * public key in the bundle and silently no-op'd when unset.)
+ *
+ * The `clientEmail` parameters are retained for call-site compatibility; the
+ * recipient's address is now resolved server-side from the client/user doc.
+ */
 
 /**
  * Write a notification document to the `notifications` collection in Firestore.
+ * This write is what triggers the server-side email (see onNotificationCreated).
  */
 export const createNotification = async (
   payload: Omit<AppNotification, 'id' | 'createdAt' | 'read'>
@@ -41,62 +43,6 @@ export const markNotificationRead = async (notificationId: string): Promise<void
   }
 };
 
-/**
- * Send an email notification via EmailJS.
- * Fails silently so it never blocks a clinical action.
- */
-export const sendEmailNotification = async (
-  templateKey: EmailTemplateKey,
-  templateParams: Record<string, string>
-): Promise<void> => {
-  const templateId = EMAIL_TEMPLATES[templateKey];
-
-  if (!EMAIL_CONFIG.serviceId || !EMAIL_CONFIG.publicKey || !templateId) {
-    console.warn(`[EmailJS] Skipping email — config not set for template: ${templateKey}`);
-    return;
-  }
-
-  try {
-    ensureEmailJS();
-    await emailjs.send(EMAIL_CONFIG.serviceId, templateId, templateParams);
-  } catch (error) {
-    console.error(`[EmailJS] Failed to send email (${templateKey}):`, error);
-  }
-};
-
-/**
- * Send a website contact-form enquiry to the clinic inbox via EmailJS.
- * Unlike sendEmailNotification this is NOT silent — the contact form is an
- * anonymous visitor's only channel (Firestore writes require auth), so the
- * caller must know whether to show the success panel or the phone/email
- * fallback.
- */
-export const sendContactFormEmail = async (
-  name: string,
-  email: string,
-  preferredMethod: string,
-  message: string
-): Promise<boolean> => {
-  const templateId = EMAIL_TEMPLATES['new_message_admin'];
-  if (!EMAIL_CONFIG.serviceId || !EMAIL_CONFIG.publicKey || !templateId) {
-    console.warn('[EmailJS] Contact form email skipped — config not set');
-    return false;
-  }
-  try {
-    ensureEmailJS();
-    await emailjs.send(EMAIL_CONFIG.serviceId, templateId, {
-      to_email: EMAIL_CONFIG.adminEmail,
-      client_name: `${name} (website enquiry)`,
-      message_preview: `Reply to: ${email} · Preferred contact: ${preferredMethod}\n\n${message}`.slice(0, 900),
-      dashboard_url: window.location.origin,
-    });
-    return true;
-  } catch (error) {
-    console.error('[EmailJS] Contact form email failed:', error);
-    return false;
-  }
-};
-
 // ─── Convenience notification creators ─────────────────────────────────────
 
 /** Notify all admins that a new assessment was submitted */
@@ -108,13 +54,6 @@ export const notifyNewAssessment = async (clientName: string, clientId: string, 
     title: 'New Assessment Submitted',
     body: `${clientName} has submitted a new hair assessment and is awaiting clinical review.`,
     metadata: { clientId },
-  });
-
-  await sendEmailNotification('new_assessment', {
-    to_email: EMAIL_CONFIG.adminEmail,
-    client_name: clientName,
-    client_email: clientEmail,
-    dashboard_url: window.location.origin,
   });
 };
 
@@ -133,13 +72,6 @@ export const notifyClientNewMessage = async (
     body: messagePreview.length > 80 ? messagePreview.slice(0, 80) + '…' : messagePreview,
     metadata: { clientId },
   });
-
-  await sendEmailNotification('new_message_client', {
-    to_email: clientEmail,
-    client_name: clientName,
-    message_preview: messagePreview.slice(0, 200),
-    dashboard_url: window.location.origin,
-  });
 };
 
 /** Notify admins that a client sent a message */
@@ -151,13 +83,6 @@ export const notifyAdminNewMessage = async (clientName: string, clientId: string
     title: `Message from ${clientName}`,
     body: messagePreview.length > 80 ? messagePreview.slice(0, 80) + '…' : messagePreview,
     metadata: { clientId },
-  });
-
-  await sendEmailNotification('new_message_admin', {
-    to_email: EMAIL_CONFIG.adminEmail,
-    client_name: clientName,
-    message_preview: messagePreview.slice(0, 200),
-    dashboard_url: window.location.origin,
   });
 };
 
@@ -175,12 +100,6 @@ export const notifyFeedbackReceived = async (
     body: 'Your Novogenics doctor has reviewed your assessment and left you clinical feedback.',
     metadata: { clientId },
   });
-
-  await sendEmailNotification('feedback_received', {
-    to_email: clientEmail,
-    client_name: clientName,
-    dashboard_url: window.location.origin,
-  });
 };
 
 /** Notify a client that their treatment plan is ready to view */
@@ -190,6 +109,7 @@ export const notifyTreatmentPlanReady = async (
   clientName: string,
   planTitle: string
 ) => {
+  // Server-side email uses a non-clinical body (omits the plan title) — GDPR.
   await createNotification({
     recipientId: clientId,
     recipientRole: 'client',
@@ -197,14 +117,6 @@ export const notifyTreatmentPlanReady = async (
     title: 'Your Treatment Plan Is Ready',
     body: `Your clinician has created your plan: "${planTitle}". Open My care to see the steps.`,
     metadata: { clientId },
-  });
-
-  // Generic email template — content stays non-clinical (GDPR-conservative).
-  await sendEmailNotification('new_message_client', {
-    to_email: clientEmail,
-    client_name: clientName,
-    message_preview: 'Your personalised treatment plan is ready in your Novogenics portal.',
-    dashboard_url: window.location.origin,
   });
 };
 
@@ -215,6 +127,7 @@ export const notifyPrescriptionAdded = async (
   clientName: string,
   drugName: string
 ) => {
+  // Server-side email omits the drug name (GDPR-conservative).
   await createNotification({
     recipientId: clientId,
     recipientRole: 'client',
@@ -223,17 +136,9 @@ export const notifyPrescriptionAdded = async (
     body: `Your clinician has added ${drugName} to your treatment. Open My care for the instructions.`,
     metadata: { clientId },
   });
-
-  // Email deliberately omits the drug name (GDPR-conservative).
-  await sendEmailNotification('new_message_client', {
-    to_email: clientEmail,
-    client_name: clientName,
-    message_preview: 'Your clinician has updated your prescriptions in your Novogenics portal.',
-    dashboard_url: window.location.origin,
-  });
 };
 
-/** Notify a client that a form was sent to them */
+/** Notify a client that a form was sent to them (in-app only — no email) */
 export const notifyFormSent = async (
   clientId: string,
   clientEmail: string,
@@ -260,13 +165,6 @@ export const notifyFormSigned = async (clientName: string, clientId: string, for
     body: `${clientName} has signed "${formTitle}".`,
     metadata: { clientId },
   });
-
-  await sendEmailNotification('form_signed', {
-    to_email: EMAIL_CONFIG.adminEmail,
-    client_name: clientName,
-    form_title: formTitle,
-    dashboard_url: window.location.origin,
-  });
 };
 
 /** Notify a client that their appointment was confirmed */
@@ -286,15 +184,6 @@ export const notifyAppointmentConfirmed = async (
     body: `Your ${appointmentType} is confirmed for ${date} at ${time}.`,
     metadata: { clientId },
   });
-
-  await sendEmailNotification('appointment_confirmed', {
-    to_email: clientEmail,
-    client_name: clientName,
-    appointment_type: appointmentType,
-    appointment_date: date,
-    appointment_time: time,
-    dashboard_url: window.location.origin,
-  });
 };
 
 /** Notify a client that a payment link was sent */
@@ -312,13 +201,6 @@ export const notifyPaymentSent = async (
     body: `A payment link${amount ? ` for ${amount}` : ''} has been sent to you by the clinic.`,
     metadata: { clientId },
   });
-
-  await sendEmailNotification('payment_received', {
-    to_email: clientEmail,
-    client_name: clientName,
-    amount,
-    dashboard_url: window.location.origin,
-  });
 };
 
 /** Send welcome notification to a new client */
@@ -334,11 +216,5 @@ export const notifyWelcome = async (
     title: 'Welcome to Novogenics',
     body: 'Your account has been created. Your clinical team will review your assessment shortly.',
     metadata: { clientId },
-  });
-
-  await sendEmailNotification('welcome', {
-    to_email: clientEmail,
-    client_name: clientName,
-    dashboard_url: window.location.origin,
   });
 };

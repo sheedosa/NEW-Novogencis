@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Phone, Mail, CheckCircle, AlertTriangle } from 'lucide-react';
-import { sendContactFormEmail } from '../utils/notificationService';
+import { submitContactForm } from '../firebase';
 
 type SubmitStatus = 'idle' | 'sending' | 'sent' | 'failed';
 
@@ -26,8 +26,12 @@ const ContactPage: React.FC = () => {
 
     setStatus('sending');
     const fullName = `${firstName.trim()} ${lastName.trim()}`.trim();
-    const ok = await sendContactFormEmail(fullName, email.trim(), method, message.trim());
-    setStatus(ok ? 'sent' : 'failed');
+    try {
+      const res = await submitContactForm({ name: fullName, email: email.trim(), method, message: message.trim() });
+      setStatus(res.ok ? 'sent' : 'failed');
+    } catch {
+      setStatus('failed');
+    }
   };
 
   return (

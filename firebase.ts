@@ -68,6 +68,27 @@ export async function requestCheckout(input: CreateCheckoutInput): Promise<Creat
   return res.data;
 }
 
+// ── Cloud Functions: website contact form ──────────────────────────────────
+export interface ContactFormInput {
+  name: string;
+  email: string;
+  method?: string;
+  message: string;
+  /** Honeypot — must be empty. */
+  company?: string;
+}
+
+/**
+ * Calls the public `submitContactForm` callable (no auth). Emails the enquiry
+ * to the clinic via the server-side MailerLite pipeline. Throws on failure so
+ * the contact page can show its phone/email fallback.
+ */
+export async function submitContactForm(input: ContactFormInput): Promise<{ ok: boolean }> {
+  const fn = httpsCallable<ContactFormInput, { ok: boolean }>(functions, 'submitContactForm');
+  const res = await fn(input);
+  return res.data;
+}
+
 export enum OperationType {
   CREATE = 'create',
   UPDATE = 'update',

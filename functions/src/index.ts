@@ -8,6 +8,8 @@
  *   - sendConsentForm             Firestore trigger, consent PDF on Confirmed
  *   - sendAppointmentReminders    Scheduled daily 10:00, pre-treatment PDF
  *   - sendAftercareEmail          Firestore trigger, aftercare PDF on Completed
+ *   - onNotificationCreated       Firestore trigger, emails patient/admin notifications
+ *   - submitContactForm           HTTPS callable (public), website contact form → clinic
  *
  * Secrets used (set via `firebase functions:secrets:set NAME`):
  *   - STRIPE_SECRET_KEY       (Stripe checkout + refunds)
@@ -37,3 +39,5 @@ export { createRefund } from './createRefund.js';
 export { sendConsentForm } from './sendConsentForm.js';
 export { sendAppointmentReminders } from './sendAppointmentReminders.js';
 export { sendAftercareEmail } from './sendAftercareEmail.js';
+export { onNotificationCreated } from './onNotificationCreated.js';
+export { submitContactForm } from './submitContactForm.js';
