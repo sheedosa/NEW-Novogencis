@@ -94,7 +94,6 @@ export interface Client {
   dob: string;
   address?: string;
   package?: string;
-  packageStatus?: string;
   allergies?: string;
   medicalHistory?: string;
   status: string;

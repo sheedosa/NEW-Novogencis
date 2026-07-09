@@ -2,11 +2,10 @@ import React, { useState, useRef, memo } from 'react';
 import { useAdminContext } from './context';
 import { ClientRecordTab } from './context';
 import { Card } from '../../components/Card';
-import { InteractiveForm } from '../../components/InteractiveForm';
 import { InternalNotesEditor, FeedbackEditor, MessageInputForm } from './AdminComponents';
-import { FORMS, getPackage, formatPackagePrice } from '../../constants';
+import { FORMS, formatPackagePrice } from '../../constants';
 import {
-  Camera, Upload, X, Plus, Image as ImageIcon, Loader2, ArrowLeft, CheckCircle,
+  Camera, X, Plus, Image as ImageIcon, ArrowLeft, CheckCircle,
   CalendarClock, FileText, CreditCard, ChevronDown, Send, GitCompare,
   Stethoscope, Pencil, Check, Trash2, Package as PackageIcon,
   User as UserIcon, MessageSquare, Activity, Receipt, Ban,
@@ -15,12 +14,10 @@ import {
 import { Card as UICard, CardHeader, Button as UIButton, Badge as UIBadge, StatusBadge as UIStatusBadge, EmptyState as UIEmptyState, useToast, Modal as UIModal, useConfirm } from '../../components/ui';
 
 type ViewTab = 'snapshot' | 'plan' | 'files' | 'activity' | 'money';
-import { storage, requestCheckout, CreateCheckoutInput } from '../../firebase';
-import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
-import { processImageForUpload, validateImageFile, ACCEPTED_IMAGE_TYPES } from '../../imageUtils';
+import { requestCheckout, CreateCheckoutInput } from '../../firebase';
 import { logClinicalAction } from '../../utils/auditLogger';
 import { relativeTime, absoluteDateTime } from '../../utils/relativeTime';
-import { notifyFeedbackReceived, notifyFormSent, notifyPaymentSent } from '../../utils/notificationService';
+import { notifyFeedbackReceived } from '../../utils/notificationService';
 import { parseTime12h, localTodayISO } from '../../utils/time';
 import { Appointment, TreatmentPlan, TreatmentPhase, Prescription, Payment } from '../../types';
 
@@ -33,9 +30,6 @@ const ClientRecord: React.FC = () => {
     setClientRecordTab,
     setSelectedClientId,
     setLightboxImage,
-    lightboxImage,
-    isUploading,
-    setIsUploading,
     showGalleryUpload,
     setShowGalleryUpload,
     galleryUploadFile,

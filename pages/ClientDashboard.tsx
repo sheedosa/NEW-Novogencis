@@ -13,13 +13,14 @@ import {
   BottomNav, useToast, useConfirm, Skeleton,
 } from '../components/ui';
 import { Page, User, Appointment, Client, Message, GalleryItem } from '../types';
-import { FORMS } from '../constants';
+import { FORMS, getPackage } from '../constants';
 import { Card } from '../components/Card';
 import { InteractiveForm } from '../components/InteractiveForm';
 import Logo from '../components/Logo';
 import PolicyConfirmationModal from '../components/PolicyConfirmationModal';
 import { processImageForUpload, validateImageFile, ACCEPTED_IMAGE_TYPES } from '../imageUtils';
 import { auth } from '../firebase';
+import { notifyFormSigned } from '../utils/notificationService';
 import { sendEmailVerification } from 'firebase/auth';
 
 interface ClientDashboardProps {
@@ -501,6 +502,15 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
   };
   const progress = calculateProgress();
 
+  // Prefer the real purchased-package phase for the "you're on X" label; fall
+  // back to the legacy free-text Client.package only for pre-package records.
+  const packageLabel = useMemo(() => {
+    const phases = currentClient?.treatmentPlan?.phases ?? [];
+    const pkgPhase = phases.find(p => p.packageId && p.status === 'Active') ?? phases.find(p => p.packageId);
+    if (pkgPhase) return getPackage(pkgPhase.packageId)?.displayName ?? pkgPhase.name;
+    return currentClient?.package;
+  }, [currentClient?.treatmentPlan, currentClient?.package]);
+
   const handleSidebarClick = (id: Tab) => {
     setActiveTab(id);
     setIsSidebarOpen(false);
@@ -646,7 +656,7 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
           },
           'in-treatment': {
             eyebrow: 'In treatment', eyebrowClass: 'text-primary',
-            title: currentClient?.package ? `You're on ${currentClient.package}` : 'Your treatment is underway',
+            title: packageLabel ? `You're on ${packageLabel}` : 'Your treatment is underway',
             detail: `${progress}% complete · Tap to see your plan and visits`,
             onClick: () => goCare('treatment'),
           },
@@ -736,7 +746,7 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
             {/* 3 — Treatment + clinician at a glance */}
             <UICard accent="gold">
               <CardHeader title="Your treatment" leadingIcon={<FlaskConical size={14} />} />
-              <p className="text-base font-medium text-obsidian truncate">{currentClient?.package || 'Assessment only'}</p>
+              <p className="text-base font-medium text-obsidian truncate">{packageLabel || 'Assessment only'}</p>
               <div className="mt-2 flex items-center gap-2">
                 <div className="progress-track flex-grow"><div className="progress-fill gold" style={{ width: `${progress}%` }} /></div>
                 <span className="text-xs text-muted">{progress}%</span>
@@ -892,7 +902,7 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
                      <div className="space-y-3">
                         <div>
                            <p className="text-xs text-muted mb-1">Your treatment</p>
-                           <p className="text-sm font-medium text-obsidian">{currentClient?.package || 'Assessment underway'}</p>
+                           <p className="text-sm font-medium text-obsidian">{packageLabel || 'Assessment underway'}</p>
                         </div>
                         <button onClick={() => setActiveTab('messages')} className="w-full bg-primary text-obsidian py-3 rounded-xl text-sm font-medium hover:opacity-90 transition-all">Request next visit</button>
                      </div>
@@ -1852,6 +1862,8 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
                 read: false,
                 createdAt: new Date().toISOString()
               });
+              // Bell notification for the clinic (in-app only — no email, by policy).
+              await notifyFormSigned(user?.fullName ?? 'A patient', user?.id ?? '', formTitle);
 
               if (user?.id) {
                 await onSendMessage({

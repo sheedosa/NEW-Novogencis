@@ -111,7 +111,7 @@ const PricingPage: React.FC<PricingPageProps> = ({ onNavigate }) => {
             Transparent pricing for world-class regenerative care.
           </p>
           <p className="text-primary font-medium text-[10px] md:text-xs uppercase tracking-[0.2em] animate-fade-up delay-150">
-            All treatments are delivered every 4–6 weeks in line with the hair growth cycle.
+            PRP treatments are spaced every 4–6 weeks and PRF every 3–4 weeks, in line with the hair growth cycle.
           </p>
           <div className="mt-12 flex flex-col items-center gap-6 animate-fade-up delay-200">
             <button 

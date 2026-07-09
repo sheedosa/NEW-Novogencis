@@ -78,7 +78,6 @@ export function buildDummyPatientSeed(): { client: Client; appointments: Appoint
     dob:              '1992-04-12',
     address:          '1 Demo Street, Cheadle, SK8 1AA',
     package:          'EV-Enriched Plasma — 6 session programme',
-    packageStatus:    'In progress',
     status:           'Active',
     policiesAccepted: true,
     doctorPreference: 'female-only',

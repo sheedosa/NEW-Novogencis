@@ -196,8 +196,8 @@ export const notifyPaymentSent = async (
     recipientId: clientId,
     recipientRole: 'client',
     type: 'payment_received',
-    title: 'Payment Link Received',
-    body: `A payment link${amount ? ` for ${amount}` : ''} has been sent to you by the clinic.`,
+    title: 'Payment Requested',
+    body: `A payment${amount ? ` of ${amount}` : ''} has been requested by the clinic. Any secure payment link will appear in your Messages.`,
     metadata: { clientId },
   });
 };

@@ -413,14 +413,14 @@ const AdminPage: React.FC<AdminPageProps> = ({
           const base = last?.date ?? localTodayISO();
           const d = new Date(`${base}T00:00:00`);
           d.setDate(d.getDate() + pkg.cadenceWeeks[0] * 7); // package cadence (min weeks)
-          next.date = d.toISOString().split('T')[0];
+          next.date = d.toLocaleDateString('en-CA'); // local date — avoids BST UTC roll-back
         } else if (last) {
           // Legacy ad-hoc phase: copy the last session type, suggest +4 weeks.
           next.type = last.type;
           next.durationMin = last.durationMin;
           const d = new Date(`${last.date}T00:00:00`);
           d.setDate(d.getDate() + 28);
-          next.date = d.toISOString().split('T')[0];
+          next.date = d.toLocaleDateString('en-CA'); // local date — avoids BST UTC roll-back
         }
       } else {
         next.isPlanSession = undefined;
@@ -433,7 +433,7 @@ const AdminPage: React.FC<AdminPageProps> = ({
     setShowBookingModal(true);
   };
 
-  const handleBookingSubmit = (e: React.FormEvent) => {
+  const handleBookingSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isSubmitting) return;
     if (!(bookingForm.clientId && bookingForm.date && bookingForm.time && bookingForm.type)) return;
@@ -491,7 +491,7 @@ const AdminPage: React.FC<AdminPageProps> = ({
         ...(bookingForm.phaseId ? { phaseId: bookingForm.phaseId } : {}),
         ...(isPlanSession ? { isPlanSession: true } : {}),
       };
-      onAddAppointment(newAppointment);
+      await onAddAppointment(newAppointment);
 
       const depositAction = depositPence > 0 && bookedClientId
         ? {
@@ -529,6 +529,11 @@ const AdminPage: React.FC<AdminPageProps> = ({
         setBookingForm({ type: 'Initial Consultation', status: 'Confirmed', date: new Date().toISOString().split('T')[0], time: '10:00 AM' });
         toast.success('Appointment booked', depositAction ?? { description: `${client?.name || 'Patient'} — ${bookingForm.date} at ${bookingForm.time}.` });
       }
+    } catch {
+      toast.error('Could not book the appointment', {
+        description: 'Something went wrong while saving. Please try again.',
+        duration: 8000,
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -617,7 +622,7 @@ const AdminPage: React.FC<AdminPageProps> = ({
         phaseId,
         isPlanSession: true,
       };
-      onAddAppointment(session1);
+      await onAddAppointment(session1);
 
       // 3. Record the FULL-price up-front package payment, linked to the phase.
       const payment: Payment = {
@@ -638,6 +643,11 @@ const AdminPage: React.FC<AdminPageProps> = ({
       setShowStartPackageModal(false);
       toast.success('Package started', {
         description: `${pkg.name} for ${client?.name || 'the patient'} — Session 1 booked and ${formatPackagePrice(pkg.pricePence)} recorded as ${collectNow ? 'paid' : 'pending'}. Book the remaining sessions from the treatment plan.`,
+        duration: 8000,
+      });
+    } catch {
+      toast.error('Could not start the package', {
+        description: 'Something went wrong while saving. Please review the treatment plan and try again.',
         duration: 8000,
       });
     } finally {
