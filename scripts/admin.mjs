@@ -231,8 +231,8 @@ const DEFAULT_TREATMENTS = [
     name: 'PRP + Microneedling',
     description: 'Platelet-rich plasma scalp injection with microneedling session.',
     durationMin: 75,
-    fullPricePence: 58000,       // £580
-    depositPct: 30,              // £174 deposit
+    fullPricePence: 30000,       // £300 (single / top-up — matches website Pricing page)
+    depositPct: 30,              // £90 deposit
     refundPolicy: 'prp',
     category: 'prp',
     isActive: true,
@@ -242,8 +242,8 @@ const DEFAULT_TREATMENTS = [
     name: 'EV Enriched Plasma / Autologous Exosomes + Microneedling',
     description: 'Autologous exosome scalp therapy combined with microneedling.',
     durationMin: 120,
-    fullPricePence: 72000,       // £720
-    depositPct: 35,              // £252 — non-refundable preparation cost
+    fullPricePence: 68000,       // £680 (single / top-up — matches website Pricing page)
+    depositPct: 35,              // £238 — non-refundable preparation cost
     refundPolicy: 'exosome',
     category: 'exosome',
     isActive: true,

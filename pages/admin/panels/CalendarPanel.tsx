@@ -14,7 +14,7 @@ import {
 
 type View = 'week' | 'day' | 'list';
 type DoctorFilter = 'all' | 'female' | 'male' | 'mine';
-type TypeFilter = 'all' | 'PRP Session' | 'EV-Enriched Plasma Session' | 'Microneedling Session' | 'Initial Consultation' | 'Follow-up Consultation' | 'Hair Assessment' | 'PRF Starter' | 'PRF Intensive' | 'PRF Elite' | 'PRF + Microneedling';
+type TypeFilter = 'all' | 'PRP + Microneedling' | 'PRF + Microneedling' | 'EV Enriched Plasma / Autologous Exosomes + Microneedling' | 'Face to Face Consultation' | 'Initial Consultation' | 'Follow-up Consultation';
 
 const HOURS = [9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22];  // 09:00–22:00
 const SLOT_HEIGHT = 60;                                     // px per hour row
@@ -303,12 +303,12 @@ function CalendarPanel() {
             className="text-sm rounded-md border-sand bg-white px-2 py-1.5 cursor-pointer"
           >
             <option value="all">All types</option>
-            <option value="Initial Consultation">Initial</option>
-            <option value="Follow-up Consultation">Follow-up</option>
-            <option value="PRP Session">PRP</option>
-            <option value="EV-Enriched Plasma Session">Exosomes</option>
-            <option value="Microneedling Session">Microneedling</option>
-            <option value="Hair Assessment">Assessment</option>
+            <option value="PRP + Microneedling">PRP + Microneedling</option>
+            <option value="PRF + Microneedling">PRF + Microneedling</option>
+            <option value="EV Enriched Plasma / Autologous Exosomes + Microneedling">Exosome + Microneedling</option>
+            <option value="Face to Face Consultation">Consultation</option>
+            <option value="Initial Consultation">Initial consult</option>
+            <option value="Follow-up Consultation">Follow-up consult</option>
           </select>
         </div>
       </div>

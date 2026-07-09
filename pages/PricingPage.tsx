@@ -1,5 +1,6 @@
 import React from 'react';
 import { Page } from '../types';
+import { PACKAGES, formatPackagePrice } from '../constants';
 import { CalendarDays, Droplets, Stethoscope, Star, ArrowRight } from 'lucide-react';
 
 interface PricingPageProps {
@@ -74,73 +75,17 @@ const PricingSection = ({ title, items, icon, isPackages = false, onNavigate }: 
 );
 
 const PricingPage: React.FC<PricingPageProps> = ({ onNavigate }) => {
-  const packages: PriceItem[] = [
-    { 
-      title: "FOUNDATION PACKAGE", 
-      price: "£795",
-      subtitle: "early-stage thinning",
-      features: [
-        "3 PRP treatments",
-        "3 Microneedling sessions",
-        "Structured clinical review"
-      ]
-    },
-    { 
-      title: "INTENSIVE PACKAGE", 
-      price: "£1,500",
-      subtitle: "For moderate or progressive hair thinning",
-      isPopular: true,
-      features: [
-        "6 PRP treatments",
-        "6 Microneedling sessions",
-        "Ongoing progress review"
-      ]
-    },
-    { 
-      title: "ELITE REGENERATION PACKAGE", 
-      price: "£1,985",
-      subtitle: "For more significant or long-standing hair loss",
-      features: [
-        "6 PRP treatments",
-        "1 Autologous Exosome therapy",
-        "7 Microneedling sessions",
-        "Long-term regenerative strategy"
-      ]
-    },
-  ];
-
-  const prfPackages: PriceItem[] = [
-    {
-      title: "PRF STARTER PACKAGE",
-      price: "£920",
-      subtitle: "For early-stage thinning",
-      features: [
-        "4 PRF treatments",
-        "4 Microneedling sessions"
-      ]
-    },
-    {
-      title: "PRF INTENSIVE PACKAGE",
-      price: "£1,380",
-      subtitle: "For moderate or progressive thinning",
-      isPopular: true,
-      features: [
-        "6 PRF treatments",
-        "6 Microneedling sessions"
-      ]
-    },
-    {
-      title: "PRF + EXOSOME ELITE PACKAGE",
-      price: "£1,900",
-      subtitle: "For more significant or long-standing hair loss",
-      features: [
-        "6 PRF treatments",
-        "1 Autologous Exosome therapy",
-        "7 Microneedling sessions",
-        "Long-term regenerative strategy"
-      ]
-    },
-  ];
+  // Packages are derived from the single PACKAGES source of truth (constants.ts)
+  // so the website and the admin booking flow can never show different prices.
+  const toPriceItem = (p: (typeof PACKAGES)[number]): PriceItem => ({
+    title: p.displayName,
+    price: formatPackagePrice(p.pricePence),
+    subtitle: p.marketing.subtitle,
+    features: p.marketing.features,
+    isPopular: p.marketing.isPopular,
+  });
+  const packages: PriceItem[] = PACKAGES.filter(p => p.modality === 'prp').map(toPriceItem);
+  const prfPackages: PriceItem[] = PACKAGES.filter(p => p.modality === 'prf').map(toPriceItem);
 
   const singleTreatments: PriceItem[] = [
     { title: "Single PRP + Microneedling", price: "£300" },

@@ -1,3 +1,140 @@
+import type { Package } from './types';
+
+// ── Treatment packages (single source of truth) ─────────────────────────────
+// Fixed course bundles sold by the clinic. Feeds BOTH the admin "Start a
+// package" booking flow and the marketing Pricing page, so prices/session
+// counts can never drift between them. Prices are the clinic's canonical
+// website prices. Every session is paired with microneedling; Elite tiers add
+// one autologous-exosome visit as session 2.
+
+const PRP_SESSION = { type: 'PRP + Microneedling', durationMin: 75 } as const;
+const PRF_SESSION = { type: 'PRF + Microneedling', durationMin: 75 } as const;
+const EXOSOME_VISIT = {
+  position: 2,
+  type: 'EV Enriched Plasma / Autologous Exosomes + Microneedling',
+  durationMin: 120,
+} as const;
+
+export const PACKAGES: Package[] = [
+  {
+    id: 'prp-foundation',
+    name: 'PRP Foundation',
+    displayName: 'FOUNDATION PACKAGE',
+    modality: 'prp',
+    tier: 'foundation',
+    sessionsPlanned: 3,
+    cadenceWeeks: [4, 6],
+    pricePence: 79500,
+    session: PRP_SESSION,
+    marketing: {
+      subtitle: 'For early-stage thinning',
+      features: ['3 PRP treatments', '3 Microneedling sessions', 'Structured clinical review'],
+    },
+  },
+  {
+    id: 'prp-intensive',
+    name: 'PRP Intensive',
+    displayName: 'INTENSIVE PACKAGE',
+    modality: 'prp',
+    tier: 'intensive',
+    sessionsPlanned: 6,
+    cadenceWeeks: [4, 6],
+    pricePence: 150000,
+    session: PRP_SESSION,
+    marketing: {
+      subtitle: 'For moderate or progressive hair thinning',
+      isPopular: true,
+      features: ['6 PRP treatments', '6 Microneedling sessions', 'Ongoing progress review'],
+    },
+  },
+  {
+    id: 'prp-elite',
+    name: 'PRP Elite Regeneration',
+    displayName: 'ELITE REGENERATION PACKAGE',
+    modality: 'prp',
+    tier: 'elite',
+    sessionsPlanned: 7,
+    cadenceWeeks: [4, 6],
+    pricePence: 198500,
+    session: PRP_SESSION,
+    exosome: EXOSOME_VISIT,
+    marketing: {
+      subtitle: 'For significant or long-standing hair loss',
+      features: [
+        '6 PRP treatments',
+        '1 Autologous Exosome therapy',
+        '7 Microneedling sessions',
+        'Long-term regenerative strategy',
+      ],
+    },
+  },
+  {
+    id: 'prf-starter',
+    name: 'PRF Starter',
+    displayName: 'PRF STARTER PACKAGE',
+    modality: 'prf',
+    tier: 'starter',
+    sessionsPlanned: 4,
+    cadenceWeeks: [3, 4],
+    pricePence: 92000,
+    session: PRF_SESSION,
+    marketing: {
+      subtitle: 'For early-stage thinning',
+      features: ['4 PRF treatments', '4 Microneedling sessions'],
+    },
+  },
+  {
+    id: 'prf-intensive',
+    name: 'PRF Intensive',
+    displayName: 'PRF INTENSIVE PACKAGE',
+    modality: 'prf',
+    tier: 'intensive',
+    sessionsPlanned: 6,
+    cadenceWeeks: [3, 4],
+    pricePence: 138000,
+    session: PRF_SESSION,
+    marketing: {
+      subtitle: 'For moderate or progressive thinning',
+      isPopular: true,
+      features: ['6 PRF treatments', '6 Microneedling sessions'],
+    },
+  },
+  {
+    id: 'prf-elite',
+    name: 'PRF Elite',
+    displayName: 'PRF + EXOSOME ELITE PACKAGE',
+    modality: 'prf',
+    tier: 'elite',
+    sessionsPlanned: 7,
+    cadenceWeeks: [3, 4],
+    pricePence: 190000,
+    session: PRF_SESSION,
+    exosome: EXOSOME_VISIT,
+    marketing: {
+      subtitle: 'For significant or long-standing hair loss',
+      features: [
+        '6 PRF treatments',
+        '1 Autologous Exosome therapy',
+        '7 Microneedling sessions',
+        'Long-term regenerative strategy',
+      ],
+    },
+  },
+];
+
+/** Look up a package by id (undefined-safe). */
+export const getPackage = (id?: string): Package | undefined =>
+  id ? PACKAGES.find((p) => p.id === id) : undefined;
+
+/** Format a pence price as "£1,985" (no decimals for whole pounds). */
+export const formatPackagePrice = (pence: number): string => {
+  const pounds = pence / 100;
+  return `£${pounds.toLocaleString('en-GB', {
+    minimumFractionDigits: pounds % 1 === 0 ? 0 : 2,
+    maximumFractionDigits: 2,
+  })}`;
+};
+
 export const FORMS = [
   {
     id: 'prp-consent',

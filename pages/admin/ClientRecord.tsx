@@ -4,11 +4,11 @@ import { ClientRecordTab } from './context';
 import { Card } from '../../components/Card';
 import { InteractiveForm } from '../../components/InteractiveForm';
 import { InternalNotesEditor, FeedbackEditor, MessageInputForm } from './AdminComponents';
-import { FORMS } from '../../constants';
+import { FORMS, getPackage, formatPackagePrice } from '../../constants';
 import {
   Camera, Upload, X, Plus, Image as ImageIcon, Loader2, ArrowLeft, CheckCircle,
   CalendarClock, FileText, CreditCard, ChevronDown, Send, GitCompare,
-  Stethoscope, Pencil, Check, Trash2,
+  Stethoscope, Pencil, Check, Trash2, Package as PackageIcon,
   User as UserIcon, MessageSquare, Activity, Receipt, Ban,
   Phone, Mail, MapPin, Siren, Calendar as CalendarIcon,
 } from 'lucide-react';
@@ -49,6 +49,7 @@ const ClientRecord: React.FC = () => {
     fileInputRef,
     cameraInputRef,
     openBookingModal,
+    openStartPackageModal,
     uploadProgress,
     setUploadProgress,
     onUpdateClient,
@@ -1206,20 +1207,30 @@ const ClientRecord: React.FC = () => {
                         <h3 className="text-sm font-medium text-obsidian">Treatment plan</h3>
                         {plan?.title && <p className="text-base font-medium text-obsidian mt-1">{plan.title}</p>}
                       </div>
-                      <UIButton variant="primary" size="sm" leadingIcon={<Plus size={13} />} onClick={() => { setPlanTitle(plan?.title || ''); setShowAddPhase(true); }}>
-                        Add phase
-                      </UIButton>
+                      <div className="flex items-center gap-2">
+                        <UIButton variant="secondary" size="sm" leadingIcon={<Plus size={13} />} onClick={() => { setPlanTitle(plan?.title || ''); setShowAddPhase(true); }}>
+                          Add phase
+                        </UIButton>
+                        <UIButton variant="primary" size="sm" leadingIcon={<PackageIcon size={13} />} onClick={() => openStartPackageModal(selectedClient.id)}>
+                          Start a package
+                        </UIButton>
+                      </div>
                     </div>
 
                     {!plan?.phases?.length ? (
                       <UIEmptyState
                         icon={<Stethoscope size={16} />}
                         title="No treatment plan yet"
-                        description="Treatment plans are made up of phases (e.g. '3-month intensive PRP'). Add the first phase whenever you're ready — you can do this at any time."
+                        description="Start a package to set up a course, take payment, and book Session 1 in one step — the rest of the sessions are added later, price-free. Or add a custom phase for one-off plans."
                         action={
-                          <UIButton variant="primary" size="sm" leadingIcon={<Plus size={13} />} onClick={() => { setPlanTitle(plan?.title || ''); setShowAddPhase(true); }}>
-                            Add first phase
-                          </UIButton>
+                          <div className="flex flex-wrap items-center justify-center gap-2">
+                            <UIButton variant="primary" size="sm" leadingIcon={<PackageIcon size={13} />} onClick={() => openStartPackageModal(selectedClient.id)}>
+                              Start a package
+                            </UIButton>
+                            <UIButton variant="secondary" size="sm" leadingIcon={<Plus size={13} />} onClick={() => { setPlanTitle(plan?.title || ''); setShowAddPhase(true); }}>
+                              Add custom phase
+                            </UIButton>
+                          </div>
                         }
                       />
                     ) : (
@@ -1229,6 +1240,8 @@ const ClientRecord: React.FC = () => {
                           const phaseStatusVariant: Record<string, 'active' | 'pending' | 'new' | 'inactive'> = {
                             Active: 'active', Completed: 'new', Planned: 'inactive', 'On Hold': 'pending',
                           };
+                          // Package phases carry a packageId + up-front price; find the linked payment for its paid/unpaid pill.
+                          const pkgPayment = phase.packageId ? (selectedClient.payments || []).find(p => p.phaseId === phase.id) : undefined;
                           return (
                             <div key={phase.id} className="p-4 md:p-5 rounded-md border border-sand bg-white">
                               <div className="flex items-start justify-between mb-3">
@@ -1237,6 +1250,18 @@ const ClientRecord: React.FC = () => {
                                   <div>
                                     <p className="text-sm font-medium text-obsidian">{phase.name}</p>
                                     {phase.description && <p className="text-xs text-muted mt-0.5">{phase.description}</p>}
+                                    {phase.packageId && (
+                                      <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+                                        <UIBadge variant="review">Package</UIBadge>
+                                        {phase.pricePence != null && (
+                                          <UIBadge variant={pkgPayment?.status === 'Paid' ? 'active' : 'pending'}>
+                                            {pkgPayment?.status === 'Paid'
+                                              ? `Paid · ${formatPackagePrice(phase.pricePence)}`
+                                              : `${formatPackagePrice(phase.pricePence)} · payment ${(pkgPayment?.status || 'pending').toLowerCase()}`}
+                                          </UIBadge>
+                                        )}
+                                      </div>
+                                    )}
                                   </div>
                                 </div>
                                 <div className="flex items-center gap-2 shrink-0">

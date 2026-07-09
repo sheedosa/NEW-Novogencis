@@ -207,6 +207,13 @@ export interface TreatmentPhase {
   startDate?: string;
   endDate?: string;
   notes?: string;
+  /** When this phase represents a purchased Package, its catalogue id (see
+   *  constants.ts PACKAGES). Drives session cadence, exosome positioning, and
+   *  the "package"/paid label. Absent on ad-hoc clinician-authored phases. */
+  packageId?: string;
+  /** The agreed up-front package price in pence, snapshotted at purchase so
+   *  later catalogue price edits don't rewrite this patient's history. */
+  pricePence?: number;
 }
 
 export interface TreatmentPlan {
@@ -217,6 +224,40 @@ export interface TreatmentPlan {
   adminNotes?: string;
   createdAt: string;
   updatedAt?: string;
+}
+
+// ── Treatment packages ───────────────────────────────────────────────────────
+// Fixed, sellable course bundles (PRP + PRF tiers). Defined as a frontend
+// constant in constants.ts (PACKAGES) — the single source of truth for both the
+// admin "Start a package" booking flow and the marketing Pricing page. A booked
+// package is stored as a TreatmentPhase (name = package, sessionsPlanned = N,
+// packageId set); its follow-up sessions are price-free plan sessions.
+
+export type PackageModality = 'prp' | 'prf';
+
+export interface PackageSessionSpec {
+  /** Must be an existing Appointment['type'] member. */
+  type: Appointment['type'];
+  durationMin: number;
+}
+
+export interface Package {
+  id: string;                 // 'prp-foundation', 'prf-elite', …
+  name: string;               // internal, e.g. 'PRP Foundation'
+  displayName: string;        // marketing, e.g. 'FOUNDATION PACKAGE'
+  modality: PackageModality;
+  tier: 'foundation' | 'starter' | 'intensive' | 'elite';
+  /** TOTAL sessions incl. the exosome visit for Elite tiers (e.g. 7). */
+  sessionsPlanned: number;
+  /** Spacing guidance [min, max] weeks — PRP [4,6], PRF [3,4]. */
+  cadenceWeeks: [number, number];
+  /** Canonical price in pence — drives the website + the up-front payment. */
+  pricePence: number;
+  /** The base modality session (PRP+MN or PRF+MN). */
+  session: PackageSessionSpec;
+  /** Elite tiers only — the autologous exosome visit, delivered at `position`. */
+  exosome?: { position: number; type: Appointment['type']; durationMin: number };
+  marketing: { subtitle: string; features: string[]; isPopular?: boolean };
 }
 
 export interface Prescription {
@@ -246,6 +287,9 @@ export interface Payment {
   type?: 'deposit' | 'balance' | 'standalone';
   appointmentId?: string;
   treatmentId?: string;
+  /** Links an up-front package payment to its TreatmentPhase / Package. */
+  phaseId?: string;
+  packageId?: string;
   stripeCheckoutSessionId?: string;
   stripePaymentIntentId?: string;
   refundAmount?: number;

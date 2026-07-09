@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { User, Client, Appointment, Message, GalleryItem, AdminType, TreatmentPlan, Prescription, Payment, Treatment } from '../types';
-import { FORMS } from '../constants';
+import { User, Client, Appointment, Message, GalleryItem, AdminType, TreatmentPlan, TreatmentPhase, Prescription, Payment, Treatment } from '../types';
+import { FORMS, PACKAGES, getPackage, formatPackagePrice } from '../constants';
 import { InteractiveForm } from '../components/InteractiveForm';
 import Logo from '../components/Logo';
 import { storage, db } from '../firebase';
@@ -18,7 +18,7 @@ import type { CommandItem } from '../components/ui';
 import { processImageForUpload, validateImageFile, ACCEPTED_IMAGE_TYPES } from '../imageUtils';
 import { logClinicalAction } from '../utils/auditLogger';
 import { notifyPaymentSent, notifyTreatmentPlanReady, notifyPrescriptionAdded } from '../utils/notificationService';
-import { parseTime12h, formatMinutes12h } from '../utils/time';
+import { parseTime12h, formatMinutes12h, localTodayISO } from '../utils/time';
 
 import {
   AdminContext,
@@ -109,6 +109,22 @@ const AdminPage: React.FC<AdminPageProps> = ({
   // the form submits; the submit handler reads + resets it to decide whether
   // to keep the booking modal open for the next patient.
   const bookAnotherRef = useRef(false);
+
+  // ── Start-a-package flow ─────────────────────────────────────────────────
+  const [showStartPackageModal, setShowStartPackageModal] = useState(false);
+  const [startPackageForm, setStartPackageForm] = useState<{
+    clientId?: string;
+    packageId?: string;
+    date: string;
+    time: string;
+    clinicianId?: string;
+    notes?: string;
+    collectNow: boolean;
+  }>({
+    date: new Date().toISOString().split('T')[0],
+    time: '10:00 AM',
+    collectNow: true,
+  });
 
   // ── Helpers ────────────────────────────────────────────────────────────────
   const formatDOB = (dob: string | undefined) => {
@@ -354,25 +370,56 @@ const AdminPage: React.FC<AdminPageProps> = ({
       }
       if (prefill?.isPlanSession && clientId) {
         // Plan follow-up: continue from the client's last session. Copy the
-        // treatment/clinician/slot, suggest a date 4 weeks on, and mark it a
-        // price-free plan session (no deposit, straight to Confirmed).
+        // clinician/slot, suggest the next date, and mark it a price-free plan
+        // session (no deposit, straight to Confirmed).
         next.isPlanSession = true;
         next.phaseId = prefill.phaseId;
         next.status = 'Confirmed';
         next.treatmentId = undefined; // no price/deposit attached to plan sessions
+
+        // Resolve the phase + its package (when it's a purchased package phase).
+        const planClient = clients.find(c => c.id === clientId);
+        const phase = planClient?.treatmentPlan?.phases.find(p => p.id === prefill.phaseId);
+        const pkg = getPackage(phase?.packageId);
+
         const prior = appointments
           .filter(a => a.clientId === clientId && a.status !== 'Cancelled' && a.status !== 'No-Show')
           .sort((a, b) => a.date !== b.date
             ? b.date.localeCompare(a.date)
             : (parseTime12h(b.time) ?? 0) - (parseTime12h(a.time) ?? 0));
         const last = prior.find(a => a.phaseId === prefill.phaseId) ?? prior[0];
+        // Copy clinician + slot time from the last session as sensible defaults.
         if (last) {
-          next.type = last.type;
-          next.durationMin = last.durationMin;
           next.clinicianId = last.clinicianId;
           next.time = last.time;
+        }
+
+        if (pkg && phase) {
+          // Package phase: choose the session type by position (the exosome
+          // visit lands at its slot for Elite tiers) and suggest the package's
+          // own cadence rather than a flat +4 weeks.
+          const upcoming = appointments.filter(a =>
+            a.clientId === clientId && a.phaseId === phase.id &&
+            (a.status === 'Confirmed' || a.status === 'Pending') &&
+            a.date >= localTodayISO()).length;
+          const nextNum = Math.min(phase.sessionsCompleted + upcoming + 1, phase.sessionsPlanned);
+          if (pkg.exosome && nextNum === pkg.exosome.position) {
+            next.type = pkg.exosome.type;
+            next.durationMin = pkg.exosome.durationMin;
+          } else {
+            next.type = pkg.session.type;
+            next.durationMin = pkg.session.durationMin;
+          }
+          const base = last?.date ?? localTodayISO();
+          const d = new Date(`${base}T00:00:00`);
+          d.setDate(d.getDate() + pkg.cadenceWeeks[0] * 7); // package cadence (min weeks)
+          next.date = d.toISOString().split('T')[0];
+        } else if (last) {
+          // Legacy ad-hoc phase: copy the last session type, suggest +4 weeks.
+          next.type = last.type;
+          next.durationMin = last.durationMin;
           const d = new Date(`${last.date}T00:00:00`);
-          d.setDate(d.getDate() + 28); // suggest +4 weeks; doctor can adjust
+          d.setDate(d.getDate() + 28);
           next.date = d.toISOString().split('T')[0];
         }
       } else {
@@ -482,6 +529,117 @@ const AdminPage: React.FC<AdminPageProps> = ({
         setBookingForm({ type: 'Initial Consultation', status: 'Confirmed', date: new Date().toISOString().split('T')[0], time: '10:00 AM' });
         toast.success('Appointment booked', depositAction ?? { description: `${client?.name || 'Patient'} — ${bookingForm.date} at ${bookingForm.time}.` });
       }
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const openStartPackageModal = (clientId?: string) => {
+    setStartPackageForm({
+      clientId,
+      packageId: undefined,
+      date: localTodayISO(),
+      time: '10:00 AM',
+      clinicianId: undefined,
+      notes: '',
+      collectNow: true,
+    });
+    setShowStartPackageModal(true);
+  };
+
+  /**
+   * Starts a treatment package in one action: creates the course as a plan
+   * phase, books Session 1 as a price-free plan session, and records the
+   * FULL package price up front. Every later session is added price-free via
+   * "Book next session" and linked to this phase.
+   */
+  const handleStartPackageSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (isSubmitting) return;
+    const { clientId, packageId, date, time, clinicianId, notes, collectNow } = startPackageForm;
+    if (!clientId || !packageId || !date || !time || !clinicianId) return;
+    const pkg = getPackage(packageId);
+    if (!pkg) return;
+
+    // Conflict-check Session 1 before writing anything.
+    const conflict = findConflict({ clinicianId, date, time, durationMin: pkg.session.durationMin });
+    if (conflict) {
+      const clinicianName = CLINICIANS.find(c => c.id === clinicianId)?.name ?? 'this clinician';
+      toast.error('Booking conflict', {
+        description: `${clinicianName} already has "${conflict.type}" with ${conflict.clientName} at ${conflict.time} on ${conflict.date}. Pick a different time or clinician.`,
+        duration: 8000,
+      });
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const client = clients.find(c => c.id === clientId);
+      const clinician = CLINICIANS.find(c => c.id === clinicianId);
+      const now = new Date().toISOString();
+      const phaseId = `phase-${Date.now()}`;
+
+      // 1. Create/append the package as an Active plan phase.
+      const newPhase: TreatmentPhase = {
+        id: phaseId,
+        name: pkg.name,
+        description: pkg.marketing.subtitle,
+        status: 'Active',
+        sessionsPlanned: pkg.sessionsPlanned,
+        sessionsCompleted: 0,
+        packageId: pkg.id,
+        pricePence: pkg.pricePence,
+        startDate: localTodayISO(),
+        notes: '',
+      };
+      const existingPlan = client?.treatmentPlan;
+      const updatedPlan: TreatmentPlan = existingPlan
+        ? { ...existingPlan, phases: [...existingPlan.phases, newPhase], updatedAt: now }
+        : { id: `plan-${Date.now()}`, clientId, title: 'Treatment Plan', phases: [newPhase], createdAt: now };
+      await onSaveTreatmentPlan(clientId, updatedPlan);
+
+      // 2. Book Session 1 as a price-free plan session (base modality — the
+      //    exosome is Session 2, never Session 1).
+      const session1: Appointment = {
+        id: '',
+        clientId,
+        clientName: client?.name || 'Unknown',
+        doctorId: clinicianId,
+        doctorName: clinician?.name,
+        type: pkg.session.type,
+        date,
+        time,
+        status: 'Confirmed',
+        notes: notes || '',
+        createdAt: now,
+        durationMin: pkg.session.durationMin,
+        clinicianId,
+        phaseId,
+        isPlanSession: true,
+      };
+      onAddAppointment(session1);
+
+      // 3. Record the FULL-price up-front package payment, linked to the phase.
+      const payment: Payment = {
+        id: `pay-${Date.now()}`,
+        description: `${pkg.name} package (${pkg.sessionsPlanned} sessions)`,
+        amount: pkg.pricePence / 100,
+        amountPence: pkg.pricePence,
+        currency: 'GBP',
+        status: collectNow ? 'Paid' : 'Pending',
+        type: 'standalone',
+        phaseId,
+        packageId: pkg.id,
+        ...(collectNow ? { paidDate: now } : {}),
+        createdAt: now,
+      };
+      await onAddPayment(clientId, payment);
+
+      setShowStartPackageModal(false);
+      toast.success('Package started', {
+        description: `${pkg.name} for ${client?.name || 'the patient'} — Session 1 booked and ${formatPackagePrice(pkg.pricePence)} recorded as ${collectNow ? 'paid' : 'pending'}. Book the remaining sessions from the treatment plan.`,
+        duration: 8000,
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -678,7 +836,7 @@ const AdminPage: React.FC<AdminPageProps> = ({
     formatDOB, calculateAge, getInitials, getFirstName, isAssignedToMe,
     // Handlers
     handleFileSelect,
-    handleSidebarClick, openBookingModal, handleBookingSubmit,
+    handleSidebarClick, openBookingModal, openStartPackageModal, handleBookingSubmit,
     handleSendForm, changeMonth, getCalendarDays,
     // Templates
     templates, onAddTemplate, onUpdateTemplate, onDeleteTemplate,
@@ -701,7 +859,7 @@ const AdminPage: React.FC<AdminPageProps> = ({
     selectedClient, filteredClients, filteredAppointments,
     messageThreads, unreadCount, mockStats,
     isAssignedToMe, handleFileSelect,
-    handleSidebarClick, openBookingModal, handleBookingSubmit,
+    handleSidebarClick, openBookingModal, openStartPackageModal, handleBookingSubmit,
     handleSendForm, getCalendarDays,
     templates, onAddTemplate, onUpdateTemplate, onDeleteTemplate,
     viewAsTestPatient, onSetViewAsTestPatient, onSeedDummyPatient,
@@ -1001,7 +1159,7 @@ const AdminPage: React.FC<AdminPageProps> = ({
                   <p className="text-xs font-semibold uppercase tracking-wider text-muted">What</p>
                   <Select
                     label="Treatment"
-                    required
+                    required={!bookingForm.isPlanSession}
                     value={bookingForm.treatmentId || ''}
                     onChange={(e) => {
                       const t = treatments.find(tr => tr.id === e.target.value);
@@ -1151,6 +1309,135 @@ const AdminPage: React.FC<AdminPageProps> = ({
                       onClick={() => { bookAnotherRef.current = false; }}
                     >
                       Confirm appointment
+                    </Button>
+                  </div>
+                </form>
+              );
+            })()}
+          </Modal>
+
+          {/* Start-a-package Modal — creates the course, books Session 1, records the up-front payment. */}
+          <Modal
+            open={showStartPackageModal}
+            onClose={() => setShowStartPackageModal(false)}
+            title="Start a package"
+            subtitle="Set up the course, book Session 1, and record payment"
+            size="md"
+          >
+            {(() => {
+              const pkg = getPackage(startPackageForm.packageId);
+              const pkgConflict = pkg ? findConflict({
+                clinicianId: startPackageForm.clinicianId,
+                date: startPackageForm.date,
+                time: startPackageForm.time,
+                durationMin: pkg.session.durationMin,
+              }) : null;
+              return (
+                <form id="start-package-form" onSubmit={handleStartPackageSubmit} className="flex flex-col gap-5">
+                  {/* Patient */}
+                  <div className="flex flex-col gap-3">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-muted">Patient</p>
+                    <Select
+                      label="Client"
+                      required
+                      value={startPackageForm.clientId || ''}
+                      onChange={(e) => setStartPackageForm(prev => ({ ...prev, clientId: e.target.value }))}
+                    >
+                      <option value="" disabled>Choose a client…</option>
+                      {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    </Select>
+                  </div>
+
+                  {/* Package */}
+                  <div className="flex flex-col gap-3">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-muted">Package</p>
+                    <Select
+                      label="Treatment package"
+                      required
+                      value={startPackageForm.packageId || ''}
+                      onChange={(e) => setStartPackageForm(prev => ({ ...prev, packageId: e.target.value }))}
+                    >
+                      <option value="" disabled>Choose a package…</option>
+                      <optgroup label="PRP">
+                        {PACKAGES.filter(p => p.modality === 'prp').map(p => (
+                          <option key={p.id} value={p.id}>{p.name} · {p.sessionsPlanned} sessions · {formatPackagePrice(p.pricePence)}</option>
+                        ))}
+                      </optgroup>
+                      <optgroup label="PRF">
+                        {PACKAGES.filter(p => p.modality === 'prf').map(p => (
+                          <option key={p.id} value={p.id}>{p.name} · {p.sessionsPlanned} sessions · {formatPackagePrice(p.pricePence)}</option>
+                        ))}
+                      </optgroup>
+                    </Select>
+
+                    {pkg && (
+                      <div className="rounded-md bg-cream/60 border border-sand px-3 py-2.5 text-xs text-obsidian">
+                        <p className="font-medium">{formatPackagePrice(pkg.pricePence)} · {pkg.sessionsPlanned} sessions · every {pkg.cadenceWeeks[0]}–{pkg.cadenceWeeks[1]} weeks</p>
+                        <p className="text-muted mt-1">
+                          Books Session 1 now; the remaining {pkg.sessionsPlanned - 1} are added later, price-free, from the treatment plan.
+                          {pkg.exosome ? ` Session ${pkg.exosome.position} is the exosome visit.` : ''}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Session 1 */}
+                  <div className="flex flex-col gap-3">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-muted">Session 1</p>
+                    <Select
+                      label="Clinician"
+                      required
+                      value={startPackageForm.clinicianId || ''}
+                      onChange={(e) => setStartPackageForm(prev => ({ ...prev, clinicianId: e.target.value }))}
+                    >
+                      <option value="" disabled>Choose a clinician…</option>
+                      {CLINICIANS.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    </Select>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <Input
+                        label="Date"
+                        type="date"
+                        required
+                        value={startPackageForm.date || ''}
+                        onChange={(e) => setStartPackageForm(prev => ({ ...prev, date: e.target.value }))}
+                      />
+                      <Select
+                        label="Time"
+                        required
+                        value={startPackageForm.time || ''}
+                        onChange={(e) => setStartPackageForm(prev => ({ ...prev, time: e.target.value }))}
+                      >
+                        {['09:00 AM','09:30 AM','10:00 AM','10:30 AM','11:00 AM','11:30 AM','12:00 PM','12:30 PM','01:00 PM','01:30 PM','02:00 PM','02:30 PM','03:00 PM','03:30 PM','04:00 PM','04:30 PM','05:00 PM','05:30 PM','06:00 PM','06:30 PM','07:00 PM','07:30 PM','08:00 PM','08:30 PM','09:00 PM','09:30 PM','10:00 PM'].map(t => <option key={t} value={t}>{t}</option>)}
+                      </Select>
+                    </div>
+                    {pkgConflict && (
+                      <div className="rounded-md bg-warning-bg border border-warning/30 px-3 py-2.5 text-xs text-warning-text">
+                        <div className="font-medium mb-0.5">Booking conflict</div>
+                        {CLINICIANS.find(c => c.id === startPackageForm.clinicianId)?.name ?? 'This clinician'} already has{' '}
+                        <span className="font-medium">{pkgConflict.type}</span> with{' '}
+                        <span className="font-medium">{pkgConflict.clientName}</span> at {pkgConflict.time}. Pick a different time or clinician.
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Payment */}
+                  <div className="flex flex-col gap-3">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-muted">Payment</p>
+                    <Select
+                      label="Package payment (taken once, up front)"
+                      value={startPackageForm.collectNow ? 'now' : 'later'}
+                      onChange={(e) => setStartPackageForm(prev => ({ ...prev, collectNow: e.target.value === 'now' }))}
+                    >
+                      <option value="now">Collected now — mark as paid{pkg ? ` (${formatPackagePrice(pkg.pricePence)})` : ''}</option>
+                      <option value="later">Send later — record as pending</option>
+                    </Select>
+                    <p className="text-xs text-muted">The remaining sessions are always price-free — the patient is never shown a price again.</p>
+                  </div>
+
+                  <div className="flex flex-wrap items-center justify-end gap-2 pt-2">
+                    <Button variant="ghost" onClick={() => setShowStartPackageModal(false)}>Cancel</Button>
+                    <Button type="submit" variant="primary" disabled={!!pkgConflict || isSubmitting}>
+                      Start package &amp; book Session 1
                     </Button>
                   </div>
                 </form>
