@@ -7,7 +7,7 @@
  * browser-side EmailJS path so the form has no dependency on bundled email
  * keys and shares one verified sending domain.
  *
- * SECRETS REQUIRED: MAILERSEND_API_KEY (see emailService.ts)
+ * SECRETS REQUIRED: RESEND_API_KEY (see emailService.ts)
  */
 
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
@@ -16,12 +16,10 @@ import {
   sendEmail,
   buildEmailHtml,
   buildEmailText,
-  MAILERSEND_API_KEY,
+  RESEND_API_KEY,
   FROM_HELLO,
+  CLINIC_RECIPIENTS,
 } from './emailService.js';
-
-/** Clinic inbox that receives website enquiries. */
-const ADMIN_EMAIL = 'admin@novogenics.co.uk';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -41,7 +39,7 @@ interface ContactOutput {
 export const submitContactForm = onCall<ContactInput, Promise<ContactOutput>>(
   {
     region: 'europe-west2',
-    secrets: [MAILERSEND_API_KEY],
+    secrets: [RESEND_API_KEY],
     maxInstances: 5,
     timeoutSeconds: 30,
     memory: '256MiB',
@@ -68,26 +66,44 @@ export const submitContactForm = onCall<ContactInput, Promise<ContactOutput>>(
     }
 
     const heading = 'New website enquiry';
-    const paragraphs = [
+    const details = [
       `<strong>From:</strong> ${cleanName}`,
       `<strong>Reply to:</strong> ${cleanEmail}`,
       `<strong>Preferred contact:</strong> ${cleanMethod}`,
       `<strong>Message:</strong><br/>${cleanMessage.replace(/\n/g, '<br/>')}`,
     ];
+    const textDetails = [
+      `From: ${cleanName}`,
+      `Reply to: ${cleanEmail}`,
+      `Preferred contact: ${cleanMethod}`,
+      `Message:\n${cleanMessage}`,
+    ];
 
-    await sendEmail({
-      to: { email: ADMIN_EMAIL, name: 'Novogenics Team' },
-      from: FROM_HELLO,
-      subject: `Website enquiry from ${cleanName}`,
-      html: buildEmailHtml({ preheader: `Enquiry from ${cleanName}`, heading, paragraphs }),
-      text: buildEmailText(heading, [
-        `From: ${cleanName}`,
-        `Reply to: ${cleanEmail}`,
-        `Preferred contact: ${cleanMethod}`,
-        `Message:\n${cleanMessage}`,
-      ]),
-      metadata: { type: 'contact_form', fromEmail: cleanEmail },
-    });
+    // Email each doctor personally. Resilient — one failure doesn't block the other.
+    let anySent = false;
+    for (const r of CLINIC_RECIPIENTS) {
+      try {
+        await sendEmail({
+          to: { email: r.email, name: r.name },
+          from: FROM_HELLO,
+          subject: `Website enquiry from ${cleanName}`,
+          html: buildEmailHtml({
+            preheader: `Enquiry from ${cleanName}`,
+            heading,
+            paragraphs: [`Hi ${r.greeting},`, ...details],
+          }),
+          text: buildEmailText(heading, [`Hi ${r.greeting},`, ...textDetails]),
+          metadata: { type: 'contact_form', fromEmail: cleanEmail },
+        });
+        anySent = true;
+      } catch (err) {
+        logger.error(`[submitContactForm] failed to email ${r.email}`, err);
+      }
+    }
+
+    if (!anySent) {
+      throw new HttpsError('internal', 'Could not send your enquiry right now. Please email us directly.');
+    }
 
     return { ok: true };
   },

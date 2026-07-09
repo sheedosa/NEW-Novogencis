@@ -5,10 +5,9 @@ import type { AppNotification } from '../types';
 /*
  * In-app notifications only. EMAIL is handled server-side: the
  * `onNotificationCreated` Cloud Function watches the `notifications` collection
- * and sends the emailable subset via MailerLite (functions/src/emailService.ts).
+ * and sends the emailable subset via Resend (functions/src/emailService.ts).
  * So these helpers just write the Firestore notification — the email follows
- * automatically. (The old browser-side EmailJS path was removed: it shipped a
- * public key in the bundle and silently no-op'd when unset.)
+ * automatically.
  *
  * The `clientEmail` parameters are retained for call-site compatibility; the
  * recipient's address is now resolved server-side from the client/user doc.

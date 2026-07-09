@@ -14,7 +14,7 @@
  * Secrets used (set via `firebase functions:secrets:set NAME`):
  *   - STRIPE_SECRET_KEY       (Stripe checkout + refunds)
  *   - STRIPE_WEBHOOK_SECRET   (signature verification on webhook)
- *   - MAILERSEND_API_KEY      (email automations)
+ *   - RESEND_API_KEY      (email automations)
  *
  * Note: the Anthropic/Claude AI functions (onAssessmentSubmitted, draftReply,
  * dailyBriefing, generateFollowUpSuggestions) were removed. The source lives in
@@ -35,7 +35,7 @@ export { createCheckoutSession } from './createCheckoutSession.js';
 export { stripeWebhook } from './stripeWebhook.js';
 export { createRefund } from './createRefund.js';
 
-// Email automations — requires MAILERSEND_API_KEY secret
+// Email automations — requires RESEND_API_KEY secret
 export { sendConsentForm } from './sendConsentForm.js';
 export { sendAppointmentReminders } from './sendAppointmentReminders.js';
 export { sendAftercareEmail } from './sendAftercareEmail.js';

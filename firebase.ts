@@ -80,7 +80,7 @@ export interface ContactFormInput {
 
 /**
  * Calls the public `submitContactForm` callable (no auth). Emails the enquiry
- * to the clinic via the server-side MailerLite pipeline. Throws on failure so
+ * to the clinic via the server-side Resend pipeline. Throws on failure so
  * the contact page can show its phone/email fallback.
  */
 export async function submitContactForm(input: ContactFormInput): Promise<{ ok: boolean }> {

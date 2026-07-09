@@ -2,19 +2,19 @@
  * Pluggable email service.
  *
  * All Cloud Functions that send email call `sendEmail()` from this module.
- * The transport is MailerLite (transactional email API). If the key is missing
+ * The transport is Resend (transactional email API). If the key is missing
  * or the API call fails, the message is written to the Firestore `outbox/`
  * collection so nothing is silently lost — an admin can review and retry.
  *
- * Swapping providers later means touching only `sendViaMailerLite` below.
+ * Swapping providers later means touching only `sendViaResend` below.
  *
- * Secrets required (set via `firebase functions:secrets:set MAILERSEND_API_KEY`):
- *   MAILERSEND_API_KEY   — MailerSend Dashboard → API tokens (Email full access)
+ * Secrets required (set via `firebase functions:secrets:set RESEND_API_KEY`):
+ *   RESEND_API_KEY   — Resend Dashboard → API Keys (Full access)
  *
- * Transactional email is sent via MailerSend (MailerLite's transactional
- * sibling product — MailerLite itself has NO send-email API). The sender
- * domain `novogenics.co.uk` must be verified in MailerSend → Domains before
- * transactional email will deliver.
+ * Transactional email is sent via Resend (https://resend.com). The sender
+ * domain `novogenics.co.uk` must be verified in Resend → Domains (add the DNS
+ * records it lists) before transactional email will deliver to arbitrary
+ * recipients — until then Resend only sends to the account owner's address.
  */
 
 import { defineSecret } from 'firebase-functions/params';
@@ -24,7 +24,7 @@ import { db } from './index.js';
 
 // ── Secret ───────────────────────────────────────────────────────────────────
 
-export const MAILERSEND_API_KEY = defineSecret('MAILERSEND_API_KEY');
+export const RESEND_API_KEY = defineSecret('RESEND_API_KEY');
 
 // ── PII masking (GDPR data minimisation — no raw emails in logs) ────────────
 
@@ -73,7 +73,7 @@ export interface EmailMessage {
 
 // ── Clinic sender identities ──────────────────────────────────────────────────
 // All addresses share the verified novogenics.co.uk domain.
-// Once MailerLite verifies the domain, all @novogenics.co.uk addresses work.
+// Once Resend verifies the domain, all @novogenics.co.uk addresses work.
 
 /** Automated system emails — consent forms, reminders, aftercare */
 export const FROM_NOREPLY = 'noreply@novogenics.co.uk';
@@ -82,54 +82,68 @@ export const FROM_MESSAGES = 'messages@novogenics.co.uk';
 /** General clinic contact address */
 export const FROM_HELLO = 'hello@novogenics.co.uk';
 
+/**
+ * Where clinic-/admin-bound emails go — the doctors' personal inboxes. Each is
+ * emailed individually with a personalised "Hi …," greeting. Update here to
+ * change who receives new-assessment alerts + website enquiries.
+ */
+export const CLINIC_RECIPIENTS: { email: string; name: string; greeting: string }[] = [
+  { email: 'aminah_amer@hotmail.com', name: 'Dr Aminah Amer', greeting: 'Dr Aminah' },
+  { email: 'wfarid812@gmail.com',     name: 'Dr Waqas Farid',  greeting: 'Dr Waqas' },
+];
+
 const FROM_NAME = 'Novogenics';
 
-// ── MailerSend transport ──────────────────────────────────────────────────────
+// ── Resend transport ──────────────────────────────────────────────────────────
 
 /**
- * Sends via the MailerSend transactional Email API.
- * Docs: https://developers.mailersend.com/api/v1/email.html
+ * Sends via the Resend transactional Email API.
+ * Docs: https://resend.com/docs/api-reference/emails/send-email
  *
- * (MailerLite has no transactional send-email endpoint — MailerSend is its
- * dedicated transactional sibling. Requires a verified sender domain.)
+ * Requires a verified sender domain (novogenics.co.uk) — add the DNS records
+ * Resend lists under Domains. Until the domain verifies, Resend only delivers
+ * to the account owner's own address.
  */
-async function sendViaMailerSend(message: EmailMessage): Promise<void> {
-  const apiKey = MAILERSEND_API_KEY.value();
+async function sendViaResend(message: EmailMessage): Promise<void> {
+  const apiKey = RESEND_API_KEY.value();
   if (!apiKey) {
-    throw new Error('MAILERSEND_API_KEY secret is not configured.');
+    throw new Error('RESEND_API_KEY secret is not configured.');
   }
 
+  // Resend takes `from` and `to` as "Name <email>" strings.
+  const fromAddress = message.from ?? FROM_NOREPLY;
+  const toAddress = message.to.name
+    ? `${message.to.name} <${message.to.email}>`
+    : message.to.email;
+
   const body: Record<string, unknown> = {
-    from: { email: message.from ?? FROM_NOREPLY, name: FROM_NAME },
-    to: [{ email: message.to.email, name: message.to.name ?? '' }],
+    from: `${FROM_NAME} <${fromAddress}>`,
+    to: [toAddress],
     subject: message.subject,
     text: message.text,
     html: message.html,
   };
 
-  // Attach PDFs as base64 (MailerSend attachment shape).
+  // Attach PDFs as base64 (Resend attachment shape).
   if (message.attachments && message.attachments.length > 0) {
     body.attachments = message.attachments.map((att) => ({
-      content: Buffer.from(att.content).toString('base64'),
       filename: att.filename,
-      disposition: 'attachment',
+      content: Buffer.from(att.content).toString('base64'),
     }));
   }
 
-  const response = await fetch('https://api.mailersend.com/v1/email', {
+  const response = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${apiKey}`,
       'Content-Type': 'application/json',
-      'X-Requested-With': 'XMLHttpRequest',
-      Accept: 'application/json',
     },
     body: JSON.stringify(body),
   });
 
   if (!response.ok) {
     const errorText = await response.text().catch(() => '(no body)');
-    throw new Error(`MailerSend ${response.status}: ${errorText}`);
+    throw new Error(`Resend ${response.status}: ${errorText}`);
   }
 }
 
@@ -170,12 +184,12 @@ async function writeToOutbox(
  * whether to propagate or swallow the error.
  *
  * Usage:
- *   import { sendEmail, MAILERSEND_API_KEY } from './emailService.js';
- *   // declare MAILERSEND_API_KEY in your function's secrets: [...] config
+ *   import { sendEmail, RESEND_API_KEY } from './emailService.js';
+ *   // declare RESEND_API_KEY in your function's secrets: [...] config
  */
 export async function sendEmail(message: EmailMessage): Promise<void> {
   try {
-    await sendViaMailerSend(message);
+    await sendViaResend(message);
     logger.info(
       `[emailService] ✓ sent "${message.subject}" → ${maskEmail(message.to.email)}`,
       { metadata: message.metadata },

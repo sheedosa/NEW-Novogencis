@@ -175,7 +175,7 @@ So when you ship the Cloud Function, no rule changes are needed.
 | `dailyBriefingScheduler`       | Cron 07:00 daily       | Insert "Today's clinical briefing" notif     |
 | `appointmentReminderScheduler` | Cron hourly            | 24h-before reminder messages to patients     |
 | `archiveOldAuditLogs`          | Cron monthly           | Move `system_logs` > 365d to Cloud Storage   |
-| `sendTransactionalEmail`       | Notification create    | EmailJS replacement for production SMTP      |
+| `onNotificationCreated`        | Notification create    | Resend transactional email (emailService.ts) |
 
 When the Functions runtime is set up, mirror the source under
 `functions/src/` and add them to `firebase.json` `"functions"`.
