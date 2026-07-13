@@ -4,10 +4,10 @@ import { localTodayISO } from '../../../utils/time';
 import {
   CalendarDays, CalendarX2, AlertTriangle, FileText, CreditCard,
   StickyNote, ArrowRight, Plus, Users as UsersIcon,
-  CheckCircle, Sun, Phone,
+  CheckCircle, Sun, Phone, TrendingUp, ClipboardList, MessageSquare,
 } from 'lucide-react';
 import {
-  PageHeader, Card, Button, StatusBadge, EmptyState,
+  PageHeader, Card, CardHeader, Stat, Button, StatusBadge, EmptyState,
   Skeleton,
 } from '../../../components/ui';
 import { Appointment } from '../../../types';
@@ -114,6 +114,34 @@ function TodayPanel() {
   // Unread from clients
   const unreadFromClients = messages.filter(m => !m.read && m.recipientId === 'admin');
 
+  // ── Overview dashboard: lead funnel + 30-day activity ──────────────────────
+  const nowMs = Date.now();
+  const ms30d = 30 * 24 * 60 * 60 * 1000;
+  // Cumulative funnel by patient stage (rank ≥ N reached this stage).
+  const STAGE_RANK: Record<string, number> = {
+    'New Inquiry': 0, 'Assessment Submitted': 1, 'Reviewed': 2, 'Contacted': 3,
+    'Converted': 4, 'Active': 4, 'Ongoing': 4, 'Completed': 4,
+  };
+  const rankOf = (status?: string) => STAGE_RANK[status ?? ''] ?? 0;
+  const activeLeads = filteredClients.filter(c => c.status !== 'Not Suitable');
+  const funnel = [
+    { label: 'Leads', count: activeLeads.length },
+    { label: 'Assessment done', count: activeLeads.filter(c => rankOf(c.status) >= 1).length },
+    { label: 'Reviewed', count: activeLeads.filter(c => rankOf(c.status) >= 2).length },
+    { label: 'Contacted', count: activeLeads.filter(c => rankOf(c.status) >= 3).length },
+    { label: 'Converted', count: activeLeads.filter(c => rankOf(c.status) >= 4).length },
+  ];
+  const funnelTop = Math.max(1, funnel[0].count);
+  const conversionRate = activeLeads.length ? Math.round((funnel[4].count / activeLeads.length) * 100) : 0;
+  const notSuitableCount = filteredClients.filter(c => c.status === 'Not Suitable').length;
+  const revenue30d = filteredClients.reduce((sum, c) => sum + (c.payments || [])
+    .filter(p => p.status === 'Paid' && p.paidDate && nowMs - new Date(p.paidDate).getTime() < ms30d)
+    .reduce((s, p) => s + p.amount, 0), 0);
+  const sevenAheadISO = (() => { const d = new Date(); d.setDate(d.getDate() + 7); return d.toLocaleDateString('en-CA'); })();
+  const upcoming7d = filteredAppointments.filter(a =>
+    (a.status === 'Confirmed' || a.status === 'Pending') && a.date >= today && a.date <= sevenAheadISO,
+  ).length;
+
   const formatGBP = (n: number) => new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP', maximumFractionDigits: 0 }).format(n);
 
   const friendlyDate = new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' });
@@ -133,6 +161,38 @@ function TodayPanel() {
           </Button>
         }
       />
+
+      {/* ── Overview dashboard — activity KPIs + lead funnel (first section) ── */}
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+        <Stat label="Awaiting review" value={pendingTriage.length} accent="gold" icon={<ClipboardList size={16} />} onClick={() => setActiveTab('inbox')} />
+        <Stat label="Unread messages" value={unreadFromClients.length} accent="info" icon={<MessageSquare size={16} />} onClick={() => setActiveTab('inbox')} />
+        <Stat label="Upcoming · 7 days" value={upcoming7d} accent="sage" icon={<CalendarDays size={16} />} onClick={() => handleSidebarClick('schedule')} />
+        <Stat label="Revenue · 30 days" value={formatGBP(revenue30d)} icon={<CreditCard size={16} />} onClick={() => handleSidebarClick('practice')} />
+        <Stat label="New patients · 7d" value={newPatientsWeek} icon={<UsersIcon size={16} />} onClick={() => handleSidebarClick('patients')} />
+      </div>
+
+      <Card>
+        <CardHeader
+          title="Lead funnel"
+          subtitle={`${conversionRate}% converted · ${activeLeads.length} in pipeline${notSuitableCount ? ` · ${notSuitableCount} not suitable` : ''}`}
+          leadingIcon={<TrendingUp size={14} />}
+        />
+        <div className="mt-3 flex flex-col gap-2">
+          {funnel.map((s) => {
+            const pct = Math.round((s.count / funnelTop) * 100);
+            return (
+              <div key={s.label} className="flex items-center gap-3">
+                <span className="w-28 sm:w-32 shrink-0 text-xs text-muted">{s.label}</span>
+                <div className="flex-grow h-6 rounded-md bg-cream overflow-hidden relative">
+                  <div className="h-full bg-primary/70 rounded-md transition-all" style={{ width: `${Math.max(pct, 4)}%` }} />
+                  <span className="absolute inset-y-0 left-2.5 flex items-center text-2xs font-semibold text-obsidian tabular-nums">{s.count}</span>
+                </div>
+                <span className="w-10 shrink-0 text-right text-2xs text-hint tabular-nums">{pct}%</span>
+              </div>
+            );
+          })}
+        </div>
+      </Card>
 
       {/* ── Up next hero — shown to all doctors when there's an imminent appointment ── */}
       {(() => {

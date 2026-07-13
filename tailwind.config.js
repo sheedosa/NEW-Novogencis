@@ -34,10 +34,13 @@ export default {
         'brand-green':  '#7FA288',
 
         // ── Semantic status — muted & warm (premium-wellness) ──────
-        success: { DEFAULT: '#3B8C5F', light: '#E8F0EB', text: '#2D6E47' },
-        warning: { DEFAULT: '#C68726', light: '#F8F0DB', text: '#8B5E1A' },
-        danger:  { DEFAULT: '#C04A4A', light: '#F4E3E1', text: '#8A3535' },
-        info:    { DEFAULT: '#3B6FB8', light: '#E5ECF5', text: '#2B5285' },
+        // `bg` mirrors `light` — components reference bg-{semantic}-bg for tinted
+        // alert/callout backgrounds; without this key those classes emit no rule
+        // and the panels render transparent (the "broken popup" bug).
+        success: { DEFAULT: '#3B8C5F', light: '#E8F0EB', bg: '#E8F0EB', text: '#2D6E47' },
+        warning: { DEFAULT: '#C68726', light: '#F8F0DB', bg: '#F8F0DB', text: '#8B5E1A' },
+        danger:  { DEFAULT: '#C04A4A', light: '#F4E3E1', bg: '#F4E3E1', text: '#8A3535' },
+        info:    { DEFAULT: '#3B6FB8', light: '#E5ECF5', bg: '#E5ECF5', text: '#2B5285' },
 
         // ── AI feature colour ────────────────────────────────────────
         ai: { DEFAULT: '#1A1916', accent: '#C9A86A' },

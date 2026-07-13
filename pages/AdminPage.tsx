@@ -1148,7 +1148,7 @@ const AdminPage: React.FC<AdminPageProps> = ({
               role="status"
               className="sticky top-0 z-40 px-4 py-2 bg-warning-bg text-warning-text border-b border-warning/20 text-xs font-medium flex items-center justify-center gap-2"
             >
-              <span className="w-1.5 h-1.5 rounded-full bg-warning-text animate-pulse" />
+              <span className="w-1.5 h-1.5 rounded-full bg-warning animate-pulse" />
               You're offline. Changes will sync automatically when you're back online.
             </div>
           )}
@@ -1394,7 +1394,7 @@ const AdminPage: React.FC<AdminPageProps> = ({
                   />
                   </div>
 
-                  <div className="flex flex-wrap items-center justify-end gap-2 pt-2">
+                  <div className="sticky bottom-0 -mx-5 mt-1 px-5 py-3 bg-white border-t border-sand flex flex-wrap items-center justify-end gap-2">
                     <Button variant="ghost" onClick={() => setShowBookingModal(false)}>Cancel</Button>
                     <Button
                       type="submit"
@@ -1536,7 +1536,7 @@ const AdminPage: React.FC<AdminPageProps> = ({
                     <p className="text-xs text-muted">The remaining sessions are always price-free — the patient is never shown a price again.</p>
                   </div>
 
-                  <div className="flex flex-wrap items-center justify-end gap-2 pt-2">
+                  <div className="sticky bottom-0 -mx-5 mt-1 px-5 py-3 bg-white border-t border-sand flex flex-wrap items-center justify-end gap-2">
                     <Button variant="ghost" onClick={() => setShowStartPackageModal(false)}>Cancel</Button>
                     <Button type="submit" variant="primary" disabled={!!pkgConflict || isSubmitting}>
                       Start package &amp; book Session 1
@@ -1604,7 +1604,7 @@ const AdminPage: React.FC<AdminPageProps> = ({
                   )}
                 </div>
               )}
-              <div className="flex items-center justify-end gap-2 pt-1">
+              <div className="sticky bottom-0 -mx-5 mt-1 px-5 py-3 bg-white border-t border-sand flex items-center justify-end gap-2">
                 <Button variant="ghost" onClick={() => setShowGalleryUpload(false)} disabled={isUploading}>Cancel</Button>
                 <Button
                   variant="primary"
