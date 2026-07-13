@@ -1,5 +1,6 @@
 import React, { memo, useMemo, useState, useEffect } from 'react';
 import { useAdminContext } from '../context';
+import { localTodayISO } from '../../../utils/time';
 import {
   CalendarDays, CalendarX2, AlertTriangle, FileText, CreditCard,
   StickyNote, ArrowRight, Plus, Users as UsersIcon,
@@ -55,8 +56,8 @@ function TodayPanel() {
     tasks,
     openBookingModal,
     setActiveTab,
-    setSelectedClientId,
     handleSidebarClick,
+    openPatient,
     getInitials,
   } = useAdminContext();
 
@@ -68,7 +69,7 @@ function TodayPanel() {
     return () => clearTimeout(t);
   }, []);
 
-  const today = new Date().toISOString().split('T')[0];
+  const today = localTodayISO();
 
   const todayAppointments = useMemo(
     () => filteredAppointments
@@ -81,7 +82,7 @@ function TodayPanel() {
   const tomorrowStr = (() => {
     const d = new Date();
     d.setDate(d.getDate() + 1);
-    return d.toISOString().split('T')[0];
+    return d.toLocaleDateString('en-CA'); // local date — avoids BST UTC roll-back
   })();
   const tomorrowAppointments = filteredAppointments.filter(a => a.date === tomorrowStr && a.status !== 'Cancelled');
 
@@ -89,7 +90,7 @@ function TodayPanel() {
   const revenueToday = useMemo(() => {
     return filteredClients.reduce((sum, c) => {
       return sum + (c.payments || [])
-        .filter(p => p.status === 'Paid' && p.paidDate === today)
+        .filter(p => p.status === 'Paid' && p.paidDate?.slice(0, 10) === today)
         .reduce((s, p) => s + p.amount, 0);
     }, 0);
   }, [filteredClients, today]);
@@ -203,7 +204,7 @@ function TodayPanel() {
                     </a>
                   )}
                   <button
-                    onClick={() => { setSelectedClientId(next.clientId); handleSidebarClick('patients'); }}
+                    onClick={() => openPatient(next.clientId)}
                     className="btn btn-primary btn-sm flex-1"
                   >
                     Open chart <ArrowRight size={13} />
@@ -292,7 +293,7 @@ function TodayPanel() {
                   return (
                     <button
                       key={apt.id}
-                      onClick={() => { setSelectedClientId(apt.clientId); handleSidebarClick('patients'); }}
+                      onClick={() => openPatient(apt.clientId)}
                       className={`w-full text-left px-4 py-3 hover:bg-cream/60 transition-colors ${idx > 0 ? 'border-t border-cream' : ''}`}
                     >
                       {/* Line 1 is constant height: time | patient | status.

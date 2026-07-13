@@ -10,6 +10,7 @@
  */
 
 import React, { useEffect, useState } from 'react';
+import { localTodayISO } from '../../utils/time';
 import { Modal, Button, useToast } from '../../components/ui';
 import { Appointment, Payment } from '../../types';
 import { Save, CalendarDays, User as UserIcon, CreditCard } from 'lucide-react';
@@ -60,7 +61,7 @@ export const AppointmentNotesDrawer: React.FC<AppointmentNotesDrawerProps> = ({
             amount: amt,
             currency: 'GBP',
             status: payStatus,
-            paidDate: payStatus === 'Paid' ? new Date().toISOString() : undefined,
+            paidDate: payStatus === 'Paid' ? localTodayISO() : undefined,
             createdAt: new Date().toISOString(),
           });
         } catch (err) {
@@ -68,6 +69,7 @@ export const AppointmentNotesDrawer: React.FC<AppointmentNotesDrawerProps> = ({
           toast.error('Notes saved, but the payment was not recorded', { description: 'Add it from the patient’s Money tab.' });
         }
       }
+      toast.success('Session saved');
       onClose();
     } catch {
       // Keep the drawer open with the doctor's notes intact.

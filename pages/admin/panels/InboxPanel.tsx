@@ -52,11 +52,7 @@ function InboxPanel() {
     onAddTask,
     onUpdateTask,
     onDeleteTask,
-    setSelectedClientId,
-    setClientRecordTab,
-    setActiveTab,
-    handleSidebarClick,
-    setTriageSelectedId,
+    openPatient,
   } = useAdminContext();
 
   const { confirm, ConfirmHost } = useConfirm();
@@ -140,12 +136,7 @@ function InboxPanel() {
           priority: 'high',
           primaryAction: {
             label: 'Review',
-            onClick: () => {
-              setTriageSelectedId(c.id);
-              setSelectedClientId(c.id);
-              handleSidebarClick('patients');
-              setClientRecordTab('overview');
-            },
+            onClick: () => openPatient(c.id, 'overview'),
           },
         });
       });
@@ -218,13 +209,7 @@ function InboxPanel() {
           // Secondary action: jump to full thread inside the patient record.
           secondaryAction: {
             label: 'Open thread',
-            onClick: () => {
-              if (client) {
-                setSelectedClientId(client.id);
-                handleSidebarClick('patients');
-                setClientRecordTab('communications');
-              }
-            },
+            onClick: () => { if (client) openPatient(client.id, 'communications'); },
           },
         });
       });
@@ -247,14 +232,8 @@ function InboxPanel() {
           when: m.createdAt,
           priority: 'normal',
           primaryAction: {
-            label: 'Open thread',
-            onClick: () => {
-              if (client) {
-                setSelectedClientId(client.id);
-                handleSidebarClick('patients');
-                setClientRecordTab('communications');
-              }
-            },
+            label: 'Open form',
+            onClick: () => { if (client) openPatient(client.id, 'forms'); },
           },
         });
       });
@@ -277,11 +256,7 @@ function InboxPanel() {
             priority: isOverdue ? 'high' : 'normal',
             primaryAction: {
               label: 'Open',
-              onClick: () => {
-                setSelectedClientId(c.id);
-                handleSidebarClick('patients');
-                setClientRecordTab('financials');
-              },
+              onClick: () => openPatient(c.id, 'financials'),
             },
           });
         });
@@ -340,7 +315,7 @@ function InboxPanel() {
       if (a.priority !== b.priority) return a.priority === 'high' ? -1 : 1;
       return new Date(b.when).getTime() - new Date(a.when).getTime();
     });
-  }, [filteredClients, clients, messages, appointments, tasks, user, setSelectedClientId, setClientRecordTab, handleSidebarClick, setTriageSelectedId, onUpdateTask, toast]);
+  }, [filteredClients, clients, messages, appointments, tasks, user, openPatient, onUpdateTask, toast]);
 
   const filtered = filter === 'all' ? items : items.filter(i => {
     if (filter === 'tasks') return i.type === 'task';

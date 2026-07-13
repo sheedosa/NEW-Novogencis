@@ -361,6 +361,8 @@ export interface AppNotification {
   title: string;
   body: string;
   read: boolean;
+  /** Per-admin read state for shared ('all-admins') notifications: user ids who've seen it. */
+  readBy?: string[];
   createdAt: string;
   metadata?: Record<string, string>;
 }

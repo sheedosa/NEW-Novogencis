@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { User, Client, Appointment, Message, GalleryItem, AdminType, TreatmentPlan, TreatmentPhase, Prescription, Payment, Treatment } from '../types';
+import { User, Client, Appointment, Message, GalleryItem, AdminType, TreatmentPlan, TreatmentPhase, Prescription, Payment, Treatment, AppNotification, NotificationType } from '../types';
 import { FORMS, PACKAGES, getPackage, formatPackagePrice } from '../constants';
 import { InteractiveForm } from '../components/InteractiveForm';
 import Logo from '../components/Logo';
@@ -19,6 +19,7 @@ import { processImageForUpload, validateImageFile, ACCEPTED_IMAGE_TYPES } from '
 import { logClinicalAction } from '../utils/auditLogger';
 import { notifyPaymentSent, notifyTreatmentPlanReady, notifyPrescriptionAdded } from '../utils/notificationService';
 import { parseTime12h, formatMinutes12h, localTodayISO } from '../utils/time';
+import { DUMMY_PATIENT } from '../utils/dummyPatient';
 
 import {
   AdminContext,
@@ -35,13 +36,25 @@ import CalendarPanel from './admin/panels/CalendarPanel';
 import ClientsPanel from './admin/panels/ClientsPanel';
 import PracticePanel from './admin/panels/PracticePanel';
 import PlatformHealthPanel from './admin/panels/PlatformHealthPanel';
+import AdminNotificationsMenu from '../components/AdminNotificationsMenu';
+
+/** Which patient-record tab each notification type deep-links to. */
+const NOTIF_TAB: Partial<Record<NotificationType, ClientRecordTab>> = {
+  new_assessment: 'overview',      // Snapshot holds the intake questionnaire
+  feedback_received: 'overview',
+  new_message: 'communications',
+  form_signed: 'forms',
+  payment_received: 'financials',
+  treatment_plan_ready: 'treatment',
+  prescription_added: 'treatment',
+};
 
 const AdminPage: React.FC<AdminPageProps> = ({
   user, onLogout, onNavigate,
   clients, appointments, messages, notifications,
   onAddAppointment, onUpdateAppointment, onDeleteAppointment,
   onSendMessage, onMarkMessageRead, onUpdateMessage, onUpdateClient,
-  onMarkNotificationRead,
+  onMarkNotificationRead, onMarkAdminNotificationRead,
   tasks, onAddTask, onUpdateTask, onDeleteTask,
   templates, onAddTemplate, onUpdateTemplate, onDeleteTemplate,
   viewAsTestPatient, onSetViewAsTestPatient, onSeedDummyPatient,
@@ -58,6 +71,7 @@ const AdminPage: React.FC<AdminPageProps> = ({
   const [lightboxImage, setLightboxImage]           = useState<GalleryItem | null>(null);
   const [uploadProgress, setUploadProgress]         = useState(0);
   const [showBookingModal, setShowBookingModal]     = useState(false);
+  const [showNotifications, setShowNotifications]   = useState(false);
   const [isSubmitting, setIsSubmitting]             = useState(false);
   const [appointmentView, setAppointmentView]       = useState<'list' | 'calendar'>('list');
   const [currentCalendarDate, setCurrentCalendarDate] = useState(new Date());
@@ -243,26 +257,40 @@ const AdminPage: React.FC<AdminPageProps> = ({
   };
 
   // ── Computed / derived ────────────────────────────────────────────────────
+  // Real (non-technical) admins never see the seeded demo patient — it must not
+  // pollute the registry, Money totals, Inbox, or any count. Technical admins
+  // (who seed/preview it) still see it.
+  const showDemoPatient = user?.adminType === 'technical';
+
   const filteredClients = useMemo(() => {
     if (!user) return [];
+    const base = showDemoPatient ? clients : clients.filter(c => c.id !== DUMMY_PATIENT.id);
     if (showOnlyAssigned && user.adminType !== 'technical') {
-      return clients.filter(c => isAssignedToUser(c, user));
+      return base.filter(c => isAssignedToUser(c, user));
     }
-    return clients;
-  }, [clients, user, showOnlyAssigned, isAssignedToUser]);
+    return base;
+  }, [clients, user, showOnlyAssigned, isAssignedToUser, showDemoPatient]);
 
   const filteredAppointments = useMemo(() => {
     if (!user) return [];
+    const base = showDemoPatient ? appointments : appointments.filter(a => a.clientId !== DUMMY_PATIENT.id);
     if (showOnlyAssigned && user.adminType !== 'technical') {
-      return appointments.filter(a => a.doctorId === user.id);
+      return base.filter(a => a.doctorId === user.id);
     }
-    return appointments;
-  }, [appointments, user, showOnlyAssigned]);
+    return base;
+  }, [appointments, user, showOnlyAssigned, showDemoPatient]);
+
+  const visibleMessages = useMemo(
+    () => showDemoPatient
+      ? messages
+      : messages.filter(m => m.senderId !== DUMMY_PATIENT.id && m.recipientId !== DUMMY_PATIENT.id),
+    [messages, showDemoPatient],
+  );
 
   const messageThreads = useMemo(() => {
     const threads: Record<string, Message[]> = {};
     const effectiveUser = getEffectiveUser();
-    messages.forEach(msg => {
+    visibleMessages.forEach(msg => {
       const isSenderClient = clients.some(c => c.id === msg.senderId);
       const clientId = isSenderClient ? msg.senderId : msg.recipientId;
       const client = clients.find(c => c.id === clientId);
@@ -274,20 +302,22 @@ const AdminPage: React.FC<AdminPageProps> = ({
       threads[clientId].push(msg);
     });
     return threads;
-  }, [messages, user, clients, effectiveAdminType, showOnlyAssigned, getEffectiveUser, isAssignedToUser]);
+  }, [visibleMessages, user, clients, effectiveAdminType, showOnlyAssigned, getEffectiveUser, isAssignedToUser]);
 
-  const unreadCount = notifications.filter(n => !n.read).length;
+  // Per-doctor unread: a shared 'all-admins' notification is unread for this
+  // admin until their id is in readBy (see markAdminNotificationRead).
+  const unreadCount = notifications.filter(n => !(n.readBy ?? []).includes(user?.id ?? '')).length;
 
   const selectedClient = filteredClients.find(c => c.id === selectedClientId);
 
   // ── Sidebar badge counts (computed once per render from filtered data) ────
-  const today = new Date().toISOString().split('T')[0];
+  const today = localTodayISO();
   const todayBadge = filteredAppointments.filter(
     a => a.date === today && a.status !== 'Cancelled',
   ).length;
   const pendingTriageCount = filteredClients.filter(c => c.status === 'Assessment Submitted').length;
-  const unreadFromClientsCount = messages.filter(m => !m.read && m.recipientId === 'admin').length;
-  const unsignedFormsCount = messages.filter(m => m.type === 'form' && !m.isSigned).length;
+  const unreadFromClientsCount = visibleMessages.filter(m => !m.read && m.recipientId === 'admin').length;
+  const unsignedFormsCount = visibleMessages.filter(m => m.type === 'form' && !m.isSigned).length;
   const pendingPaymentsCount = filteredClients.reduce(
     (acc, c) => acc + (c.payments || []).filter(p => p.status === 'Pending' || p.status === 'Overdue').length,
     0,
@@ -302,7 +332,7 @@ const AdminPage: React.FC<AdminPageProps> = ({
   const mockStats = useMemo(() => {
     // `today` captured at memo time so the count is always today's date
     // (avoids stale memoization across day boundaries during long sessions).
-    const todayIso = new Date().toISOString().split('T')[0];
+    const todayIso = localTodayISO();
     return [
       { label: 'Assessments Today', value: filteredClients.filter(c => c.status === 'Assessment Submitted').length.toString(), trend: 'New', icon: 'assignment', tab: 'inbox' as AdminTab },
       { label: 'Appointments Today', value: filteredAppointments.filter(a => a.date === todayIso).length.toString(), icon: 'event', tab: 'schedule' as AdminTab },
@@ -315,6 +345,34 @@ const AdminPage: React.FC<AdminPageProps> = ({
     setActiveTab(id);
     setSelectedClientId(null);
     setIsSidebarOpen(false);
+  };
+
+  /**
+   * Deep-link straight to a patient record. Unlike handleSidebarClick (which
+   * nulls the selection for sidebar nav), this SELECTS the patient and lands on
+   * the Patients section — optionally on a specific record sub-tab. This is the
+   * correct opener for every attention → record jump (Inbox, Today, Money…).
+   */
+  const openPatient = useCallback((clientId: string, tab?: ClientRecordTab) => {
+    setActiveTab('patients');
+    setSelectedClientId(clientId);
+    if (tab) setClientRecordTab(tab);
+    setIsSidebarOpen(false);
+  }, []);
+
+  /** Open a notification: mark it read for THIS doctor + deep-link to its record. */
+  const handleNotificationOpen = (n: AppNotification) => {
+    if (user?.id) onMarkAdminNotificationRead(n.id, user.id);
+    setShowNotifications(false);
+    const clientId = n.metadata?.clientId;
+    if (clientId) openPatient(clientId, NOTIF_TAB[n.type]);
+    else setActiveTab('inbox');
+  };
+  const handleMarkAllNotificationsRead = () => {
+    if (!user?.id) return;
+    notifications
+      .filter(n => !(n.readBy ?? []).includes(user.id))
+      .forEach(n => onMarkAdminNotificationRead(n.id, user.id));
   };
 
   // ── Booking helpers ────────────────────────────────────────────────────────
@@ -635,7 +693,7 @@ const AdminPage: React.FC<AdminPageProps> = ({
         type: 'standalone',
         phaseId,
         packageId: pkg.id,
-        ...(collectNow ? { paidDate: now } : {}),
+        ...(collectNow ? { paidDate: localTodayISO() } : {}),
         createdAt: now,
       };
       await onAddPayment(clientId, payment);
@@ -782,7 +840,7 @@ const AdminPage: React.FC<AdminPageProps> = ({
       { id: 'act-logout',    group: 'Actions',  icon: <LogOut size={13} />,           label: 'Sign out',                   onSelect: () => onLogout() },
     ];
     // Patients (limit to first 50 to keep the list snappy)
-    clients.slice(0, 50).forEach(c => {
+    filteredClients.slice(0, 50).forEach(c => {
       items.push({
         id: `client-${c.id}`,
         group: 'Patients',
@@ -797,17 +855,17 @@ const AdminPage: React.FC<AdminPageProps> = ({
       });
     });
     return items;
-  }, [clients, setActiveTab, setShowBookingModal, onLogout, setSelectedClientId]);
+  }, [filteredClients, setActiveTab, setShowBookingModal, onLogout, setSelectedClientId]);
 
   // ── Context value ──────────────────────────────────────────────────────────
   // Memoised so consumer panels don't re-render when AdminPage re-renders for
   // unrelated reasons (e.g. App.tsx onSnapshot deltas to other collections).
   const ctx = React.useMemo(() => ({
     // Props
-    user, onLogout, onNavigate, clients, appointments, messages, notifications,
+    user, onLogout, onNavigate, clients, appointments, messages: visibleMessages, notifications,
     onAddAppointment, onUpdateAppointment, onDeleteAppointment,
     onSendMessage, onMarkMessageRead, onUpdateMessage, onUpdateClient,
-    onMarkNotificationRead,
+    onMarkNotificationRead, onMarkAdminNotificationRead,
     tasks, onAddTask, onUpdateTask, onDeleteTask,
     onSaveTreatmentPlan, onAddPrescription, onUpdatePrescription,
     onAddPayment, onUpdatePayment,
@@ -846,17 +904,18 @@ const AdminPage: React.FC<AdminPageProps> = ({
     formatDOB, calculateAge, getInitials, getFirstName, isAssignedToMe,
     // Handlers
     handleFileSelect,
-    handleSidebarClick, openBookingModal, openStartPackageModal, handleBookingSubmit,
+    handleSidebarClick, openPatient, openBookingModal, openStartPackageModal, handleBookingSubmit,
     handleSendForm, changeMonth, getCalendarDays,
     // Templates
     templates, onAddTemplate, onUpdateTemplate, onDeleteTemplate,
     // Preview mode (view as test patient)
     viewAsTestPatient, onSetViewAsTestPatient, onSeedDummyPatient,
   }), [
-    user, onLogout, onNavigate, clients, appointments, messages, notifications,
+    user, onLogout, onNavigate, clients, appointments, visibleMessages, notifications,
     onAddAppointment, onUpdateAppointment, onDeleteAppointment,
     onSendMessage, onMarkMessageRead, onUpdateMessage, onUpdateClient,
-    onMarkNotificationRead, tasks, onAddTask, onUpdateTask, onDeleteTask,
+    onMarkNotificationRead, onMarkAdminNotificationRead, openPatient,
+    tasks, onAddTask, onUpdateTask, onDeleteTask,
     onSaveTreatmentPlan, onAddPrescription, onUpdatePrescription,
     onAddPayment, onUpdatePayment, CLINICIANS,
     activeTab, practiceTab, effectiveAdminType, selectedClientId, clientRecordTab,
@@ -1100,14 +1159,10 @@ const AdminPage: React.FC<AdminPageProps> = ({
             <div className="ml-auto flex items-center gap-1">
               <div className="relative">
                 <button
-                  onClick={() => {
-                    // Notification bell navigates to Inbox — the single
-                    // source of truth for "things needing my attention."
-                    setActiveTab('inbox');
-                  }}
-                  className="btn-icon relative"
-                  aria-label="Open inbox (notifications)"
-                  title="Open inbox"
+                  onClick={() => setShowNotifications(v => !v)}
+                  className={`btn-icon relative ${showNotifications ? 'bg-cream text-obsidian' : ''}`}
+                  aria-label="Notifications"
+                  title="Notifications"
                 >
                   <Bell size={15} />
                   {unreadCount > 0 && (
@@ -1116,6 +1171,16 @@ const AdminPage: React.FC<AdminPageProps> = ({
                     </span>
                   )}
                 </button>
+                {showNotifications && (
+                  <AdminNotificationsMenu
+                    notifications={notifications}
+                    userId={user?.id ?? ''}
+                    onOpenItem={handleNotificationOpen}
+                    onMarkAllRead={handleMarkAllNotificationsRead}
+                    onOpenInbox={() => { setShowNotifications(false); setActiveTab('inbox'); }}
+                    onClose={() => setShowNotifications(false)}
+                  />
+                )}
               </div>
               <button onClick={onLogout} className="btn-icon" aria-label="Sign out">
                 <LogOut size={15} />
@@ -1232,7 +1297,7 @@ const AdminPage: React.FC<AdminPageProps> = ({
                     onChange={(e) => setBookingForm(prev => ({ ...prev, clientId: e.target.value }))}
                   >
                     <option value="" disabled>Choose a client…</option>
-                    {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    {filteredClients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                   </Select>
 
                   <Select
@@ -1354,7 +1419,7 @@ const AdminPage: React.FC<AdminPageProps> = ({
                       onChange={(e) => setStartPackageForm(prev => ({ ...prev, clientId: e.target.value }))}
                     >
                       <option value="" disabled>Choose a client…</option>
-                      {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                      {filteredClients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                     </Select>
                   </div>
 

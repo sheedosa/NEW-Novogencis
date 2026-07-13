@@ -1,4 +1,4 @@
-import { collection, addDoc, serverTimestamp, updateDoc, doc } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, updateDoc, doc, arrayUnion } from 'firebase/firestore';
 import { db } from '../firebase';
 import type { AppNotification } from '../types';
 
@@ -39,6 +39,21 @@ export const markNotificationRead = async (notificationId: string): Promise<void
     await updateDoc(doc(db, 'notifications', notificationId), { read: true });
   } catch (error) {
     console.error('[Notification] Failed to mark as read:', error);
+  }
+};
+
+/**
+ * Per-admin read state. Admin notifications are a single shared doc
+ * (recipientId 'all-admins'), so each admin's "seen" state is tracked in a
+ * `readBy` array of user ids rather than the single `read` boolean. Marking
+ * read appends this admin's id (arrayUnion is idempotent).
+ */
+export const markAdminNotificationRead = async (notificationId: string, adminId: string): Promise<void> => {
+  if (!adminId) return;
+  try {
+    await updateDoc(doc(db, 'notifications', notificationId), { readBy: arrayUnion(adminId) });
+  } catch (error) {
+    console.error('[Notification] Failed to mark admin-read:', error);
   }
 };
 

@@ -24,9 +24,7 @@ function MoneyPanel() {
     appointments,
     onUpdatePayment,
     onUpdateAppointment,
-    setSelectedClientId,
-    setClientRecordTab,
-    handleSidebarClick,
+    openPatient,
   } = useAdminContext();
 
   const [filter, setFilter] = useState<Filter>('outstanding');
@@ -421,7 +419,7 @@ function MoneyPanel() {
                   {/* Mobile stacked card */}
                   <div className="md:hidden flex flex-col gap-2">
                     <button
-                      onClick={() => { setSelectedClientId(row.clientId); handleSidebarClick('patients'); setClientRecordTab('financials'); }}
+                      onClick={() => openPatient(row.clientId, 'financials')}
                       className="flex items-start justify-between gap-3 text-left"
                     >
                       <div className="min-w-0 flex-grow">
@@ -457,7 +455,7 @@ function MoneyPanel() {
                   {/* Desktop inline row */}
                   <div className="hidden md:flex items-center gap-3">
                     <button
-                      onClick={() => { setSelectedClientId(row.clientId); handleSidebarClick('patients'); setClientRecordTab('financials'); }}
+                      onClick={() => openPatient(row.clientId, 'financials')}
                       className="flex items-center gap-3 min-w-0 flex-grow text-left"
                     >
                       <div className="min-w-0 flex-grow">

@@ -13,6 +13,7 @@ import {
   notifyFormSent,
   notifyPaymentSent,
   markNotificationRead,
+  markAdminNotificationRead,
 } from './utils/notificationService';
 import {
   captureLeadSourceOnFirstVisit,
@@ -1167,6 +1168,7 @@ const App: React.FC = () => {
             messages={messages}
             notifications={notifications}
             onMarkNotificationRead={markNotificationRead}
+            onMarkAdminNotificationRead={markAdminNotificationRead}
             onAddAppointment={handleAddAppointment}
             onUpdateAppointment={handleUpdateAppointment}
             onDeleteAppointment={handleDeleteAppointment}

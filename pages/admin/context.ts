@@ -36,6 +36,8 @@ export interface AdminPageProps {
   onUpdateClient: (id: string, updates: Partial<Client>) => Promise<void>;
   notifications: AppNotification[];
   onMarkNotificationRead: (id: string) => Promise<void>;
+  /** Per-admin read: records that THIS admin has seen a notification (readBy array). */
+  onMarkAdminNotificationRead: (id: string, adminId: string) => Promise<void>;
   tasks: Task[];
   onAddTask: (task: Omit<Task, 'id' | 'createdAt' | 'createdBy'>) => Promise<void>;
   onUpdateTask: (id: string, updates: Partial<Task>) => Promise<void>;
@@ -126,6 +128,12 @@ export interface AdminContextValue extends AdminPageProps {
   // Handlers
   handleFileSelect: (e: React.ChangeEvent<HTMLInputElement>) => void;
   handleSidebarClick: (id: AdminTab) => void;
+  /**
+   * Deep-link to a patient record (correct opener). Selects the patient AND
+   * switches to the Patients section — unlike handleSidebarClick, which nulls
+   * the selection. Optionally lands on a specific record sub-tab.
+   */
+  openPatient: (clientId: string, tab?: ClientRecordTab) => void;
   /** Clinician roster (derived in AdminPage), for booking + edit dropdowns. */
   clinicians: { id: string; name: string; adminType?: string }[];
   openBookingModal: (clientId?: string, prefill?: { date?: string; time?: string; phaseId?: string; isPlanSession?: boolean }) => void;

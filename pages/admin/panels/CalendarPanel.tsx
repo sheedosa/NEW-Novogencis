@@ -48,19 +48,13 @@ function CalendarPanel() {
     appointments,
     clinicians,
     getFirstName,
-    setSelectedClientId,
-    setClientRecordTab,
-    handleSidebarClick,
+    openPatient,
     onAddPayment,
   } = useAdminContext();
 
   // Jump straight to a patient's Money tab when their deposit-pending badge
   // is clicked. Saves the doctor a navigation when chasing deposits.
-  const jumpToPatientMoney = (clientId: string) => {
-    setSelectedClientId(clientId);
-    setClientRecordTab('financials');
-    handleSidebarClick('patients');
-  };
+  const jumpToPatientMoney = (clientId: string) => openPatient(clientId, 'financials');
 
   const { confirm, ConfirmHost } = useConfirm();
   const { toast } = useToast();

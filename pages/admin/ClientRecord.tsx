@@ -1,4 +1,4 @@
-import React, { useState, useRef, memo } from 'react';
+import React, { useState, useRef, useEffect, memo } from 'react';
 import { useAdminContext } from './context';
 import { ClientRecordTab } from './context';
 import { Card } from '../../components/Card';
@@ -121,6 +121,16 @@ const ClientRecord: React.FC = () => {
   const [showSendFormMenu, setShowSendFormMenu] = useState(false);
   /** Separate state for the Activity tab's quick-action form menu. */
   const [showActivityFormMenu, setShowActivityFormMenu] = useState(false);
+
+  // Mark inbound patient messages read once the doctor opens the conversation
+  // (Activity/Communications tab) — clears the stuck unread badges on the
+  // sidebar, Today "needs you", and the tab dot. Mirrors the patient side.
+  useEffect(() => {
+    if (!selectedClient || clientRecordTab !== 'communications') return;
+    messages
+      .filter(m => m.senderId === selectedClient.id && !m.read)
+      .forEach(m => { void onMarkMessageRead(m.id); });
+  }, [selectedClient, clientRecordTab, messages, onMarkMessageRead]);
 
   if (!selectedClient) return null;
 
@@ -269,6 +279,7 @@ const ClientRecord: React.FC = () => {
         createdAt: new Date().toISOString()
       });
       await logClinicalAction(user?.id || 'admin', 'sent_message', threadId, 'Sent clinical update message');
+      toast.success('Message sent');
     } catch (error) {
       console.error('Failed to send message:', error);
       toast.error('Message not sent', { description: 'Please check your connection and send it again.' });
