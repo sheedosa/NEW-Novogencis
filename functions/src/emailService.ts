@@ -35,6 +35,22 @@ export function maskEmail(email: string): string {
   return `${local.slice(0, 2)}***@${domain.slice(0, 2)}***`;
 }
 
+/**
+ * HTML-escape UNTRUSTED text before interpolating it into an email body.
+ * Notifications can be client-created, so their title/body must never be
+ * treated as HTML (prevents injected markup/links reaching a doctor's inbox).
+ * Trusted server callers (consent/reminder/aftercare) intentionally pass HTML
+ * and must NOT be routed through this.
+ */
+export function escapeHtml(input: string): string {
+  return input
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 // ── Types ────────────────────────────────────────────────────────────────────
 
 export interface EmailAttachment {

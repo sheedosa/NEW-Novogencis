@@ -4,9 +4,9 @@ import { User, Client, Appointment, Message, GalleryItem, AdminType, TreatmentPl
 import { FORMS, PACKAGES, getPackage, formatPackagePrice } from '../constants';
 import { InteractiveForm } from '../components/InteractiveForm';
 import Logo from '../components/Logo';
-import { storage, db } from '../firebase';
+import { storage, db, cleanData } from '../firebase';
 import { ref, uploadBytesResumable, getDownloadURL, deleteObject } from 'firebase/storage';
-import { collection, onSnapshot, query, where, doc, updateDoc, arrayUnion } from 'firebase/firestore';
+import { collection, onSnapshot, query, where, doc, updateDoc, arrayUnion, runTransaction } from 'firebase/firestore';
 import {
   Camera, Upload, X, PanelLeftClose, PanelLeftOpen, Menu, Search, Bell,
   LogOut, Sun, CalendarDays, Settings, ChevronsUpDown, Eye,
@@ -222,7 +222,7 @@ const AdminPage: React.FC<AdminPageProps> = ({
       });
       const downloadURL = await getDownloadURL(storageRef);
       const newItem: GalleryItem = {
-        id: `admin-${Date.now()}`,
+        id: `admin-${crypto.randomUUID()}`,
         url: downloadURL,
         label: galleryUploadLabel || 'Progress Photo',
         uploadedAt: new Date().toISOString(),
@@ -640,7 +640,7 @@ const AdminPage: React.FC<AdminPageProps> = ({
       const client = clients.find(c => c.id === clientId);
       const clinician = CLINICIANS.find(c => c.id === clinicianId);
       const now = new Date().toISOString();
-      const phaseId = `phase-${Date.now()}`;
+      const phaseId = `phase-${crypto.randomUUID()}`;
 
       // 1. Create/append the package as an Active plan phase.
       const newPhase: TreatmentPhase = {
@@ -658,7 +658,7 @@ const AdminPage: React.FC<AdminPageProps> = ({
       const existingPlan = client?.treatmentPlan;
       const updatedPlan: TreatmentPlan = existingPlan
         ? { ...existingPlan, phases: [...existingPlan.phases, newPhase], updatedAt: now }
-        : { id: `plan-${Date.now()}`, clientId, title: 'Treatment Plan', phases: [newPhase], createdAt: now };
+        : { id: `plan-${crypto.randomUUID()}`, clientId, title: 'Treatment Plan', phases: [newPhase], createdAt: now };
       await onSaveTreatmentPlan(clientId, updatedPlan);
 
       // 2. Book Session 1 as a price-free plan session (base modality — the
@@ -684,7 +684,7 @@ const AdminPage: React.FC<AdminPageProps> = ({
 
       // 3. Record the FULL-price up-front package payment, linked to the phase.
       const payment: Payment = {
-        id: `pay-${Date.now()}`,
+        id: `pay-${crypto.randomUUID()}`,
         description: `${pkg.name} package (${pkg.sessionsPlanned} sessions)`,
         amount: pkg.pricePence / 100,
         amountPence: pkg.pricePence,
@@ -744,17 +744,37 @@ const AdminPage: React.FC<AdminPageProps> = ({
     }
   };
 
+  // Payments + prescriptions are single nested ARRAY fields on the client doc, so
+  // a read-modify-write from a stale render snapshot would clobber a concurrent
+  // change (e.g. the Stripe webhook flipping a deposit to Paid, or two admins).
+  // Run these in a transaction that re-reads the live array. (Also closes the
+  // audit-trail gap on prescription/payment edits.)
   const onUpdatePrescription = async (clientId: string, rxId: string, updates: Partial<Prescription>) => {
-    const client = clients.find(c => c.id === clientId);
-    const existing = client?.prescriptions || [];
-    const updated = existing.map(r => r.id === rxId ? { ...r, ...updates } : r);
-    await onUpdateClient(clientId, { prescriptions: updated });
+    const ref = doc(db, 'clients', clientId);
+    try {
+      await runTransaction(db, async (tx) => {
+        const snap = await tx.get(ref);
+        const existing = (snap.data()?.prescriptions as Prescription[] | undefined) || [];
+        tx.update(ref, cleanData({ prescriptions: existing.map(r => r.id === rxId ? { ...r, ...updates } : r) }));
+      });
+      await logClinicalAction(user?.id || 'admin', 'update_prescription', clientId, `Updated prescription ${rxId}`);
+    } catch {
+      toast.error('Could not update the prescription', { description: 'Please try again.' });
+    }
   };
 
   const onAddPayment = async (clientId: string, payment: Payment) => {
-    const client = clients.find(c => c.id === clientId);
-    const existing = client?.payments || [];
-    await onUpdateClient(clientId, { payments: [...existing, payment] });
+    const ref = doc(db, 'clients', clientId);
+    try {
+      await runTransaction(db, async (tx) => {
+        const snap = await tx.get(ref);
+        const existing = (snap.data()?.payments as Payment[] | undefined) || [];
+        tx.update(ref, cleanData({ payments: [...existing, payment] }));
+      });
+    } catch {
+      toast.error('Could not save the payment', { description: 'Please try again.' });
+      return;
+    }
     await logClinicalAction(user?.id || 'admin', 'add_payment', clientId, `Added payment: ${payment.description} £${payment.amount}`);
     if (payment.status === 'Pending') {
       try {
@@ -765,10 +785,17 @@ const AdminPage: React.FC<AdminPageProps> = ({
   };
 
   const onUpdatePayment = async (clientId: string, paymentId: string, updates: Partial<Payment>) => {
-    const client = clients.find(c => c.id === clientId);
-    const existing = client?.payments || [];
-    const updated = existing.map(p => p.id === paymentId ? { ...p, ...updates } : p);
-    await onUpdateClient(clientId, { payments: updated });
+    const ref = doc(db, 'clients', clientId);
+    try {
+      await runTransaction(db, async (tx) => {
+        const snap = await tx.get(ref);
+        const existing = (snap.data()?.payments as Payment[] | undefined) || [];
+        tx.update(ref, cleanData({ payments: existing.map(p => p.id === paymentId ? { ...p, ...updates } : p) }));
+      });
+      await logClinicalAction(user?.id || 'admin', 'update_payment', clientId, `Updated payment ${paymentId}${updates.status ? ` → ${updates.status}` : ''}`);
+    } catch {
+      toast.error('Could not update the payment', { description: 'Please try again.' });
+    }
   };
 
   const handleSendForm = async (formId: string) => {

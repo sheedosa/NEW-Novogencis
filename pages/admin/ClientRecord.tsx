@@ -821,14 +821,18 @@ const ClientRecord: React.FC = () => {
                               <span className="text-xs text-muted">Payment Link Sent</span>
                             </div>
                             <p className="text-2xs md:text-xs leading-relaxed font-medium truncate">{msg.body?.split(': ')[0] || msg.body}</p>
-                            <a
-                              href={msg.paymentUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="block w-full bg-primary text-obsidian text-center py-2 rounded-lg text-xs font-medium hover:opacity-90 transition-all"
-                            >
-                              View Stripe Link
-                            </a>
+                            {msg.paymentUrl && /^https:\/\/([a-z0-9-]+\.)?stripe\.com\//i.test(msg.paymentUrl) ? (
+                              <a
+                                href={msg.paymentUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="block w-full bg-primary text-obsidian text-center py-2 rounded-lg text-xs font-medium hover:opacity-90 transition-all"
+                              >
+                                View Stripe Link
+                              </a>
+                            ) : (
+                              <p className="text-2xs md:text-xs text-muted">Payment link unavailable — take payment from the Money tab.</p>
+                            )}
                           </div>
                         ) : (
                           <p className="text-2xs md:text-xs leading-relaxed mb-2">{msg.body}</p>
@@ -1499,7 +1503,7 @@ const ClientRecord: React.FC = () => {
                     e.preventDefault();
                     setTreatmentPlanSaving(true);
                     const newPhase: TreatmentPhase = {
-                      id: `phase-${Date.now()}`,
+                      id: `phase-${crypto.randomUUID()}`,
                       name: phaseForm.name,
                       description: phaseForm.description,
                       status: 'Planned',
@@ -1511,7 +1515,7 @@ const ClientRecord: React.FC = () => {
                     const existingPlan = selectedClient.treatmentPlan;
                     const updatedPlan: TreatmentPlan = existingPlan
                       ? { ...existingPlan, phases: [...existingPlan.phases, newPhase], title: planTitle || existingPlan.title, updatedAt: new Date().toISOString() }
-                      : { id: `plan-${Date.now()}`, clientId: selectedClient.id, title: planTitle || 'Treatment Plan', phases: [newPhase], createdAt: new Date().toISOString() };
+                      : { id: `plan-${crypto.randomUUID()}`, clientId: selectedClient.id, title: planTitle || 'Treatment Plan', phases: [newPhase], createdAt: new Date().toISOString() };
                     try {
                       await onSaveTreatmentPlan(selectedClient.id, updatedPlan);
                       setPhaseForm({ name: '', description: '', sessionsPlanned: 1, notes: '' });
@@ -1589,7 +1593,7 @@ const ClientRecord: React.FC = () => {
                     e.preventDefault();
                     setRxSaving(true);
                     const newRx: Prescription = {
-                      id: `rx-${Date.now()}`,
+                      id: `rx-${crypto.randomUUID()}`,
                       drugName: rxForm.drugName,
                       dosage: rxForm.dosage,
                       instructions: rxForm.instructions,
@@ -1769,7 +1773,7 @@ const ClientRecord: React.FC = () => {
                     e.preventDefault();
                     setPaymentSaving(true);
                     const newPay: Payment = {
-                      id: `pay-${Date.now()}`,
+                      id: `pay-${crypto.randomUUID()}`,
                       description: paymentForm.description,
                       amount: parseFloat(paymentForm.amount),
                       currency: paymentForm.currency,

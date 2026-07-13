@@ -56,7 +56,7 @@ export const AppointmentNotesDrawer: React.FC<AppointmentNotesDrawerProps> = ({
       if (status === 'Completed' && onRecordPayment && payAmount && amt > 0) {
         try {
           await onRecordPayment(appointment.clientId, {
-            id: `sess-${appointment.id}-${Date.now()}`,
+            id: `sess-${appointment.id}-${crypto.randomUUID()}`,
             description: `${appointment.type} — session payment`,
             amount: amt,
             currency: 'GBP',

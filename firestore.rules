@@ -136,6 +136,11 @@ service cloud.firestore {
       allow update: if isAdmin() ||
                     (isOwner(clientId) && isValidClient(request.resource.data) &&
                      request.resource.data.status == resource.data.status &&
+                     // A client can never overwrite the doctor's clinical feedback,
+                     // which lives inside the otherwise client-writable assessmentData
+                     // map (fieldsOnly only guards top-level keys).
+                     request.resource.data.get('assessmentData', {}).get('clinicalFeedback', '') ==
+                       resource.data.get('assessmentData', {}).get('clinicalFeedback', '') &&
                      fieldsOnly([
                        'name', 'phone', 'address', 'dob', 'gender',
                        'doctorPreference', 'gallery', 'completedForms',
@@ -190,14 +195,20 @@ service cloud.firestore {
                   (isAuthenticated() && request.auth.uid == resource.data.recipientId);
 
       // The system writes notifications from client-side calls in
-      // notificationService.ts. Authenticated users may write a
-      // notification ONLY if they're addressing it to themselves or to
-      // 'all-admins' (matches existing notifyWelcome / notifyNewAssessment
-      // flows). Admin can write anything.
+      // notificationService.ts. A client may create ONLY:
+      //   (a) a self-notification (to their own uid) that is NOT admin-routed, or
+      //   (b) one of the three legitimate client→clinic alert types.
+      // This stops a patient forging an arbitrary emailable notification that
+      // fans out to the doctors' inboxes. Admin can write anything.
       allow create: if isAdmin() ||
                     (isAuthenticated() && isValidNotification(request.resource.data) &&
-                     (request.resource.data.recipientId == request.auth.uid ||
-                      request.resource.data.recipientId == 'all-admins'));
+                     (
+                       (request.resource.data.recipientId == request.auth.uid &&
+                        request.resource.data.get('recipientRole', 'client') != 'admin')
+                       ||
+                       (request.resource.data.recipientId == 'all-admins' &&
+                        request.resource.data.type in ['new_assessment', 'new_message', 'form_signed'])
+                     ));
 
       // Recipient can mark read; admin can do anything.
       allow update: if isAdmin() ||

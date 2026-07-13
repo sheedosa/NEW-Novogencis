@@ -141,17 +141,20 @@ function MoneyPanel() {
     return { receivedMtd, receivedLastMonth, outstanding, overdue, aging, avgDaysToPay, momPct };
   }, [allRows]);
 
-  // Projected revenue from confirmed appointments this month — uses default
-  // pricing per treatment type since the data model has no per-appointment price.
-  // Heuristic pricing (sensible defaults; can be refined later in Settings).
+  // Projected revenue from confirmed appointments this month. Keyed off the REAL
+  // appointment type strings — the old keys matched nothing, so every session
+  // defaulted to £100 (a fabricated forecast). Package/plan sessions are prepaid
+  // → £0 in a FUTURE forecast; unknown types → £0 rather than inflating.
   const TREATMENT_PRICES: Record<string, number> = {
-    'Initial Consultation':       100,
-    'Follow-up Consultation':     60,
-    'PRP Session':                250,
-    'EV-Enriched Plasma Session': 600,
-    'Hair Assessment':            0,
-    'Microneedling Session':      180,
+    'PRP + Microneedling':                                      300,
+    'PRF + Microneedling':                                      280,
+    'EV Enriched Plasma / Autologous Exosomes + Microneedling': 680,
+    'Face to Face Consultation':                                75,
+    'Initial Consultation':                                     75,
+    'Follow-up Consultation':                                   60,
   };
+  const priceOf = (a: { type: string; isPlanSession?: boolean }) =>
+    a.isPlanSession ? 0 : (TREATMENT_PRICES[a.type] ?? 0);
   const projected = useMemo(() => {
     const today = new Date();
     const monthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0);
@@ -164,8 +167,8 @@ function MoneyPanel() {
       const d = new Date(a.date);
       return a.status === 'Completed' && d >= monthStart && d <= monthEnd;
     });
-    const upcomingValue = upcoming.reduce((s, a) => s + (TREATMENT_PRICES[a.type] ?? 100), 0);
-    const completedValue = completedThisMonth.reduce((s, a) => s + (TREATMENT_PRICES[a.type] ?? 100), 0);
+    const upcomingValue = upcoming.reduce((s, a) => s + priceOf(a), 0);
+    const completedValue = completedThisMonth.reduce((s, a) => s + priceOf(a), 0);
     return {
       monthForecast: stats.receivedMtd + upcomingValue,
       upcomingCount: upcoming.length,
@@ -215,7 +218,13 @@ function MoneyPanel() {
       r.payment.paidDate || '',
       r.payment.reference || '',
     ]);
-    const escape = (v: string) => `"${String(v).replace(/"/g, '""')}"`;
+    const escape = (v: string) => {
+      let s = String(v);
+      // Neutralise spreadsheet formula injection from client-controlled fields
+      // (e.g. a patient name / payment description starting with = + - @).
+      if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`;
+      return `"${s.replace(/"/g, '""')}"`;
+    };
     const csv = [header, ...rows].map(r => r.map(escape).join(',')).join('\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -355,7 +364,7 @@ function MoneyPanel() {
             </div>
           </div>
           <p className="text-xs text-hint mt-3 leading-relaxed">
-            Forecast uses standard list pricing per treatment type. Customise rates in Settings.
+            Forecast uses standard list pricing per treatment type; package sessions are prepaid, so they count as £0 here.
           </p>
         </Card>
       </div>

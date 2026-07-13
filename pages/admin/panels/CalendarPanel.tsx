@@ -1,7 +1,11 @@
 import React, { memo, useState, useMemo } from 'react';
 import { useAdminContext } from '../context';
 import type { Appointment } from '../../../types';
-import { parseTime12hParts as parseTime12h } from '../../../utils/time';
+import { parseTime12hParts as parseTime12h, localTodayISO } from '../../../utils/time';
+
+/** Local YYYY-MM-DD for a Date — matches how appointment.date is stored, and
+ *  avoids the UTC roll-back toISOString() causes near midnight during BST. */
+const isoLocal = (d: Date) => d.toLocaleDateString('en-CA');
 import {
   ChevronLeft, ChevronRight, Plus, Calendar as CalendarIcon,
   List, LayoutGrid, Users as UsersIcon, User as UserIcon, Filter,
@@ -155,13 +159,13 @@ function CalendarPanel() {
   const weekStart = weekDates[0];
   const weekEnd = weekDates[6];
 
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = localTodayISO();
 
   // Bucket appointments by date for the visible week
   const byDate = useMemo(() => {
     const buckets: Record<string, typeof visible> = {};
     weekDates.forEach(d => {
-      const key = d.toISOString().split('T')[0];
+      const key = isoLocal(d);
       buckets[key] = visible.filter(a => a.date === key);
     });
     return buckets;
@@ -203,14 +207,14 @@ function CalendarPanel() {
     setCursor(d);
   };
 
-  const dayDateStr = cursor.toISOString().split('T')[0];
+  const dayDateStr = isoLocal(cursor);
   const dayAppointments = (byDate[dayDateStr] || []).sort((a, b) => (a.time || '').localeCompare(b.time || ''));
 
   return (
     <div className="animate-fade-up page-stack">
       {ConfirmHost}
       <PageHeader
-        title="Calendar"
+        title="Schedule"
         subtitle={
           view === 'week'
             ? `${weekStart.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })} – ${weekEnd.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}`
@@ -335,7 +339,7 @@ function CalendarPanel() {
               <div className="grid grid-cols-[40px_repeat(7,1fr)] sm:grid-cols-[60px_repeat(7,1fr)] border-b border-sand">
                 <div className="px-2 py-2 text-xs text-hint"></div>
                 {weekDates.map((d, i) => {
-                  const dStr = d.toISOString().split('T')[0];
+                  const dStr = isoLocal(d);
                   const isToday = dStr === todayStr;
                   return (
                     <div key={i} className={`px-2 py-2 text-center border-l border-cream ${isToday ? 'bg-primary/5' : ''}`}>
@@ -366,7 +370,7 @@ function CalendarPanel() {
                             const targetDate = weekDates[col];
                             const hour12 = h > 12 ? h - 12 : (h === 0 ? 12 : h);
                             const ampm = h >= 12 ? 'PM' : 'AM';
-                            const dateStr = targetDate.toISOString().split('T')[0];
+                            const dateStr = isoLocal(targetDate);
                             const timeStr = `${String(hour12).padStart(2, '0')}:00 ${ampm}`;
                             openBookingModal(undefined, { date: dateStr, time: timeStr });
                           }}
@@ -379,7 +383,7 @@ function CalendarPanel() {
 
                 {/* Appointment blocks */}
                 {weekDates.map((date, dayIdx) => {
-                  const dStr = date.toISOString().split('T')[0];
+                  const dStr = isoLocal(date);
                   return (byDate[dStr] || []).map(apt => {
                     const t = parseTime12h(apt.time);
                     if (!t) return null;
@@ -416,13 +420,13 @@ function CalendarPanel() {
       {view === 'week' && (
         <div className="md:hidden flex flex-col gap-3">
           {weekDates.map(d => {
-            const ds = d.toISOString().split('T')[0];
+            const ds = isoLocal(d);
             const toMinutes = (t: string) => {
               const p = parseTime12h(t);
               return p ? p.h * 60 + p.m : 0;
             };
             const dayAppts = (byDate[ds] || []).sort((a, b) => toMinutes(a.time) - toMinutes(b.time));
-            const isToday = ds === new Date().toISOString().split('T')[0];
+            const isToday = ds === localTodayISO();
             return (
               <Card key={ds} padded={false}>
                 <div className={`px-4 py-2.5 border-b border-sand flex items-center justify-between ${isToday ? 'bg-primary/5' : ''}`}>

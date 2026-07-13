@@ -32,6 +32,7 @@ import {
   FROM_MESSAGES,
   CLINIC_RECIPIENTS,
   maskEmail,
+  escapeHtml,
 } from './emailService.js';
 
 const DATABASE_ID = 'ai-studio-ffbd754d-87bd-4895-950f-a8738f36064a';
@@ -117,8 +118,13 @@ export const onNotificationCreated = onDocumentCreated(
     }
 
     // ── Compose (shared) ──────────────────────────────────────────────────────
-    const heading = String(notif.title || 'Novogenics');
-    const bodyText = policy.bodyOverride ?? String(notif.body || '');
+    // Notifications can be CLIENT-created (e.g. new_assessment / new_message), so
+    // their title/body are untrusted — escape everything that enters the HTML
+    // email to stop injected markup/links reaching a doctor's inbox. Subject +
+    // plain-text fallback are not HTML, so they use the raw string.
+    const rawHeading = String(notif.title || 'Novogenics');
+    const rawBody = policy.bodyOverride ?? String(notif.body || '');
+    const safeHeading = escapeHtml(rawHeading);
     const ctaUrl = isAdmin ? `${PORTAL_BASE_URL}/#admin` : `${PORTAL_BASE_URL}/#client-dashboard`;
     const ctaLabel = isAdmin ? 'Open the admin dashboard' : 'Open your Novogenics portal';
     const fromAddr = policy.from === 'messages' ? FROM_MESSAGES : FROM_NOREPLY;
@@ -126,14 +132,17 @@ export const onNotificationCreated = onDocumentCreated(
     // ── Send a personalised copy to each recipient ────────────────────────────
     let anySent = false;
     for (const r of recipients) {
-      const paragraphs = r.greeting ? [`Hi ${r.greeting},`, bodyText] : [bodyText];
+      const htmlParagraphs = r.greeting
+        ? [`Hi ${escapeHtml(r.greeting)},`, escapeHtml(rawBody)]
+        : [escapeHtml(rawBody)];
+      const textParagraphs = r.greeting ? [`Hi ${r.greeting},`, rawBody] : [rawBody];
       try {
         await sendEmail({
           to: { email: r.email, name: r.name },
           from: fromAddr,
-          subject: heading,
-          html: buildEmailHtml({ preheader: bodyText.slice(0, 120), heading, paragraphs, ctaLabel, ctaUrl }),
-          text: buildEmailText(heading, [...paragraphs, `${ctaLabel}: ${ctaUrl}`]),
+          subject: rawHeading,
+          html: buildEmailHtml({ preheader: escapeHtml(rawBody.slice(0, 120)), heading: safeHeading, paragraphs: htmlParagraphs, ctaLabel, ctaUrl }),
+          text: buildEmailText(rawHeading, [...textParagraphs, `${ctaLabel}: ${ctaUrl}`]),
           metadata: { type: String(notif.type), notificationId },
         });
         anySent = true;

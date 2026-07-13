@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { AppNotification } from '../types';
 import {
   Bell, MessageSquare, CalendarCheck, Star, FileText,
@@ -50,6 +50,14 @@ const AdminNotificationsMenu: React.FC<AdminNotificationsMenuProps> = ({
   const sorted = [...notifications].sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
   const hasUnread = sorted.some(isUnread);
 
+  // Keyboard access: close on Escape (items are real <button>s below, so Tab
+  // reaches them and Enter/Space activates).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
   return (
     <>
       <div className="fixed inset-0 z-40" onClick={onClose} />
@@ -70,10 +78,11 @@ const AdminNotificationsMenu: React.FC<AdminNotificationsMenuProps> = ({
             sorted.slice(0, 30).map((n) => {
               const unread = isUnread(n);
               return (
-                <div
+                <button
+                  type="button"
                   key={n.id}
                   onClick={() => onOpenItem(n)}
-                  className={`px-4 py-3 border-b border-cream flex gap-3 hover:bg-cream/50 transition-colors cursor-pointer relative ${unread ? 'bg-primary/5' : ''}`}
+                  className={`w-full text-left px-4 py-3 border-b border-cream flex gap-3 hover:bg-cream/50 focus:bg-cream/50 outline-none transition-colors cursor-pointer relative ${unread ? 'bg-primary/5' : ''}`}
                 >
                   {unread && <div className="absolute left-0 top-0 bottom-0 w-[2px] bg-primary" />}
                   <div className="w-7 h-7 rounded-md bg-cream flex items-center justify-center shrink-0 text-muted">
@@ -84,7 +93,7 @@ const AdminNotificationsMenu: React.FC<AdminNotificationsMenuProps> = ({
                     <p className="text-xs text-muted leading-relaxed mt-0.5 line-clamp-2">{n.body}</p>
                     <p className="text-xs text-hint mt-1">{timeAgoOf(n.createdAt)}</p>
                   </div>
-                </div>
+                </button>
               );
             })
           ) : (

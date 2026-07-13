@@ -1,6 +1,6 @@
 import React, { useState, useEffect, Suspense, lazy, Component, ErrorInfo, ReactNode } from 'react';
 import { onAuthStateChanged, createUserWithEmailAndPassword, signOut, sendEmailVerification } from 'firebase/auth';
-import { collection, onSnapshot, doc, getDoc, getDocs, setDoc, query, orderBy, limit, deleteDoc, updateDoc, where, or } from 'firebase/firestore';
+import { collection, onSnapshot, doc, getDoc, getDocs, setDoc, query, orderBy, limit, deleteDoc, updateDoc, where, or, runTransaction } from 'firebase/firestore';
 import { Page, User, Client, Appointment, Message, GalleryItem, AppNotification, Task, Template } from './types';
 import { DUMMY_PATIENT, dummyPatientUser, buildDummyPatientSeed } from './utils/dummyPatient';
 import { auth, db, handleFirestoreError, OperationType, cleanData } from './firebase';
@@ -529,25 +529,33 @@ const App: React.FC = () => {
                   : plan.phases.findIndex(p => p.status !== 'Completed');
               }
               if (phaseIdx >= 0) {
-                const phase = plan.phases[phaseIdx];
+                // Re-read the plan inside a transaction so rapid successive
+                // completions each apply their delta to the LIVE count — a stale
+                // snapshot would make two completions both write n+1, silently
+                // dropping a session from the plan.
                 const delta = becameCompleted ? 1 : -1;
-                const newCompleted = Math.max(0, (phase.sessionsCompleted || 0) + delta);
-                const updatedPhases = [...plan.phases];
-                updatedPhases[phaseIdx] = {
-                  ...phase,
-                  sessionsCompleted: newCompleted,
-                  // Complete the phase once all planned sessions are done; reopen
-                  // it (Completed → Active) if a rollback drops it below planned.
-                  status: newCompleted >= phase.sessionsPlanned
-                    ? 'Completed'
-                    : (phase.status === 'Completed' ? 'Active' : phase.status),
-                };
-                const updatedPlan = { ...plan, phases: updatedPhases, updatedAt: new Date().toISOString() };
-                await setDoc(
-                  doc(db, 'clients', appt.clientId),
-                  cleanData({ treatmentPlan: updatedPlan }),
-                  { merge: true },
-                );
+                const targetPhaseId = appt.phaseId ?? plan.phases[phaseIdx].id;
+                const clientRef = doc(db, 'clients', appt.clientId);
+                await runTransaction(db, async (tx) => {
+                  const snap = await tx.get(clientRef);
+                  const freshPlan = snap.data()?.treatmentPlan as Client['treatmentPlan'] | undefined;
+                  if (!freshPlan?.phases?.length) return;
+                  const idx = freshPlan.phases.findIndex(p => p.id === targetPhaseId);
+                  if (idx < 0) return;
+                  const phase = freshPlan.phases[idx];
+                  const newCompleted = Math.max(0, (phase.sessionsCompleted || 0) + delta);
+                  const updatedPhases = [...freshPlan.phases];
+                  updatedPhases[idx] = {
+                    ...phase,
+                    sessionsCompleted: newCompleted,
+                    // Complete the phase once all planned sessions are done; reopen
+                    // it (Completed → Active) if a rollback drops it below planned.
+                    status: newCompleted >= phase.sessionsPlanned
+                      ? 'Completed'
+                      : (phase.status === 'Completed' ? 'Active' : phase.status),
+                  };
+                  tx.update(clientRef, cleanData({ treatmentPlan: { ...freshPlan, phases: updatedPhases, updatedAt: new Date().toISOString() } }));
+                });
               }
             }
           }
@@ -561,7 +569,29 @@ const App: React.FC = () => {
   const handleDeleteAppointment = async (id: string) => {
     const path = `appointments/${id}`;
     try {
+      const appt = appointments.find(a => a.id === id);
       await deleteDoc(doc(db, 'appointments', id));
+      // Deleting a Completed plan-linked session must roll its count back, or the
+      // phase over-reports forever (the count is only added on completion).
+      if (appt?.phaseId && appt.status === 'Completed') {
+        const clientRef = doc(db, 'clients', appt.clientId);
+        await runTransaction(db, async (tx) => {
+          const snap = await tx.get(clientRef);
+          const freshPlan = snap.data()?.treatmentPlan as Client['treatmentPlan'] | undefined;
+          if (!freshPlan?.phases?.length) return;
+          const idx = freshPlan.phases.findIndex(p => p.id === appt.phaseId);
+          if (idx < 0) return;
+          const phase = freshPlan.phases[idx];
+          const newCompleted = Math.max(0, (phase.sessionsCompleted || 0) - 1);
+          const phases = [...freshPlan.phases];
+          phases[idx] = {
+            ...phase,
+            sessionsCompleted: newCompleted,
+            status: newCompleted >= phase.sessionsPlanned ? 'Completed' : (phase.status === 'Completed' ? 'Active' : phase.status),
+          };
+          tx.update(clientRef, cleanData({ treatmentPlan: { ...freshPlan, phases, updatedAt: new Date().toISOString() } }));
+        });
+      }
     } catch (error) {
       handleFirestoreError(error, OperationType.DELETE, path);
     }

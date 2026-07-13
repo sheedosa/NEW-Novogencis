@@ -22,7 +22,13 @@ function exportClientsToCSV(clients: { id: string; name: string; email: string; 
     c.status || 'Active',
     c.createdAt ? new Date(c.createdAt).toISOString() : '',
   ]);
-  const escape = (v: string) => `"${String(v).replace(/"/g, '""')}"`;
+  const escape = (v: string) => {
+    let s = String(v);
+    // Neutralise spreadsheet formula injection: a leading =,+,-,@,tab,CR makes
+    // Excel/Sheets evaluate a patient-controlled name/field as a formula.
+    if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`;
+    return `"${s.replace(/"/g, '""')}"`;
+  };
   const csv = [header, ...rows].map(r => r.map(escape).join(',')).join('\n');
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
