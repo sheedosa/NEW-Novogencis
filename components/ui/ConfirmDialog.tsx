@@ -21,6 +21,7 @@ import React, { useCallback, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { AlertTriangle } from 'lucide-react';
 import { Button } from './Button';
+import { Portal } from './Portal';
 
 export interface ConfirmOptions {
   title: string;
@@ -52,15 +53,17 @@ export function useConfirm() {
   }, []);
 
   const ConfirmHost = (
-    <AnimatePresence>
-      {pending && (
-        <ConfirmModal
-          options={pending}
-          onCancel={() => handleResolve(false)}
-          onConfirm={() => handleResolve(true)}
-        />
-      )}
-    </AnimatePresence>
+    <Portal>
+      <AnimatePresence>
+        {pending && (
+          <ConfirmModal
+            options={pending}
+            onCancel={() => handleResolve(false)}
+            onConfirm={() => handleResolve(true)}
+          />
+        )}
+      </AnimatePresence>
+    </Portal>
   );
 
   return { confirm, ConfirmHost };

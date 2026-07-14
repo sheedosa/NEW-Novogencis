@@ -13,7 +13,7 @@ import {
   Users, Calendar as CalendarIcon, HeartPulse, Inbox,
   Receipt, BarChart3, ListChecks, TrendingUp, Trash2,
 } from 'lucide-react';
-import { Button, Modal, Input, Select, Textarea, SidebarItem as UISidebarItem, CommandPalette, useToast, useConfirm, BottomNav } from '../components/ui';
+import { Button, Modal, Input, Select, Textarea, SidebarItem as UISidebarItem, CommandPalette, useToast, useConfirm, BottomNav, Portal } from '../components/ui';
 import type { CommandItem } from '../components/ui';
 import { processImageForUpload, validateImageFile, ACCEPTED_IMAGE_TYPES } from '../imageUtils';
 import { logClinicalAction } from '../utils/auditLogger';
@@ -1632,6 +1632,7 @@ const AdminPage: React.FC<AdminPageProps> = ({
 
         {/* Lightbox */}
         {lightboxImage && (
+          <Portal>
           <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-obsidian/95 animate-fade-in" onClick={() => setLightboxImage(null)}>
             <img src={lightboxImage.url} alt={lightboxImage.label} className="max-w-full max-h-[90dvh] object-contain rounded-md" />
             <div className="absolute top-4 right-4 flex items-center gap-2">
@@ -1664,6 +1665,7 @@ const AdminPage: React.FC<AdminPageProps> = ({
               {lightboxImage.label} · {new Date(lightboxImage.uploadedAt).toLocaleDateString()}
             </div>
           </div>
+          </Portal>
         )}
         {ConfirmHost}
 

@@ -20,3 +20,4 @@ export { useConfirm } from './ConfirmDialog';
 export type { ConfirmOptions } from './ConfirmDialog';
 export { RowActions } from './RowActions';
 export type { RowAction } from './RowActions';
+export { Portal } from './Portal';

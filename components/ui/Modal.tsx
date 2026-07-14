@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X } from 'lucide-react';
+import { Portal } from './Portal';
 
 type ModalSize = 'sm' | 'md' | 'lg' | 'xl';
 
@@ -37,17 +38,6 @@ export const Modal: React.FC<ModalProps> = ({
   footer,
   closeOnBackdrop = true,
 }) => {
-  // True bottom-sheet (slide-up + drag-to-dismiss) only on phones; from `sm` up
-  // the modal is a centred card, so desktop/tablet get a scale-fade instead.
-  const [isMobile, setIsMobile] = useState(false);
-  useEffect(() => {
-    const mq = window.matchMedia('(max-width: 639px)');
-    const update = () => setIsMobile(mq.matches);
-    update();
-    mq.addEventListener('change', update);
-    return () => mq.removeEventListener('change', update);
-  }, []);
-
   useEffect(() => {
     if (!open) return;
     const handler = (e: KeyboardEvent) => {
@@ -66,6 +56,7 @@ export const Modal: React.FC<ModalProps> = ({
   }, [open, onClose]);
 
   return (
+    <Portal>
     <AnimatePresence>
       {open && (
         <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center sm:p-4">
@@ -77,18 +68,15 @@ export const Modal: React.FC<ModalProps> = ({
             onClick={closeOnBackdrop ? onClose : undefined}
           />
           <motion.div
-            /* Mobile: slide up + drag-to-dismiss. Desktop/tablet: scale-fade. */
-            initial={isMobile ? { y: '100%', opacity: 0 } : { opacity: 0, scale: 0.96 }}
-            animate={isMobile ? { y: 0, opacity: 1 } : { opacity: 1, scale: 1 }}
-            exit={isMobile ? { y: '100%', opacity: 0 } : { opacity: 0, scale: 0.96 }}
-            transition={{ type: 'spring', damping: 32, stiffness: 320, mass: 0.8 }}
-            drag={isMobile ? 'y' : false}
-            dragConstraints={{ top: 0, bottom: 0 }}
-            dragElastic={{ top: 0, bottom: 0.4 }}
-            onDragEnd={(_e, info) => {
-              // Deliberate pull required — a stray scroll gesture shouldn't dismiss
-              if (info.offset.y > 160 || info.velocity.y > 800) onClose();
-            }}
+            /* One crisp entrance everywhere — a subtle fade + rise + scale.
+               CSS (`items-end sm:items-center`) docks it to the bottom on phones
+               and centres it from `sm` up; the motion is deliberately viewport-
+               agnostic so it can't desync (an earlier JS `isMobile` split could
+               strand the panel at translateY(100%)). */
+            initial={{ opacity: 0, y: 12, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 12, scale: 0.98 }}
+            transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
             role="dialog"
             aria-modal="true"
             aria-label={typeof title === 'string' ? title : undefined}
@@ -97,8 +85,8 @@ export const Modal: React.FC<ModalProps> = ({
                         rounded-t-xl sm:rounded-xl`}
             style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
           >
-            {/* Drag handle (mobile only) */}
-            <div className="sm:hidden flex justify-center pt-2 pb-1 shrink-0 cursor-grab active:cursor-grabbing">
+            {/* Grabber affordance (mobile sheet, decorative) */}
+            <div className="sm:hidden flex justify-center pt-2 pb-1 shrink-0">
               <span className="w-10 h-1 bg-sand rounded-full" />
             </div>
 
@@ -135,6 +123,7 @@ export const Modal: React.FC<ModalProps> = ({
         </div>
       )}
     </AnimatePresence>
+    </Portal>
   );
 };
 

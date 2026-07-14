@@ -5,7 +5,7 @@ import {
   Sliders, Users as UsersIcon, BookText, LayoutGrid, Maximize2, Minimize2,
   Copy, Check, UserCheck, ExternalLink,
 } from 'lucide-react';
-import { Button, Input, Select, Textarea, EmptyState } from '../../components/ui';
+import { Button, Input, Select, Textarea, EmptyState, Portal } from '../../components/ui';
 import { useAdminContext } from './context';
 import { AdminType } from '../../types';
 import { Template, TemplateCategory } from '../../types';
@@ -58,6 +58,7 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({ open, onClose })
   }, [open, onClose]);
 
   return (
+    <Portal>
     <AnimatePresence>
       {open && (
         <div className="fixed inset-0 z-[180] flex justify-end">
@@ -252,6 +253,7 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({ open, onClose })
         </div>
       )}
     </AnimatePresence>
+    </Portal>
   );
 };
 

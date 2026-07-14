@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Search, ArrowRight, Command } from 'lucide-react';
+import { Portal } from './Portal';
 
 export interface CommandItem {
   id: string;
@@ -114,6 +115,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
   }, [open]);
 
   return (
+    <Portal>
     <AnimatePresence>
       {open && (
         <div className="fixed inset-0 z-[200] flex items-start justify-center pt-[10vh] sm:pt-[15vh] px-4">
@@ -203,6 +205,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
         </div>
       )}
     </AnimatePresence>
+    </Portal>
   );
 };
 

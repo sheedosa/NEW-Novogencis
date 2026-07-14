@@ -10,7 +10,7 @@ import {
 import {
   Button, Input, Select, Modal, PageHeader, EmptyState,
   Card as UICard, CardHeader, SidebarItem as UISidebarItem,
-  BottomNav, useToast, useConfirm, Skeleton,
+  BottomNav, useToast, useConfirm, Skeleton, Portal,
 } from '../components/ui';
 import { Page, User, Appointment, Client, Message, GalleryItem } from '../types';
 import { FORMS, getPackage } from '../constants';
@@ -1971,6 +1971,7 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
       )}
 
       {lightboxImage && (
+        <Portal>
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-obsidian/95 animate-fade-in" onClick={() => setLightboxImage(null)}>
           <img src={lightboxImage.url} alt={lightboxImage.label} className="max-w-full max-h-[90dvh] object-contain rounded-md" />
           <button onClick={() => setLightboxImage(null)} aria-label="Close photo viewer" className="absolute top-4 right-4 w-11 h-11 bg-white/10 rounded-md flex items-center justify-center text-white hover:bg-white/20 transition-all">
@@ -1980,6 +1981,7 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
             {lightboxImage.label} · {new Date(lightboxImage.uploadedAt).toLocaleDateString()}
           </div>
         </div>
+        </Portal>
       )}
     </div>
   );
