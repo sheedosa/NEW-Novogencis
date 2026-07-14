@@ -148,6 +148,8 @@ export interface AdminContextValue extends AdminPageProps {
   onSaveTreatmentPlan: (clientId: string, plan: TreatmentPlan) => Promise<void>;
   onAddPayment: (clientId: string, payment: Payment) => Promise<void>;
   onUpdatePayment: (clientId: string, paymentId: string, updates: Partial<Payment>) => Promise<void>;
+  onDeletePayment: (clientId: string, paymentId: string) => Promise<void>;
+  onDeleteGalleryItem: (clientId: string, item: GalleryItem) => Promise<void>;
 }
 
 export const AdminContext = createContext<AdminContextValue | null>(null);

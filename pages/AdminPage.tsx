@@ -11,9 +11,9 @@ import {
   Camera, Upload, X, PanelLeftClose, PanelLeftOpen, Menu, Search, Bell,
   LogOut, Sun, CalendarDays, Settings, ChevronsUpDown, Eye,
   Users, Calendar as CalendarIcon, HeartPulse, Inbox,
-  Receipt, BarChart3, ListChecks, TrendingUp,
+  Receipt, BarChart3, ListChecks, TrendingUp, Trash2,
 } from 'lucide-react';
-import { Button, Modal, Input, Select, Textarea, SidebarItem as UISidebarItem, CommandPalette, useToast, BottomNav } from '../components/ui';
+import { Button, Modal, Input, Select, Textarea, SidebarItem as UISidebarItem, CommandPalette, useToast, useConfirm, BottomNav } from '../components/ui';
 import type { CommandItem } from '../components/ui';
 import { processImageForUpload, validateImageFile, ACCEPTED_IMAGE_TYPES } from '../imageUtils';
 import { logClinicalAction } from '../utils/auditLogger';
@@ -60,6 +60,7 @@ const AdminPage: React.FC<AdminPageProps> = ({
   viewAsTestPatient, onSetViewAsTestPatient, onSeedDummyPatient,
 }) => {
   const { toast } = useToast();
+  const { confirm, ConfirmHost } = useConfirm();
   // ── UI state ───────────────────────────────────────────────────────────────
   const [activeTab, setActiveTab]                   = useState<AdminTab>('today');
   const [practiceTab, setPracticeTab]               = useState<PracticeTab>('overview');
@@ -253,6 +254,29 @@ const AdminPage: React.FC<AdminPageProps> = ({
       toast.error('Upload failed', { description: msg });
     } finally {
       setIsUploading(false);
+    }
+  };
+
+  const onDeleteGalleryItem = async (clientId: string, item: GalleryItem) => {
+    const clientRef = doc(db, 'clients', clientId);
+    try {
+      // Race-safe: re-read the live gallery array and filter (adds use arrayUnion).
+      await runTransaction(db, async (tx) => {
+        const snap = await tx.get(clientRef);
+        const existing = (snap.data()?.gallery as GalleryItem[] | undefined) || [];
+        tx.update(clientRef, cleanData({ gallery: existing.filter(g => g.id !== item.id) }));
+      });
+      // Best-effort Storage cleanup — admin clinical photos live under gallery/.
+      // Patient/assessment photos may live elsewhere or already be gone; ignore failures.
+      try {
+        await deleteObject(ref(storage, item.url));
+      } catch {
+        /* ignore cleanup failures */
+      }
+      await logClinicalAction(user?.id || 'admin', 'delete_gallery_item', clientId, `Deleted photo: ${item.label}`);
+      toast.success('Photo deleted');
+    } catch {
+      toast.error('Could not delete the photo', { description: 'Please try again.' });
     }
   };
 
@@ -770,6 +794,21 @@ const AdminPage: React.FC<AdminPageProps> = ({
     }
   };
 
+  const onDeletePayment = async (clientId: string, paymentId: string) => {
+    const ref = doc(db, 'clients', clientId);
+    try {
+      await runTransaction(db, async (tx) => {
+        const snap = await tx.get(ref);
+        const existing = (snap.data()?.payments as Payment[] | undefined) || [];
+        tx.update(ref, cleanData({ payments: existing.filter(p => p.id !== paymentId) }));
+      });
+      await logClinicalAction(user?.id || 'admin', 'delete_payment', clientId, `Deleted payment ${paymentId}`);
+      toast.success('Payment entry deleted');
+    } catch {
+      toast.error('Could not delete the payment', { description: 'Please try again.' });
+    }
+  };
+
   const handleSendForm = async (formId: string) => {
     if (!selectedClientId) return;
     const form = FORMS.find(f => f.id === formId);
@@ -867,7 +906,7 @@ const AdminPage: React.FC<AdminPageProps> = ({
     onMarkNotificationRead, onMarkAdminNotificationRead,
     tasks, onAddTask, onUpdateTask, onDeleteTask,
     onSaveTreatmentPlan,
-    onAddPayment, onUpdatePayment,
+    onAddPayment, onUpdatePayment, onDeletePayment, onDeleteGalleryItem,
     clinicians: CLINICIANS,
     // State
     activeTab, setActiveTab,
@@ -916,7 +955,7 @@ const AdminPage: React.FC<AdminPageProps> = ({
     onMarkNotificationRead, onMarkAdminNotificationRead, openPatient,
     tasks, onAddTask, onUpdateTask, onDeleteTask,
     onSaveTreatmentPlan,
-    onAddPayment, onUpdatePayment, CLINICIANS,
+    onAddPayment, onUpdatePayment, onDeletePayment, onDeleteGalleryItem, CLINICIANS,
     activeTab, practiceTab, effectiveAdminType, selectedClientId, clientRecordTab,
     isSidebarOpen, isSidebarCollapsed, lightboxImage,
     uploadProgress, showBookingModal, appointmentView, currentCalendarDate,
@@ -1595,14 +1634,38 @@ const AdminPage: React.FC<AdminPageProps> = ({
         {lightboxImage && (
           <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-obsidian/95 animate-fade-in" onClick={() => setLightboxImage(null)}>
             <img src={lightboxImage.url} alt={lightboxImage.label} className="max-w-full max-h-[90dvh] object-contain rounded-md" />
-            <button onClick={() => setLightboxImage(null)} aria-label="Close photo viewer" className="absolute top-4 right-4 w-9 h-9 bg-white/10 rounded-md flex items-center justify-center text-white hover:bg-white/20 transition-all">
-              <X size={15} />
-            </button>
+            <div className="absolute top-4 right-4 flex items-center gap-2">
+              <button
+                onClick={async (e) => {
+                  e.stopPropagation();
+                  const item = lightboxImage;
+                  if (!item || !selectedClientId) return;
+                  const ok = await confirm({
+                    title: 'Delete this photo?',
+                    description: `"${item.label}" will be permanently removed from the patient's progress photos. This can't be undone.`,
+                    confirmLabel: 'Delete photo',
+                    tone: 'danger',
+                  });
+                  if (!ok) return;
+                  setLightboxImage(null);
+                  await onDeleteGalleryItem(selectedClientId, item);
+                }}
+                aria-label="Delete photo"
+                title="Delete photo"
+                className="w-9 h-9 bg-white/10 rounded-md flex items-center justify-center text-white hover:bg-danger hover:text-white transition-all"
+              >
+                <Trash2 size={15} />
+              </button>
+              <button onClick={() => setLightboxImage(null)} aria-label="Close photo viewer" className="w-9 h-9 bg-white/10 rounded-md flex items-center justify-center text-white hover:bg-white/20 transition-all">
+                <X size={15} />
+              </button>
+            </div>
             <div className="absolute bottom-5 left-1/2 -translate-x-1/2 bg-white/10 text-white px-3 py-1.5 rounded-md text-xs text-center">
               {lightboxImage.label} · {new Date(lightboxImage.uploadedAt).toLocaleDateString()}
             </div>
           </div>
         )}
+        {ConfirmHost}
 
         {/* Command palette (Cmd+K / Ctrl+K) */}
         <CommandPalette

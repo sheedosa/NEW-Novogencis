@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Card } from '../../components/ui';
 import { Button, StatusBadge } from '../../components/ui';
-import { User as UserIcon, PlusCircle, Send, StickyNote, RefreshCw, CheckCircle, AlertCircle, Clock, BookText } from 'lucide-react';
+import { User as UserIcon, PlusCircle, Send, StickyNote, RefreshCw, CheckCircle, AlertCircle, Clock, BookText, Pencil, Trash2, X, Check } from 'lucide-react';
 import { InternalNoteEntry, Template } from '../../types';
 
 // Re-export StatusBadge for any legacy import sites that look here
@@ -147,6 +147,10 @@ interface InternalNotesEditorProps {
   authorId: string;
   /** Persist a new entry. The component handles ID + timestamps itself. */
   onAddEntry: (entry: InternalNoteEntry) => Promise<void>;
+  /** Edit an existing entry's body in place (optional — enables the pencil). */
+  onUpdateEntry?: (id: string, body: string) => Promise<void>;
+  /** Delete an existing entry (optional — enables the trash). */
+  onDeleteEntry?: (id: string) => Promise<void>;
 }
 
 export const InternalNotesEditor: React.FC<InternalNotesEditorProps> = ({
@@ -155,9 +159,37 @@ export const InternalNotesEditor: React.FC<InternalNotesEditorProps> = ({
   authorName,
   authorId,
   onAddEntry,
+  onUpdateEntry,
+  onDeleteEntry,
 }) => {
   const [draft, setDraft] = useState('');
   const [status, setStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editDraft, setEditDraft] = useState('');
+  const [rowBusyId, setRowBusyId] = useState<string | null>(null);
+
+  const beginEdit = (id: string, body: string) => { setEditingId(id); setEditDraft(body); };
+  const cancelEdit = () => { setEditingId(null); setEditDraft(''); };
+  const saveEdit = async (id: string) => {
+    const body = editDraft.trim();
+    if (!body || !onUpdateEntry) { cancelEdit(); return; }
+    setRowBusyId(id);
+    try {
+      await onUpdateEntry(id, body);
+      cancelEdit();
+    } finally {
+      setRowBusyId(null);
+    }
+  };
+  const removeEntry = async (id: string) => {
+    if (!onDeleteEntry) return;
+    setRowBusyId(id);
+    try {
+      await onDeleteEntry(id);
+    } finally {
+      setRowBusyId(null);
+    }
+  };
 
   const sortedEntries = [...entries].sort(
     (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
@@ -191,7 +223,7 @@ export const InternalNotesEditor: React.FC<InternalNotesEditorProps> = ({
       <div className="flex items-center justify-between mb-3">
         <div
           className="flex items-center gap-2"
-          title="Visible only to clinic staff. Use this for clinical observations, concerns, and reminders. Entries are permanent and timestamped."
+          title="Visible only to clinic staff. Use this for clinical observations, concerns, and reminders. Entries are timestamped and attributed; you can edit or delete them."
         >
           <StickyNote size={15} className="text-muted" />
           <h3 className="text-sm font-medium text-obsidian">Internal clinical notes</h3>
@@ -208,7 +240,7 @@ export const InternalNotesEditor: React.FC<InternalNotesEditorProps> = ({
         <textarea
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
-          placeholder="Add a clinical note — what was observed, decided, or planned. Entries are timestamped and cannot be edited."
+          placeholder="Add a clinical note — what was observed, decided, or planned. Entries are timestamped and attributed."
           className="min-h-[80px] resize-none text-sm leading-relaxed"
           disabled={status === 'saving'}
         />
@@ -216,7 +248,7 @@ export const InternalNotesEditor: React.FC<InternalNotesEditorProps> = ({
           <p className="text-xs text-hint">
             {draft.trim().length > 0
               ? `Will save as ${authorName || 'you'} · ${new Date().toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}`
-              : 'Each entry is permanent and timestamped — write as you would in a clinical record.'}
+              : 'Each entry is timestamped and attributed — hover an entry to edit or delete it.'}
           </p>
           <Button
             variant="primary"
@@ -242,16 +274,42 @@ export const InternalNotesEditor: React.FC<InternalNotesEditorProps> = ({
           <div className="flex flex-col gap-3">
             {sortedEntries.map((entry) => {
               const { abs, rel } = formatNoteTimestamp(entry.createdAt);
+              const isEditing = editingId === entry.id;
+              const busy = rowBusyId === entry.id;
               return (
-                <div key={entry.id} className="border-l-2 border-sand pl-3 py-0.5">
+                <div key={entry.id} className="group border-l-2 border-sand pl-3 py-0.5">
                   <div className="flex items-baseline justify-between gap-2 mb-1">
                     <span className="text-xs font-medium text-obsidian">
                       {entry.authorName || 'Clinician'}
                     </span>
-                    <span className="text-xs text-hint" title={abs}>{rel}</span>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <span className="text-xs text-hint" title={abs}>{rel}</span>
+                      {(onUpdateEntry || onDeleteEntry) && !isEditing && (
+                        <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
+                          {onUpdateEntry && (
+                            <button type="button" onClick={() => beginEdit(entry.id, entry.body)} disabled={busy} className="btn-icon !w-6 !h-6" aria-label="Edit note" title="Edit note"><Pencil size={12} /></button>
+                          )}
+                          {onDeleteEntry && (
+                            <button type="button" onClick={() => removeEntry(entry.id)} disabled={busy} className="btn-icon !w-6 !h-6 hover:!text-danger" aria-label="Delete note" title="Delete note"><Trash2 size={12} /></button>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </div>
-                  <p className="text-sm text-obsidian whitespace-pre-wrap leading-relaxed">{entry.body}</p>
-                  <p className="text-xs text-hint mt-1 font-mono">{abs}</p>
+                  {isEditing ? (
+                    <div className="mt-1">
+                      <textarea value={editDraft} onChange={(e) => setEditDraft(e.target.value)} className="min-h-[70px] w-full resize-none text-sm leading-relaxed" disabled={busy} autoFocus />
+                      <div className="flex items-center justify-end gap-2 mt-1.5">
+                        <button type="button" onClick={cancelEdit} disabled={busy} className="btn-icon !w-7 !h-7" aria-label="Cancel edit" title="Cancel"><X size={13} /></button>
+                        <button type="button" onClick={() => saveEdit(entry.id)} disabled={busy || !editDraft.trim()} className="btn-icon !w-7 !h-7 hover:!text-success" aria-label="Save note" title="Save"><Check size={13} /></button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <p className="text-sm text-obsidian whitespace-pre-wrap leading-relaxed">{entry.body}</p>
+                      <p className="text-xs text-hint mt-1 font-mono">{abs}</p>
+                    </>
+                  )}
                 </div>
               );
             })}
@@ -279,12 +337,16 @@ export const InternalNotesEditor: React.FC<InternalNotesEditorProps> = ({
 export const FeedbackEditor = ({
   initialFeedback,
   onSave,
+  onRemove,
 }: {
   initialFeedback: string;
   onSave: (feedback: string) => Promise<void>;
+  /** Clear the feedback entirely (optional — enables the "Remove" link). */
+  onRemove?: () => Promise<void>;
 }) => {
   const [feedback, setFeedback] = useState(initialFeedback);
   const [status, setStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [removing, setRemoving] = useState(false);
   useEffect(() => { setFeedback(initialFeedback); setStatus('idle'); }, [initialFeedback]);
 
   const handleSubmit = async () => {
@@ -297,6 +359,12 @@ export const FeedbackEditor = ({
     } catch {
       setStatus('error');
     }
+  };
+
+  const handleRemove = async () => {
+    if (!onRemove) return;
+    setRemoving(true);
+    try { await onRemove(); } finally { setRemoving(false); }
   };
 
   const isUnchanged = feedback === initialFeedback;
@@ -321,6 +389,16 @@ export const FeedbackEditor = ({
         {status === 'error'  && 'Failed — retry'}
         {status === 'idle'   && (initialFeedback ? 'Update feedback' : 'Submit feedback')}
       </Button>
+      {onRemove && initialFeedback.trim() && (
+        <button
+          type="button"
+          onClick={handleRemove}
+          disabled={removing}
+          className="self-end text-xs text-muted hover:text-danger transition-colors disabled:opacity-50"
+        >
+          {removing ? 'Removing…' : 'Remove feedback'}
+        </button>
+      )}
     </div>
   );
 };

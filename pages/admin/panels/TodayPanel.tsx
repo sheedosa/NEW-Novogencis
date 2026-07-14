@@ -5,11 +5,13 @@ import {
   CalendarDays, CalendarX2, AlertTriangle, FileText, CreditCard,
   StickyNote, ArrowRight, Plus, Users as UsersIcon,
   CheckCircle, Sun, Phone, TrendingUp, ClipboardList, MessageSquare,
+  Trash2, X as XIcon, UserCog,
 } from 'lucide-react';
 import {
   PageHeader, Card, CardHeader, Stat, Button, StatusBadge, EmptyState,
-  Skeleton,
+  Skeleton, RowActions, useConfirm, useToast,
 } from '../../../components/ui';
+import type { RowAction } from '../../../components/ui';
 import { Appointment } from '../../../types';
 
 interface PrepFlag {
@@ -59,7 +61,53 @@ function TodayPanel() {
     handleSidebarClick,
     openPatient,
     getInitials,
+    onUpdateAppointment,
+    onDeleteAppointment,
   } = useAdminContext();
+
+  const { confirm, ConfirmHost } = useConfirm();
+  const { toast } = useToast();
+
+  // Cancel / delete a booking straight from the run sheet — same clear, confirmed
+  // actions the Schedule offers, so a doctor never has to hunt for them.
+  const cancelBooking = async (apt: Appointment) => {
+    if (apt.status === 'Cancelled') return;
+    const ok = await confirm({
+      title: 'Cancel this booking?',
+      description: `${apt.clientName}'s ${apt.type} at ${apt.time} will be marked Cancelled and the slot freed. The booking stays in the record.`,
+      confirmLabel: 'Cancel booking',
+      tone: 'danger',
+    });
+    if (!ok) return;
+    try {
+      await onUpdateAppointment(apt.id, { status: 'Cancelled' });
+      toast.success('Booking cancelled');
+    } catch {
+      toast.error('Could not cancel the booking', { description: 'Please try again.' });
+    }
+  };
+  const deleteBooking = async (apt: Appointment) => {
+    const ok = await confirm({
+      title: 'Delete this appointment?',
+      description: `This permanently removes ${apt.clientName}'s ${apt.type} at ${apt.time}. This can't be undone.`,
+      confirmLabel: 'Delete',
+      tone: 'danger',
+    });
+    if (!ok) return;
+    try {
+      await onDeleteAppointment(apt.id);
+      toast.success('Appointment deleted');
+    } catch {
+      toast.error('Could not delete the appointment', { description: 'Please try again.' });
+    }
+  };
+  const apptActions = (apt: Appointment): RowAction[] => [
+    { label: 'Open patient', icon: <UserCog size={13} />, onClick: () => openPatient(apt.clientId) },
+    ...(apt.status !== 'Cancelled'
+      ? [{ label: 'Cancel booking', icon: <XIcon size={13} />, onClick: () => cancelBooking(apt), danger: true } as RowAction]
+      : []),
+    { label: 'Delete', icon: <Trash2 size={13} />, onClick: () => deleteBooking(apt), danger: true },
+  ];
 
   // 400ms perceived-loading window so the page feels responsive instead of
   // popping content in one cycle later. After the window, real empty states show.
@@ -152,6 +200,7 @@ function TodayPanel() {
 
   return (
     <div className="animate-fade-up page-stack">
+      {ConfirmHost}
       <PageHeader
         title={`${greeting}${firstName ? ', ' + firstName : ''}`}
         subtitle={friendlyDate}
@@ -351,10 +400,13 @@ function TodayPanel() {
                   const flags = getPrepFlags(apt, messages, filteredClients);
                   const client = filteredClients.find(c => c.id === apt.clientId);
                   return (
-                    <button
+                    <div
                       key={apt.id}
+                      role="button"
+                      tabIndex={0}
                       onClick={() => openPatient(apt.clientId)}
-                      className={`w-full text-left px-4 py-3 hover:bg-cream/60 transition-colors ${idx > 0 ? 'border-t border-cream' : ''}`}
+                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openPatient(apt.clientId); } }}
+                      className={`w-full text-left px-4 py-3 hover:bg-cream/60 transition-colors cursor-pointer ${idx > 0 ? 'border-t border-cream' : ''}`}
                     >
                       {/* Line 1 is constant height: time | patient | status.
                           Prep flags render on their own line beneath, aligned
@@ -382,6 +434,7 @@ function TodayPanel() {
                           </div>
                         </div>
                         <StatusBadge status={apt.status} />
+                        <RowActions actions={apptActions(apt)} />
                       </div>
                       {flags.length > 0 && (
                         <div className="flex flex-wrap gap-1 mt-1.5 pl-[73px]">
@@ -400,7 +453,7 @@ function TodayPanel() {
                           ))}
                         </div>
                       )}
-                    </button>
+                    </div>
                   );
                 })}
               </div>

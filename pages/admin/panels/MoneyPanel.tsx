@@ -3,11 +3,12 @@ import { useAdminContext } from '../context';
 import { Payment } from '../../../types';
 import {
   CreditCard, ArrowRight, Search, Check, AlertTriangle, Download,
-  Receipt, TrendingUp, Clock, Hourglass,
+  Receipt, TrendingUp, Clock, Hourglass, Trash2, UserCog,
 } from 'lucide-react';
 import {
-  PageHeader, Card, CardHeader, Button, Stat, EmptyState, Badge, useToast,
+  PageHeader, Card, CardHeader, Button, Stat, EmptyState, Badge, useToast, useConfirm, RowActions,
 } from '../../../components/ui';
+import type { RowAction } from '../../../components/ui';
 import { localTodayISO } from '../../../utils/time';
 
 type Filter = 'outstanding' | 'paid' | 'all';
@@ -23,6 +24,7 @@ function MoneyPanel() {
     filteredClients,
     appointments,
     onUpdatePayment,
+    onDeletePayment,
     onUpdateAppointment,
     openPatient,
   } = useAdminContext();
@@ -30,6 +32,22 @@ function MoneyPanel() {
   const [filter, setFilter] = useState<Filter>('outstanding');
   const [search, setSearch] = useState('');
   const { toast } = useToast();
+  const { confirm, ConfirmHost } = useConfirm();
+
+  const deletePayment = async (clientId: string, p: Payment) => {
+    const ok = await confirm({
+      title: 'Delete this payment entry?',
+      description: `"${p.description}" (${formatGBP(p.amount, p.currency || 'GBP')}) will be permanently removed from this patient's ledger. This can't be undone.`,
+      confirmLabel: 'Delete entry',
+      tone: 'danger',
+    });
+    if (!ok) return;
+    await onDeletePayment(clientId, p.id);
+  };
+  const paymentActions = (clientId: string, p: Payment): RowAction[] => [
+    { label: 'Open patient', icon: <UserCog size={13} />, onClick: () => openPatient(clientId, 'financials') },
+    { label: 'Delete entry', icon: <Trash2 size={13} />, onClick: () => deletePayment(clientId, p), danger: true },
+  ];
   // Payment currently being marked paid — disables its button so a slow
   // write can't be double-fired, and failures surface instead of silently
   // leaving the row unchanged while the doctor believes it saved.
@@ -245,6 +263,7 @@ function MoneyPanel() {
 
   return (
     <div className="animate-fade-up flex flex-col gap-4">
+      {ConfirmHost}
       <PageHeader
         title="Money"
         subtitle="Payments across all patients this month"
@@ -455,6 +474,7 @@ function MoneyPanel() {
                           {busyPaymentId === p.id ? 'Saving…' : 'Mark paid'}
                         </Button>
                       )}
+                      <RowActions actions={paymentActions(row.clientId, p)} />
                     </div>
                     {p.reference && (
                       <p className="text-xs text-hint font-mono">{p.reference}</p>
@@ -495,6 +515,7 @@ function MoneyPanel() {
                           {busyPaymentId === p.id ? 'Saving…' : 'Mark paid'}
                         </Button>
                       )}
+                      <RowActions actions={paymentActions(row.clientId, p)} />
                     </div>
                   </div>
                 </div>

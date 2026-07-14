@@ -13,8 +13,9 @@ import {
 } from 'lucide-react';
 import AppointmentNotesDrawer from '../AppointmentNotesDrawer';
 import {
-  PageHeader, Card, Button, StatusBadge, EmptyState, Badge, Modal, useConfirm, useToast,
+  PageHeader, Card, Button, StatusBadge, EmptyState, Badge, Modal, useConfirm, useToast, RowActions,
 } from '../../../components/ui';
+import type { RowAction } from '../../../components/ui';
 
 type View = 'week' | 'day' | 'list';
 type DoctorFilter = 'all' | 'female' | 'male' | 'mine';
@@ -123,6 +124,35 @@ function CalendarPanel() {
       toast.error('Could not delete the appointment', { description: 'It is still on the schedule — please try again.' });
     }
   };
+
+  // Soft-cancel: keeps the booking in the record but marks it Cancelled and
+  // frees the slot. This is the clear, reversible alternative to a hard delete.
+  const cancelBooking = async (apt: Appointment) => {
+    if (apt.status === 'Cancelled') return;
+    const ok = await confirm({
+      title: 'Cancel this booking?',
+      description: `${apt.clientName}'s ${apt.type} on ${apt.date} at ${apt.time} will be marked Cancelled and the slot freed. The booking stays in the record.`,
+      confirmLabel: 'Cancel booking',
+      tone: 'danger',
+    });
+    if (!ok) return;
+    try {
+      await onUpdateAppointment(apt.id, { status: 'Cancelled' });
+      toast.success('Booking cancelled');
+    } catch {
+      toast.error('Could not cancel the booking', { description: 'Please try again.' });
+    }
+  };
+
+  // One consistent action set for every appointment surface (grid rows, list, agenda).
+  const apptActions = (apt: Appointment): RowAction[] => [
+    { label: 'Edit / reschedule', icon: <Pencil size={13} />, onClick: () => openEdit(apt) },
+    { label: 'Notes & status', icon: <StickyNote size={13} />, onClick: () => setNotesAppt(apt) },
+    ...(apt.status !== 'Cancelled'
+      ? [{ label: 'Cancel booking', icon: <XIcon size={13} />, onClick: () => cancelBooking(apt), danger: true } as RowAction]
+      : []),
+    { label: 'Delete', icon: <Trash2 size={13} />, onClick: () => handleDelete(apt.id, apt.clientName), danger: true },
+  ];
 
   // Default to day view below 768px — matches the Week toggle's `md:` visibility
   // so a small-tablet user is never defaulted into a view whose button is hidden.
@@ -401,8 +431,8 @@ function CalendarPanel() {
                           width: `calc(${colWidth} - 4px)`,
                           height: `${Math.max(24, ((apt.durationMin ?? 30) / 60) * SLOT_HEIGHT)}px`,
                         }}
-                        onClick={() => openBookingModal(apt.clientId)}
-                        title={`${apt.clientName} · ${apt.type} · ${apt.time}`}
+                        onClick={() => openEdit(apt)}
+                        title={`${apt.clientName} · ${apt.type} · ${apt.time} — click to edit, reschedule or cancel`}
                       >
                         <p className="text-xs font-medium truncate">{apt.time?.split(' ')[0]} {getFirstName(apt.clientName)}</p>
                         <p className="text-[10px] text-muted truncate">{apt.type}</p>
@@ -466,6 +496,7 @@ function CalendarPanel() {
                         ) : (
                           <StatusBadge status={apt.status} />
                         )}
+                        <RowActions actions={apptActions(apt)} />
                       </div>
                     ))}
                   </div>
@@ -523,8 +554,8 @@ function CalendarPanel() {
                     right: '8px',
                     height: `${Math.max(36, ((apt.durationMin ?? 30) / 60) * SLOT_HEIGHT)}px`,
                   }}
-                  onClick={() => openBookingModal(apt.clientId)}
-                  title={apt.clientName}
+                  onClick={() => openEdit(apt)}
+                  title={`${apt.clientName} — click to edit, reschedule or cancel`}
                 >
                   <div className="flex items-center justify-between gap-2">
                     <div className="min-w-0">
@@ -605,29 +636,7 @@ function CalendarPanel() {
                       <option key={s} value={s}>{s}</option>
                     ))}
                   </select>
-                  <div className="flex items-center gap-1 shrink-0">
-                    <button
-                      onClick={() => openEdit(apt)}
-                      className="btn-icon"
-                      title="Edit appointment"
-                    >
-                      <Pencil size={13} />
-                    </button>
-                    <button
-                      onClick={() => setNotesAppt(apt)}
-                      className="btn-icon"
-                      title="Notes & status"
-                    >
-                      <StickyNote size={13} />
-                    </button>
-                    <button
-                      onClick={() => handleDelete(apt.id, apt.clientName)}
-                      className="btn-icon hover:!text-danger"
-                      title="Delete"
-                    >
-                      <Trash2 size={13} />
-                    </button>
-                  </div>
+                  <RowActions actions={apptActions(apt)} />
                 </div>
               ))}
             </div>
@@ -643,11 +652,19 @@ function CalendarPanel() {
         subtitle={editAppt ? `${editAppt.clientName} · ${editAppt.type}` : undefined}
         size="md"
         footer={
-          <div className="flex gap-3 justify-end">
-            <button type="button" onClick={() => setEditAppt(null)} className="px-4 py-2 text-sm text-muted hover:text-obsidian">Cancel</button>
-            <button type="submit" form="cal-edit-form" disabled={editSaving || !editForm.date || !editForm.time} className="bg-primary text-obsidian px-5 py-2 rounded-md text-sm font-medium disabled:opacity-50">
-              {editSaving ? 'Saving…' : 'Save changes'}
-            </button>
+          <div className="flex items-center gap-2">
+            {editAppt && editAppt.status !== 'Cancelled' && (
+              <button type="button" onClick={() => { const a = editAppt; setEditAppt(null); cancelBooking(a); }} className="px-3 py-2 text-sm font-medium text-danger hover:bg-danger-bg rounded-md transition-colors">Cancel booking</button>
+            )}
+            {editAppt && (
+              <button type="button" onClick={() => { const a = editAppt; setEditAppt(null); handleDelete(a.id, a.clientName); }} className="px-3 py-2 text-sm font-medium text-danger hover:bg-danger-bg rounded-md transition-colors">Delete</button>
+            )}
+            <div className="flex gap-3 justify-end ml-auto">
+              <button type="button" onClick={() => setEditAppt(null)} className="px-4 py-2 text-sm text-muted hover:text-obsidian">Close</button>
+              <button type="submit" form="cal-edit-form" disabled={editSaving || !editForm.date || !editForm.time} className="bg-primary text-obsidian px-5 py-2 rounded-md text-sm font-medium disabled:opacity-50">
+                {editSaving ? 'Saving…' : 'Save changes'}
+              </button>
+            </div>
           </div>
         }
       >

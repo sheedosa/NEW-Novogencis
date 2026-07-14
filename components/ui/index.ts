@@ -18,3 +18,5 @@ export { ToastProvider, useToast, notify } from './Toast';
 export type { ToastTone } from './Toast';
 export { useConfirm } from './ConfirmDialog';
 export type { ConfirmOptions } from './ConfirmDialog';
+export { RowActions } from './RowActions';
+export type { RowAction } from './RowActions';
