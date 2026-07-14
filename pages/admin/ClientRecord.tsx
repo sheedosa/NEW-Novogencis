@@ -8,18 +8,19 @@ import {
   Camera, X, Plus, Image as ImageIcon, ArrowLeft, CheckCircle,
   CalendarClock, FileText, CreditCard, ChevronDown, Send, GitCompare,
   Stethoscope, Pencil, Check, Trash2, Package as PackageIcon,
-  User as UserIcon, MessageSquare, Activity, Receipt,
-  Phone, Mail, MapPin, Siren, Calendar as CalendarIcon,
+  MessageSquare, Receipt, Ban,
+  Phone, Mail, Siren,
 } from 'lucide-react';
-import { Card as UICard, CardHeader, Button as UIButton, Badge as UIBadge, StatusBadge as UIStatusBadge, EmptyState as UIEmptyState, useToast, Modal as UIModal, useConfirm } from '../../components/ui';
+import { Card as UICard, CardHeader, Button as UIButton, Badge as UIBadge, StatusBadge as UIStatusBadge, EmptyState as UIEmptyState, useToast, Modal as UIModal, useConfirm, RowActions } from '../../components/ui';
+import type { RowAction } from '../../components/ui';
 
-type ViewTab = 'snapshot' | 'plan' | 'files' | 'activity' | 'money';
+type ViewTab = 'appointments' | 'clinical' | 'payments';
 import { requestCheckout, CreateCheckoutInput } from '../../firebase';
 import { logClinicalAction } from '../../utils/auditLogger';
 import { relativeTime, absoluteDateTime } from '../../utils/relativeTime';
 import { notifyFeedbackReceived } from '../../utils/notificationService';
 import { parseTime12h, localTodayISO } from '../../utils/time';
-import { Appointment, TreatmentPlan, TreatmentPhase, Payment } from '../../types';
+import { Appointment, TreatmentPlan, TreatmentPhase, Payment, GalleryItem } from '../../types';
 
 const ClientRecord: React.FC = () => {
   const { toast } = useToast();
@@ -67,6 +68,8 @@ const ClientRecord: React.FC = () => {
     onSaveTreatmentPlan,
     onAddPayment,
     onUpdatePayment,
+    onDeletePayment,
+    onDeleteGalleryItem,
   } = useAdminContext();
 
   const [rescheduleApt, setRescheduleApt] = useState<Appointment | null>(null);
@@ -112,40 +115,49 @@ const ClientRecord: React.FC = () => {
   const [filesSubTab, setFilesSubTab] = useState<'forms' | 'photos'>('photos');
   /** Click-toggle "Send new form" dropdown (was hover-only, broken on touch). */
   const [showSendFormMenu, setShowSendFormMenu] = useState(false);
-  /** Separate state for the Activity tab's quick-action form menu. */
+  /** Quick-action "Send form" menu inside the Message drawer. */
   const [showActivityFormMenu, setShowActivityFormMenu] = useState(false);
+  /** Conversation drawer (opened from the header "Message" button). */
+  const [showMessageDrawer, setShowMessageDrawer] = useState(false);
+
+  // A deep-link to the conversation (clientRecordTab === 'communications', e.g. a
+  // "new message" notification) opens the Message drawer instead of a tab.
+  useEffect(() => {
+    if (clientRecordTab === 'communications') setShowMessageDrawer(true);
+  }, [clientRecordTab]);
 
   // Mark inbound patient messages read once the doctor opens the conversation
-  // (Activity/Communications tab) — clears the stuck unread badges on the
-  // sidebar, Today "needs you", and the tab dot. Mirrors the patient side.
+  // drawer — clears the stuck unread badges on the sidebar, Today "needs you",
+  // and the header dot. Mirrors the patient side.
   useEffect(() => {
-    if (!selectedClient || clientRecordTab !== 'communications') return;
+    if (!selectedClient || !showMessageDrawer) return;
     messages
       .filter(m => m.senderId === selectedClient.id && !m.read)
       .forEach(m => { void onMarkMessageRead(m.id); });
-  }, [selectedClient, clientRecordTab, messages, onMarkMessageRead]);
+  }, [selectedClient, showMessageDrawer, messages, onMarkMessageRead]);
 
   if (!selectedClient) return null;
 
   // Normalize the canonical ClientRecordTab state (kept for back-compat with external setters)
   // into a 5-tab view used by this component.
+  // Map the 7 canonical deep-link tabs onto the 3 restructured views.
+  // Clinical Notes holds feedback/intake/forms/photos; the treatment plan lives
+  // with Appointments; the conversation ('communications') opens the drawer.
   const incomingToView: Record<ClientRecordTab, ViewTab> = {
-    overview: 'snapshot',
-    assessment: 'snapshot', // intake now lives inside Snapshot — alias kept so deep links still land
-    treatment: 'plan',
-    forms: 'files',
-    gallery: 'files',
-    communications: 'activity',
-    financials: 'money',
+    overview: 'clinical',
+    assessment: 'clinical',
+    treatment: 'appointments',
+    forms: 'clinical',
+    gallery: 'clinical',
+    communications: 'appointments', // drawer opens via the effect above; land on Appointments behind it
+    financials: 'payments',
   };
   const viewToCanonical: Record<ViewTab, ClientRecordTab> = {
-    snapshot: 'overview',
-    plan: 'treatment',
-    files: 'forms',
-    activity: 'communications',
-    money: 'financials',
+    appointments: 'treatment',
+    clinical: 'overview',
+    payments: 'financials',
   };
-  const viewTab: ViewTab = incomingToView[clientRecordTab] ?? 'snapshot';
+  const viewTab: ViewTab = incomingToView[clientRecordTab] ?? 'appointments';
   const setViewTab = (tab: ViewTab) => setClientRecordTab(viewToCanonical[tab]);
 
   // Derived data used across the redesigned record
@@ -300,6 +312,117 @@ const ClientRecord: React.FC = () => {
     }
   };
 
+  // Soft-cancel: keeps the booking in the record, marks it Cancelled, frees the slot.
+  const handleCancelAppointment = async (apt: Appointment) => {
+    if (apt.status === 'Cancelled') return;
+    const ok = await confirm({
+      title: 'Cancel this booking?',
+      description: `${apt.type} on ${apt.date} at ${apt.time} will be marked Cancelled and the slot freed. The booking stays in the record.`,
+      confirmLabel: 'Cancel booking',
+      tone: 'danger',
+    });
+    if (!ok) return;
+    try {
+      await onUpdateAppointment(apt.id, { status: 'Cancelled' });
+      toast.success('Booking cancelled');
+    } catch {
+      toast.error('Could not cancel the booking', { description: 'Please try again.' });
+    }
+  };
+
+  // One consistent action set for every appointment row in the record.
+  const apptRowActions = (apt: Appointment): RowAction[] => [
+    { label: 'Edit / reschedule', icon: <Pencil size={13} />, onClick: () => openReschedule(apt) },
+    ...(apt.status !== 'Cancelled'
+      ? [{ label: 'Cancel booking', icon: <Ban size={13} />, onClick: () => handleCancelAppointment(apt), danger: true } as RowAction]
+      : []),
+    { label: 'Delete', icon: <Trash2 size={13} />, onClick: () => handleDeleteAppointment(apt), danger: true },
+  ];
+
+  // Delete a treatment-plan phase (filters the plan's phases array via onSaveTreatmentPlan).
+  const handleDeletePhase = async (phaseId: string, phaseName: string) => {
+    const plan = selectedClient.treatmentPlan;
+    if (!plan) return;
+    const linked = appointments.filter(a => a.clientId === selectedClient.id && a.phaseId === phaseId
+      && (a.status === 'Confirmed' || a.status === 'Pending')).length;
+    const ok = await confirm({
+      title: `Delete phase "${phaseName}"?`,
+      description: linked > 0
+        ? `This removes the phase from the treatment plan. ${linked} upcoming booking${linked > 1 ? 's are' : ' is'} still linked to it and will NOT be deleted — cancel those separately if needed.`
+        : 'This removes the phase from the treatment plan. This can\'t be undone.',
+      confirmLabel: 'Delete phase',
+      tone: 'danger',
+    });
+    if (!ok) return;
+    try {
+      await onSaveTreatmentPlan(selectedClient.id, { ...plan, phases: plan.phases.filter(p => p.id !== phaseId) });
+      await logClinicalAction(user?.id || 'admin', 'delete_phase', selectedClient.id, `Deleted plan phase: ${phaseName}`);
+      toast.success('Phase deleted');
+    } catch {
+      toast.error('Could not delete the phase', { description: 'Please try again.' });
+    }
+  };
+
+  // Internal-note edit / delete (replace-array via onUpdateClient).
+  const handleUpdateNote = async (id: string, body: string) => {
+    const next = (selectedClient.internalNoteEntries || []).map(n => n.id === id ? { ...n, body } : n);
+    await onUpdateClient(selectedClient.id, { internalNoteEntries: next });
+    await logClinicalAction(user?.id || 'admin', 'edit_internal_note', selectedClient.id, `Edited internal note ${id}`);
+  };
+  const handleDeleteNote = async (id: string) => {
+    const ok = await confirm({
+      title: 'Delete this note?',
+      description: 'This permanently removes the internal note from the record. This can\'t be undone.',
+      confirmLabel: 'Delete note',
+      tone: 'danger',
+    });
+    if (!ok) return;
+    const next = (selectedClient.internalNoteEntries || []).filter(n => n.id !== id);
+    await onUpdateClient(selectedClient.id, { internalNoteEntries: next });
+    await logClinicalAction(user?.id || 'admin', 'delete_internal_note', selectedClient.id, `Deleted internal note ${id}`);
+    toast.success('Note deleted');
+  };
+
+  // Remove (clear) the client-visible clinical feedback.
+  const handleRemoveFeedback = async () => {
+    const ok = await confirm({
+      title: 'Remove clinical feedback?',
+      description: 'This clears the feedback shown to the patient. You can write new feedback at any time.',
+      confirmLabel: 'Remove feedback',
+      tone: 'danger',
+    });
+    if (!ok) return;
+    await onUpdateClient(selectedClient.id, {
+      assessmentData: { ...selectedClient.assessmentData, clinicalFeedback: '' },
+    });
+    await logClinicalAction(user?.id || 'admin', 'remove_feedback', selectedClient.id, 'Removed clinical feedback');
+    toast.success('Feedback removed');
+  };
+
+  // Delete a progress photo (via the context handler; best-effort Storage cleanup).
+  const handleDeletePhoto = async (item: { id: string; url: string; label: string }) => {
+    const ok = await confirm({
+      title: 'Delete this photo?',
+      description: `"${item.label}" will be permanently removed from the patient's progress photos. This can't be undone.`,
+      confirmLabel: 'Delete photo',
+      tone: 'danger',
+    });
+    if (!ok) return;
+    await onDeleteGalleryItem(selectedClient.id, item as GalleryItem);
+  };
+
+  // Delete a payment/ledger entry.
+  const handleDeletePaymentEntry = async (p: Payment) => {
+    const ok = await confirm({
+      title: 'Delete this payment entry?',
+      description: `"${p.description}" (£${p.amount}) will be permanently removed from this patient's ledger. This can't be undone.`,
+      confirmLabel: 'Delete entry',
+      tone: 'danger',
+    });
+    if (!ok) return;
+    await onDeletePayment(selectedClient.id, p.id);
+  };
+
   const handleMarkPaid = async (paymentId: string) => {
     if (busyPaymentId) return;
     setBusyPaymentId(paymentId);
@@ -323,52 +446,89 @@ const ClientRecord: React.FC = () => {
   return (
     <div className="animate-fade-up flex flex-col">
       {ConfirmHost}
-      {/* ── Sticky patient bar (always visible) ───────────────────────────── */}
-      <div className="sticky top-[52px] z-30 -mx-4 sm:-mx-6 lg:-mx-4 px-4 sm:px-6 lg:px-4 py-2 lg:py-3 bg-ivory/95 backdrop-blur border-b border-sand">
-        <div className="flex items-center gap-3">
+      {/* ── Patient header ─────────────────────────────────────────────────
+          Replaces the old sticky bar + desktop identity rail: identity, stage,
+          contact quick-links, red-flag banner and primary actions in one place. */}
+      <div className="-mx-4 sm:-mx-6 lg:-mx-4 px-4 sm:px-6 lg:px-4 py-3 bg-ivory border-b border-sand">
+        <div className="flex items-start gap-3">
           <UIButton variant="ghost" size="sm" onClick={() => setSelectedClientId(null)} aria-label="Back to list">
             <ArrowLeft size={14} />
           </UIButton>
-          <div className="avatar avatar-md max-sm:!w-7 max-sm:!h-7 max-sm:!text-[10px] shrink-0">{getInitials(selectedClient.name)}</div>
+          <div className="avatar avatar-md shrink-0">{getInitials(selectedClient.name)}</div>
           <div className="min-w-0 flex-grow">
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
               <h2 className="text-base font-medium text-obsidian truncate">{selectedClient.name}</h2>
-              {selectedClient.policiesAccepted && (
-                <CheckCircle size={13} className="text-success shrink-0" />
-              )}
-              <div className="hidden md:block shrink-0">
-                <UIStatusBadge status={selectedClient.status || 'Active'} />
-              </div>
+              {selectedClient.policiesAccepted && <CheckCircle size={13} className="text-success shrink-0" aria-label="Policies accepted" />}
+              <select
+                aria-label="Patient stage"
+                value={selectedClient.status || 'Active'}
+                onChange={async (e) => {
+                  const nextStatus = e.target.value;
+                  if (nextStatus === 'Not Suitable') {
+                    const ok = await confirm({
+                      title: `Mark ${selectedClient.name} as Not Suitable?`,
+                      description: 'This effectively discharges the patient. They will be removed from active segments and active reports. You can change this back at any time.',
+                      confirmLabel: 'Mark as Not Suitable',
+                      tone: 'danger',
+                    });
+                    if (!ok) { e.target.value = selectedClient.status || ''; return; }
+                  }
+                  try {
+                    await onUpdateClient(selectedClient.id, { status: nextStatus });
+                  } catch {
+                    toast.error('Could not update patient stage', { description: 'The change was not saved — please try again.' });
+                  }
+                }}
+                className="text-xs bg-cream border border-sand text-obsidian rounded-md pl-2 pr-1 py-1 font-medium focus:ring-2 focus:ring-primary/20 cursor-pointer"
+                title="Track where this patient is in their journey."
+              >
+                {['New Inquiry', 'Assessment Submitted', 'Reviewed', 'Contacted', 'Converted', 'Not Suitable', 'Active', 'Ongoing'].map(s => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
             </div>
-            <p className="text-xs text-muted truncate mt-0.5">
-              <span className="font-mono">{selectedClient.id}</span>
-              <span className="hidden xs:inline"> · {String(calculateAge(selectedClient.dob)).replace('(', '').replace(')', '').trim() || 'No DOB'}</span>
-              <span className="hidden sm:inline capitalize"> · {selectedClient.gender}</span>
-            </p>
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-1 text-xs text-muted">
+              <span>{String(calculateAge(selectedClient.dob)).replace('(', '').replace(')', '').trim() || 'No DOB'}{selectedClient.gender ? ` · ${selectedClient.gender}` : ''}</span>
+              {selectedClient.phone && (
+                <a href={`tel:${selectedClient.phone}`} className="inline-flex items-center gap-1 hover:text-obsidian transition-colors"><Phone size={11} />{selectedClient.phone}</a>
+              )}
+              {selectedClient.email && (
+                <a href={`mailto:${selectedClient.email}`} className="inline-flex items-center gap-1 hover:text-obsidian transition-colors truncate max-w-[220px]"><Mail size={11} />{selectedClient.email}</a>
+              )}
+            </div>
           </div>
           <div className="flex items-center gap-1 shrink-0">
-            <UIButton variant="ghost" size="sm" onClick={openQuickEdit} aria-label="Quick edit">
-              <Pencil size={13} />
+            <UIButton variant="ghost" size="sm" onClick={openQuickEdit} aria-label="Edit patient details" title="Edit details"><Pencil size={13} /></UIButton>
+            <button
+              onClick={() => setShowMessageDrawer(true)}
+              aria-label="Message patient"
+              title="Message"
+              className="btn-icon relative"
+            >
+              <MessageSquare size={15} />
+              {unreadFromPatientCount > 0 && <span className="absolute top-0.5 right-0.5 w-2 h-2 bg-danger rounded-full" />}
+            </button>
+            <UIButton variant="secondary" size="sm" className="hidden sm:inline-flex" leadingIcon={<PackageIcon size={13} />} onClick={() => openStartPackageModal(selectedClient.id)}>
+              <span className="hidden lg:inline">Start package</span><span className="lg:hidden">Package</span>
             </UIButton>
-            <UIButton variant="primary" size="sm" className="max-sm:min-h-[44px]" leadingIcon={<CalendarClock size={13} />} onClick={() => openBookingModal(selectedClient.id)}>
-              <span className="hidden md:inline">Book appointment</span>
-              <span className="md:hidden">Book</span>
-            </UIButton>
+            <UIButton variant="primary" size="sm" leadingIcon={<CalendarClock size={13} />} onClick={() => openBookingModal(selectedClient.id)}>Book</UIButton>
           </div>
         </div>
+        {redFlags.length > 0 && (
+          <div className="mt-2.5 flex items-start gap-2 rounded-md bg-danger-bg border border-danger/20 px-3 py-2">
+            <Siren size={14} className="text-danger mt-0.5 shrink-0" />
+            <p className="text-xs text-danger-text"><span className="font-medium">Clinical red flags:</span> {redFlags.join(', ')}</p>
+          </div>
+        )}
       </div>
 
-      {/* ── Tab bar (sticky just below patient bar) ─────────────────────────
-          Assessment tab only appears when the patient has assessment data —
-          walk-in patients don't see an empty assessment tab. */}
-      <div className="sticky top-[108px] z-20 -mx-4 sm:-mx-6 lg:-mx-4 px-4 sm:px-6 lg:px-4 py-2 bg-ivory/95 backdrop-blur border-b border-sand">
+      {/* ── Tab bar (sticky) — 3 tabs: Appointments / Clinical Notes / Payments ── */}
+      <div className="sticky top-[52px] z-20 -mx-4 sm:-mx-6 lg:-mx-4 px-4 sm:px-6 lg:px-4 py-2 bg-ivory/95 backdrop-blur border-b border-sand">
         <div className="flex gap-1 overflow-x-auto no-scrollbar">
           {([
-            { id: 'snapshot', label: 'Snapshot', icon: <UserIcon size={13} />,        badge: 0,                     danger: false },
-            { id: 'plan',     label: 'Plan',     icon: <Activity size={13} />,        badge: 0,                     danger: false },
-            { id: 'files',    label: 'Files',    icon: <FileText size={13} />,        badge: unsignedFormsCount,    danger: false },
-            { id: 'activity', label: 'Activity', icon: <MessageSquare size={13} />,   badge: unreadFromPatientCount, danger: false },
-            { id: 'money',    label: 'Money',    icon: <Receipt size={13} />,         badge: openPaymentCount,      danger: overduePaymentCount > 0 },
+            { id: 'appointments', label: 'Appointments',   icon: <CalendarClock size={13} />, badge: 0,                  danger: false },
+            { id: 'clinical',     label: 'Clinical Notes', icon: <Stethoscope size={13} />,   badge: unsignedFormsCount, danger: false },
+            { id: 'payments',     label: 'Payments',       icon: <Receipt size={13} />,       badge: openPaymentCount,   danger: overduePaymentCount > 0 },
           ] as { id: ViewTab; label: string; icon: React.ReactNode; badge: number; danger: boolean }[]).map(tab => (
             <button
               key={tab.id}
@@ -393,161 +553,43 @@ const ClientRecord: React.FC = () => {
         </div>
       </div>
 
-      {/* ── 2-column layout: Identity rail (left, desktop only) + main content (right) ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-5 items-start mt-4">
-        {/* Identity rail */}
-        <aside className="hidden lg:flex flex-col gap-4 lg:sticky lg:top-[160px]">
-          {/* Single combined "Patient details" card — replaces two separate
-              Contact + Lifecycle cards. Less stacking, more breathing room. */}
-          <UICard>
-            <div className="flex flex-col gap-4">
-              {/* Patient stage (was "Lifecycle" — renamed to clinical-friendly term) */}
-              <div>
-                <label
-                  className="text-xs text-muted block mb-1.5"
-                  title="Track where this patient is in their journey — from new inquiry through to active treatment."
-                >
-                  Patient stage
-                </label>
-                <select
-                  value={selectedClient.status}
-                  onChange={async (e) => {
-                    const nextStatus = e.target.value;
-                    const isDischarge = nextStatus === 'Not Suitable';
-                    // Confirm before discharging a patient — this changes
-                    // how they're filtered in segments and affects reporting.
-                    if (isDischarge) {
-                      const ok = await confirm({
-                        title: `Mark ${selectedClient.name} as Not Suitable?`,
-                        description: 'This effectively discharges the patient. They will be removed from active segments and active reports. You can change this back at any time.',
-                        confirmLabel: 'Mark as Not Suitable',
-                        tone: 'danger',
-                      });
-                      if (!ok) {
-                        // Revert the visual select state by re-rendering
-                        e.target.value = selectedClient.status || '';
-                        return;
-                      }
-                    }
-                    try {
-                      await onUpdateClient(selectedClient.id, { status: nextStatus });
-                    } catch (error) {
-                      console.error('Failed to update client status:', error);
-                      toast.error('Could not update patient stage', { description: 'The change was not saved — please try again.' });
-                    }
-                  }}
-                  className="w-full bg-cream border border-sand text-obsidian text-base sm:text-sm rounded-md px-3 py-2 focus:ring-2 focus:ring-primary/20 cursor-pointer"
-                  title="Track where this patient is in their journey — from new inquiry through to active treatment."
-                >
-                  {['New Inquiry', 'Assessment Submitted', 'Reviewed', 'Contacted', 'Converted', 'Not Suitable', 'Active', 'Ongoing'].map(s => (
-                    <option key={s} value={s}>{s}</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Sessions + upcoming compact strap */}
-              <div className="grid grid-cols-2 gap-3 py-3 border-y border-sand">
-                <div>
-                  <p className="text-xs text-muted">Sessions</p>
-                  <p className="text-base font-medium text-obsidian mt-0.5">{completedSessions}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted">Upcoming</p>
-                  <p className="text-base font-medium text-obsidian mt-0.5">{upcomingAppointments.length}</p>
-                </div>
-              </div>
-
-              {/* Contact details */}
-              <dl className="flex flex-col gap-2.5">
-                <div className="flex items-start gap-2">
-                  <Mail size={12} className="text-hint mt-1 shrink-0" />
-                  <div className="min-w-0">
-                    <dt className="text-xs text-muted">Email</dt>
-                    <dd className="text-sm text-obsidian break-all">{selectedClient.email || '—'}</dd>
-                  </div>
-                </div>
-                <div className="flex items-start gap-2">
-                  <Phone size={12} className="text-hint mt-1 shrink-0" />
-                  <div className="min-w-0">
-                    <dt className="text-xs text-muted">Phone</dt>
-                    <dd className="text-sm text-obsidian">{selectedClient.phone || '—'}</dd>
-                  </div>
-                </div>
-                <div className="flex items-start gap-2">
-                  <CalendarIcon size={12} className="text-hint mt-1 shrink-0" />
-                  <div className="min-w-0">
-                    <dt className="text-xs text-muted">Date of birth</dt>
-                    <dd className="text-sm text-obsidian">{formatDOB(selectedClient.dob)}</dd>
-                  </div>
-                </div>
-                <div className="flex items-start gap-2">
-                  <MapPin size={12} className="text-hint mt-1 shrink-0" />
-                  <div className="min-w-0">
-                    <dt className="text-xs text-muted">Address</dt>
-                    <dd className="text-sm text-obsidian leading-relaxed">{selectedClient.address || '—'}</dd>
-                  </div>
-                </div>
-              </dl>
-            </div>
-          </UICard>
-
-          {/* Compact upcoming bookings — moved out of Snapshot main column to
-              keep Snapshot focused on Clinical Feedback. */}
-          <UICard>
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <CalendarClock size={14} className="text-muted" />
-                <h3 className="text-sm font-medium text-obsidian">Upcoming</h3>
-              </div>
-              <UIButton variant="ghost" size="sm" onClick={() => openBookingModal(selectedClient.id)} aria-label="Book appointment">
-                <Plus size={13} />
-              </UIButton>
-            </div>
-            {upcomingAppointments.length === 0 ? (
-              <button
-                onClick={() => openBookingModal(selectedClient.id)}
-                className="w-full text-xs text-muted hover:text-obsidian text-left py-1 transition-colors"
-              >
-                No bookings — tap + to schedule
-              </button>
-            ) : (
-              <div className="flex flex-col gap-2">
-                {upcomingAppointments.slice(0, 3).map(apt => (
-                  <button
-                    key={apt.id}
-                    onClick={() => openReschedule(apt)}
-                    className="text-left p-2 -mx-2 rounded-md hover:bg-cream/60 transition-colors"
-                  >
-                    <p className="text-sm font-medium text-obsidian truncate">{apt.type}</p>
-                    <p className="text-xs text-muted mt-0.5">
-                      {new Date(apt.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })} · {apt.time}
-                    </p>
-                  </button>
-                ))}
-                {upcomingAppointments.length > 3 && (
-                  <p className="text-xs text-hint mt-1">+ {upcomingAppointments.length - 3} more</p>
-                )}
-              </div>
-            )}
-          </UICard>
-
-          <InternalNotesEditor
-            entries={selectedClient.internalNoteEntries || []}
-            legacyNote={selectedClient.internalNotes}
-            authorId={user?.id || 'admin'}
-            authorName={user?.fullName}
-            onAddEntry={async (entry) => {
-              const next = [...(selectedClient.internalNoteEntries || []), entry];
-              await onUpdateClient(selectedClient.id, { internalNoteEntries: next });
-              await logClinicalAction(user?.id || 'admin', 'add_internal_note', selectedClient.id, `Added internal note: "${entry.body.slice(0, 80)}${entry.body.length > 80 ? '…' : ''}"`);
-            }}
-          />
-        </aside>
-
+      {/* ── Content (identity rail folded into the header above) ── */}
+      <div className="mt-4">
         {/* Main content column */}
         <div className="min-w-0">
-        {viewTab === 'snapshot' && (
+        {viewTab === 'appointments' && (
           <div className="flex flex-col gap-5">
+            {/* Upcoming bookings — moved out of the old rail; each row has a clear
+                Edit / Cancel / Delete menu. */}
+            <UICard>
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <CalendarClock size={14} className="text-muted" />
+                  <h3 className="text-sm font-medium text-obsidian">Upcoming bookings</h3>
+                </div>
+                <UIButton variant="secondary" size="sm" leadingIcon={<Plus size={13} />} onClick={() => openBookingModal(selectedClient.id)}>Book</UIButton>
+              </div>
+              {upcomingAppointments.length === 0 ? (
+                <UIEmptyState icon={<CalendarClock size={16} />} title="No upcoming bookings" description="Book an appointment to get this patient on the schedule." compact />
+              ) : (
+                <div className="flex flex-col divide-y divide-cream">
+                  {upcomingAppointments.map(apt => (
+                    <div key={apt.id} className="flex items-center gap-3 py-2.5 first:pt-0 last:pb-0">
+                      <div className="min-w-0 flex-grow">
+                        <p className="text-sm font-medium text-obsidian truncate">{apt.type}</p>
+                        <p className="text-xs text-muted mt-0.5">
+                          {new Date(`${apt.date}T00:00:00`).toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'short' })} · {apt.time}
+                          {apt.doctorName ? ` · ${apt.doctorName}` : ''}
+                        </p>
+                      </div>
+                      <UIStatusBadge status={apt.status} />
+                      <RowActions actions={apptRowActions(apt)} />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </UICard>
+
             {/* Next appointment + prep — opens the record answering "why is this
                 patient here, and what's still outstanding" in one glance. */}
             {(() => {
@@ -588,17 +630,11 @@ const ClientRecord: React.FC = () => {
               );
             })()}
 
-            {/* Mobile: contact + status compressed into a single line shown only when rail is hidden */}
-            <div className="lg:hidden flex items-center gap-2 px-1 order-1">
-              <UIStatusBadge status={selectedClient.status || 'Active'} />
-              <span className="text-xs text-muted truncate">{selectedClient.email}</span>
-            </div>
+          </div>
+        )}
 
-            {/* 3-stat row removed — Sessions completed is in the left rail;
-                Next session is inside Upcoming bookings card below; Pending
-                forms is in the Files tab. The duplication was crowding the
-                snapshot. */}
-
+        {viewTab === 'clinical' && (
+          <div className="flex flex-col gap-5">
             {/* Red flags (only if any) — appear right after status so doctors see them immediately */}
             {redFlags.length > 0 && (
               <UICard
@@ -650,6 +686,7 @@ const ClientRecord: React.FC = () => {
                     throw e;
                   }
                 }}
+                onRemove={handleRemoveFeedback}
               />
             </UICard>
 
@@ -742,47 +779,22 @@ const ClientRecord: React.FC = () => {
               </details>
             )}
 
-            {/* Mobile-only: contact + notes accordion (since identity rail is hidden).
-                Open by default so contact details are glanceable; still collapsible. */}
-            <details open className="lg:hidden">
-              <summary className="cursor-pointer text-sm font-medium text-obsidian px-4 py-3 bg-white border border-sand rounded-md flex items-center justify-between">
-                <span>Contact & internal notes</span>
-                <ChevronDown size={14} />
-              </summary>
-              <div className="mt-2 flex flex-col gap-3">
-                <UICard>
-                  <CardHeader title="Contact" />
-                  <dl className="flex flex-col gap-2.5">
-                    <div><dt className="text-xs text-muted">Email</dt><dd className="text-sm text-obsidian break-all">{selectedClient.email || '—'}</dd></div>
-                    <div><dt className="text-xs text-muted">Phone</dt><dd className="text-sm text-obsidian">{selectedClient.phone || '—'}</dd></div>
-                    <div><dt className="text-xs text-muted">DOB</dt><dd className="text-sm text-obsidian">{formatDOB(selectedClient.dob)}</dd></div>
-                    <div><dt className="text-xs text-muted">Address</dt><dd className="text-sm text-obsidian leading-relaxed">{selectedClient.address || '—'}</dd></div>
-                  </dl>
-                </UICard>
-                <InternalNotesEditor
-                  entries={selectedClient.internalNoteEntries || []}
-                  legacyNote={selectedClient.internalNotes}
-                  authorId={user?.id || 'admin'}
-                  authorName={user?.fullName}
-                  onAddEntry={async (entry) => {
-                    const next = [...(selectedClient.internalNoteEntries || []), entry];
-                    await onUpdateClient(selectedClient.id, { internalNoteEntries: next });
-                    await logClinicalAction(user?.id || 'admin', 'add_internal_note', selectedClient.id, `Added internal note: "${entry.body.slice(0, 80)}${entry.body.length > 80 ? '…' : ''}"`);
-                  }}
-                />
-              </div>
-            </details>
           </div>
         )}
 
-        {viewTab === 'activity' && (
-          <div className="grid grid-cols-1 gap-4 md:gap-8">
-            <div className="space-y-4 md:space-y-6">
-              <Card className="p-4 md:p-8 max-h-[60vh] min-h-[320px] flex flex-col">
-                <h3 className="text-2xs md:text-xs font-medium text-muted mb-4 md:mb-6">Communication Log</h3>
-                {/* min-h-0 is required: flex children default to min-height auto,
-                    which would defeat the max-h cap and stop inner scrolling. */}
-                <div className="flex-grow min-h-0 overflow-y-auto space-y-4 md:space-y-6 pr-2 no-scrollbar">
+        {/* ── Message drawer (opened from the header "Message" button) ── */}
+        {showMessageDrawer && (
+          <div className="fixed inset-0 z-[100] flex justify-end" role="dialog" aria-modal="true">
+            <div className="absolute inset-0 bg-obsidian/40 animate-fade-in" onClick={() => setShowMessageDrawer(false)} />
+            <div className="relative w-full sm:max-w-md bg-ivory h-full shadow-modal flex flex-col animate-slide-up sm:animate-fade-in">
+              <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-sand shrink-0">
+                <div className="min-w-0">
+                  <h3 className="text-sm font-medium text-obsidian truncate">Message {getFirstName(selectedClient.name)}</h3>
+                  {selectedClient.email && <p className="text-xs text-muted truncate">{selectedClient.email}</p>}
+                </div>
+                <button onClick={() => setShowMessageDrawer(false)} className="btn-icon shrink-0" aria-label="Close conversation"><X size={16} /></button>
+              </div>
+              <div className="flex-grow min-h-0 overflow-y-auto space-y-4 p-4 no-scrollbar">
                   {(messages.filter(m => m.senderId === selectedClientId || m.recipientId === selectedClientId) || []).map((msg) => (
                     <div key={msg.id} className={`flex ${msg.senderId === 'admin' ? 'justify-end' : 'justify-start'}`}>
                       <div className={`max-w-[90%] md:max-w-[80%] px-3 py-2 md:px-4 md:py-3 rounded-lg ${
@@ -840,58 +852,56 @@ const ClientRecord: React.FC = () => {
                     </div>
                   ))}
                 </div>
-                <div className="mt-4 md:mt-6 pt-4 md:pt-6 border-t border-black/5">
-                  {/* Quick actions — keep form-sending and payment requests inside
-                      the conversation instead of a tab-switch away. */}
-                  <div className="flex flex-wrap items-center gap-2 mb-2">
-                    <div className="relative">
-                      <UIButton
-                        variant="ghost"
-                        size="sm"
-                        leadingIcon={<FileText size={13} />}
-                        trailingIcon={<ChevronDown size={12} className={showActivityFormMenu ? 'rotate-180 transition-transform' : 'transition-transform'} />}
-                        onClick={() => setShowActivityFormMenu(s => !s)}
-                      >
-                        Send form
-                      </UIButton>
-                      {showActivityFormMenu && (
-                        <>
-                          <div className="fixed inset-0 z-40" onClick={() => setShowActivityFormMenu(false)} />
-                          <div className="absolute left-0 bottom-full mb-2 w-64 bg-white rounded-lg shadow-panel border border-sand z-50 p-2 space-y-1">
-                            {FORMS.map(form => (
-                              <button
-                                key={form.id}
-                                onClick={() => { handleSendForm(form.id); setShowActivityFormMenu(false); }}
-                                className="w-full text-left px-4 py-3 hover:bg-cream rounded-md text-sm font-medium text-obsidian flex items-center justify-between"
-                              >
-                                {form.title}
-                                <Send size={14} className="text-primary" />
-                              </button>
-                            ))}
-                          </div>
-                        </>
-                      )}
-                    </div>
+              <div className="border-t border-sand p-4 shrink-0">
+                {/* Quick actions — send a form or jump to Payments without leaving the thread. */}
+                <div className="flex flex-wrap items-center gap-2 mb-2">
+                  <div className="relative">
                     <UIButton
                       variant="ghost"
                       size="sm"
-                      leadingIcon={<CreditCard size={13} />}
-                      onClick={() => setViewTab('money')}
+                      leadingIcon={<FileText size={13} />}
+                      trailingIcon={<ChevronDown size={12} className={showActivityFormMenu ? 'rotate-180 transition-transform' : 'transition-transform'} />}
+                      onClick={() => setShowActivityFormMenu(s => !s)}
                     >
-                      Request payment
+                      Send form
                     </UIButton>
+                    {showActivityFormMenu && (
+                      <>
+                        <div className="fixed inset-0 z-40" onClick={() => setShowActivityFormMenu(false)} />
+                        <div className="absolute left-0 bottom-full mb-2 w-64 bg-white rounded-lg shadow-panel border border-sand z-50 p-2 space-y-1">
+                          {FORMS.map(form => (
+                            <button
+                              key={form.id}
+                              onClick={() => { handleSendForm(form.id); setShowActivityFormMenu(false); }}
+                              className="w-full text-left px-4 py-3 hover:bg-cream rounded-md text-sm font-medium text-obsidian flex items-center justify-between"
+                            >
+                              {form.title}
+                              <Send size={14} className="text-primary" />
+                            </button>
+                          ))}
+                        </div>
+                      </>
+                    )}
                   </div>
-                  <MessageInputForm
-                    onSend={(msg) => handleSendMessage(msg, selectedClientId || '')}
-                    templates={templates.filter(t => t.category === 'message')}
-                  />
+                  <UIButton
+                    variant="ghost"
+                    size="sm"
+                    leadingIcon={<CreditCard size={13} />}
+                    onClick={() => { setShowMessageDrawer(false); setViewTab('payments'); }}
+                  >
+                    Request payment
+                  </UIButton>
                 </div>
-              </Card>
+                <MessageInputForm
+                  onSend={(msg) => handleSendMessage(msg, selectedClientId || '')}
+                  templates={templates.filter(t => t.category === 'message')}
+                />
+              </div>
             </div>
           </div>
         )}
 
-        {viewTab === 'files' && (
+        {viewTab === 'clinical' && (
           <div className="space-y-3">
             {/* Sub-tab bar: Forms vs Photos — split because they're unrelated. */}
             <div className="flex gap-1 bg-cream p-0.5 rounded-md w-fit">
@@ -917,7 +927,7 @@ const ClientRecord: React.FC = () => {
           </div>
         )}
 
-        {viewTab === 'files' && filesSubTab === 'forms' && (
+        {viewTab === 'clinical' && filesSubTab === 'forms' && (
           <div className="space-y-6">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
               <h3 className="text-xl font-medium text-obsidian">Sent & Signed Forms</h3>
@@ -1047,7 +1057,7 @@ const ClientRecord: React.FC = () => {
           </div>
         )}
 
-        {viewTab === 'files' && filesSubTab === 'photos' && (() => {
+        {viewTab === 'clinical' && filesSubTab === 'photos' && (() => {
           const gallery = selectedClient.gallery || [];
           return (
             <div className="space-y-6 md:space-y-8">
@@ -1154,6 +1164,16 @@ const ClientRecord: React.FC = () => {
                           <UIBadge variant={img.source === 'Clinical' ? 'review' : 'inactive'}>
                             {img.source}
                           </UIBadge>
+                          {!compareMode && (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); void handleDeletePhoto(img); }}
+                              className="w-6 h-6 rounded-full bg-black/50 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity hover:bg-danger"
+                              aria-label="Delete photo"
+                              title="Delete photo"
+                            >
+                              <Trash2 size={12} />
+                            </button>
+                          )}
                         </div>
                       </div>
                       <div className="px-1">
@@ -1185,13 +1205,27 @@ const ClientRecord: React.FC = () => {
           );
         })()}
 
-        {/* ── Assessment tab — full intake questionnaire view ──────────────
-            Tab is only shown when selectedClient.assessmentData?.answers exists
-            (controlled by the `show: !!selectedClient.assessmentData?.answers`
-            filter in the tab bar above), so the section below is unconditional
-            on data presence — it's already gated. */}
-        {/* ── Treatment Plan tab ────────────────────────────────────────── */}
-        {viewTab === 'plan' && (() => {
+        {/* Internal clinical notes — always at the foot of Clinical Notes. */}
+        {viewTab === 'clinical' && (
+          <div className="mt-4">
+            <InternalNotesEditor
+              entries={selectedClient.internalNoteEntries || []}
+              legacyNote={selectedClient.internalNotes}
+              authorId={user?.id || 'admin'}
+              authorName={user?.fullName}
+              onAddEntry={async (entry) => {
+                const next = [...(selectedClient.internalNoteEntries || []), entry];
+                await onUpdateClient(selectedClient.id, { internalNoteEntries: next });
+                await logClinicalAction(user?.id || 'admin', 'add_internal_note', selectedClient.id, `Added internal note: "${entry.body.slice(0, 80)}${entry.body.length > 80 ? '…' : ''}"`);
+              }}
+              onUpdateEntry={handleUpdateNote}
+              onDeleteEntry={handleDeleteNote}
+            />
+          </div>
+        )}
+
+        {/* ── Treatment Plan tab (lives with Appointments) ─────────────────── */}
+        {viewTab === 'appointments' && (() => {
           const plan = selectedClient.treatmentPlan;
           const totalPhases = plan?.phases.length || 0;
           const completedPhases = plan?.phases.filter(p => p.status === 'Completed').length || 0;
@@ -1267,9 +1301,10 @@ const ClientRecord: React.FC = () => {
                                 </div>
                                 <div className="flex items-center gap-2 shrink-0">
                                   <UIBadge variant={phaseStatusVariant[phase.status] || 'inactive'}>{phase.status}</UIBadge>
-                                  <button onClick={() => { setEditingPhaseId(phase.id); setEditPhaseForm({ status: phase.status, sessionsCompleted: phase.sessionsCompleted, notes: phase.notes }); }} className="btn-icon" aria-label="Edit phase">
-                                    <Pencil size={13} />
-                                  </button>
+                                  <RowActions actions={[
+                                    { label: 'Edit phase', icon: <Pencil size={13} />, onClick: () => { setEditingPhaseId(phase.id); setEditPhaseForm({ status: phase.status, sessionsCompleted: phase.sessionsCompleted, notes: phase.notes }); } },
+                                    { label: 'Delete phase', icon: <Trash2 size={13} />, onClick: () => handleDeletePhase(phase.id, phase.name), danger: true },
+                                  ]} />
                                 </div>
                               </div>
                               <div className="flex items-center gap-3 mt-4">
@@ -1301,9 +1336,8 @@ const ClientRecord: React.FC = () => {
                                           {new Date(`${apt.date}T00:00:00`).toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'short' })} · {apt.time}
                                         </span>
                                         <span className="text-muted truncate">{apt.type}</span>
-                                        <div className="ml-auto flex items-center gap-1 shrink-0">
-                                          <button onClick={() => openReschedule(apt)} className="btn-icon" aria-label="Edit session"><Pencil size={12} /></button>
-                                          <button onClick={() => handleDeleteAppointment(apt)} className="btn-icon hover:!text-danger" aria-label="Delete session"><Trash2 size={12} /></button>
+                                        <div className="ml-auto shrink-0">
+                                          <RowActions actions={apptRowActions(apt)} />
                                         </div>
                                       </div>
                                     ))}
@@ -1489,7 +1523,7 @@ const ClientRecord: React.FC = () => {
         })()}
 
         {/* ── Financials tab ─────────────────────────────────────────────────── */}
-        {viewTab === 'money' && (() => {
+        {viewTab === 'payments' && (() => {
           const payList = selectedClient.payments || [];
           const totalPaid = payList.filter(p => p.status === 'Paid').reduce((s, p) => s + p.amount, 0);
           const totalPending = payList.filter(p => p.status === 'Pending' || p.status === 'Overdue').reduce((s, p) => s + p.amount, 0);
@@ -1571,6 +1605,9 @@ const ClientRecord: React.FC = () => {
                               {busyPaymentId === pay.id ? 'Saving…' : 'Mark paid'}
                             </UIButton>
                           )}
+                          <RowActions actions={[
+                            { label: 'Delete entry', icon: <Trash2 size={13} />, onClick: () => handleDeletePaymentEntry(pay), danger: true },
+                          ]} />
                         </div>
                       </div>
                     ))}
@@ -1775,16 +1812,24 @@ const ClientRecord: React.FC = () => {
         subtitle={rescheduleApt ? `${rescheduleApt.type} — currently ${rescheduleApt.date} ${rescheduleApt.time}` : undefined}
         size="md"
         footer={
-          <div className="flex gap-3 justify-end">
-            <button type="button" onClick={() => setRescheduleApt(null)} className="px-4 py-2 text-sm text-muted hover:text-obsidian transition-colors">Cancel</button>
-            <button
-              type="submit"
-              form="reschedule-form"
-              disabled={rescheduleStatus === 'saving' || !rescheduleForm.date || !rescheduleForm.time}
-              className="bg-primary text-obsidian px-5 py-2 rounded-md text-sm font-medium disabled:opacity-50"
-            >
-              {rescheduleStatus === 'saving' ? 'Saving…' : 'Save changes'}
-            </button>
+          <div className="flex items-center gap-2">
+            {rescheduleApt && rescheduleApt.status !== 'Cancelled' && (
+              <button type="button" onClick={() => { const a = rescheduleApt; setRescheduleApt(null); handleCancelAppointment(a); }} className="px-3 py-2 text-sm font-medium text-danger hover:bg-danger-bg rounded-md transition-colors">Cancel booking</button>
+            )}
+            {rescheduleApt && (
+              <button type="button" onClick={() => { const a = rescheduleApt; setRescheduleApt(null); handleDeleteAppointment(a); }} className="px-3 py-2 text-sm font-medium text-danger hover:bg-danger-bg rounded-md transition-colors">Delete</button>
+            )}
+            <div className="flex gap-3 justify-end ml-auto">
+              <button type="button" onClick={() => setRescheduleApt(null)} className="px-4 py-2 text-sm text-muted hover:text-obsidian transition-colors">Close</button>
+              <button
+                type="submit"
+                form="reschedule-form"
+                disabled={rescheduleStatus === 'saving' || !rescheduleForm.date || !rescheduleForm.time}
+                className="bg-primary text-obsidian px-5 py-2 rounded-md text-sm font-medium disabled:opacity-50"
+              >
+                {rescheduleStatus === 'saving' ? 'Saving…' : 'Save changes'}
+              </button>
+            </div>
           </div>
         }
       >
