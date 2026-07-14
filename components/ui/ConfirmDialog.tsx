@@ -103,7 +103,7 @@ const ConfirmModal: React.FC<{
       aria-modal="true"
       aria-labelledby="confirm-title"
       aria-describedby={options.description ? 'confirm-desc' : undefined}
-      className="fixed inset-0 z-[300] flex items-end sm:items-center justify-center p-4 bg-obsidian/40 backdrop-blur-sm"
+      className="fixed inset-0 z-[300] flex items-end sm:items-center justify-center p-4 bg-obsidian/55 backdrop-blur-sm"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}

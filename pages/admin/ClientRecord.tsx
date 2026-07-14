@@ -11,8 +11,9 @@ import {
   MessageSquare, Receipt, Ban,
   Phone, Mail, Siren,
 } from 'lucide-react';
-import { Card as UICard, CardHeader, Button as UIButton, Badge as UIBadge, StatusBadge as UIStatusBadge, EmptyState as UIEmptyState, useToast, Modal as UIModal, useConfirm, RowActions } from '../../components/ui';
+import { Card as UICard, CardHeader, Button as UIButton, Badge as UIBadge, StatusBadge as UIStatusBadge, EmptyState as UIEmptyState, useToast, Modal as UIModal, useConfirm, RowActions, Portal } from '../../components/ui';
 import type { RowAction } from '../../components/ui';
+import { AnimatePresence, motion } from 'motion/react';
 
 type ViewTab = 'appointments' | 'clinical' | 'payments';
 import { requestCheckout, CreateCheckoutInput } from '../../firebase';
@@ -135,6 +136,16 @@ const ClientRecord: React.FC = () => {
       .filter(m => m.senderId === selectedClient.id && !m.read)
       .forEach(m => { void onMarkMessageRead(m.id); });
   }, [selectedClient, showMessageDrawer, messages, onMarkMessageRead]);
+
+  // Lock background scroll + close on Escape while the message drawer is open.
+  useEffect(() => {
+    if (!showMessageDrawer) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setShowMessageDrawer(false); };
+    window.addEventListener('keydown', onKey);
+    return () => { document.body.style.overflow = prev; window.removeEventListener('keydown', onKey); };
+  }, [showMessageDrawer]);
 
   if (!selectedClient) return null;
 
@@ -297,36 +308,40 @@ const ClientRecord: React.FC = () => {
    * linked appointment (webhook does this automatically; the manual path
    * previously left the appointment stuck on "Awaiting deposit").
    */
-  const handleDeleteAppointment = async (apt: Appointment) => {
+  const handleDeleteAppointment = async (apt: Appointment): Promise<boolean> => {
     const ok = await confirm({
       title: 'Delete this appointment?',
       description: `This permanently removes ${apt.clientName}'s ${apt.type} on ${apt.date} at ${apt.time}. This can't be undone.`,
       confirmLabel: 'Delete',
       tone: 'danger',
     });
-    if (!ok) return;
+    if (!ok) return false;
     try {
       await onDeleteAppointment(apt.id);
+      return true;
     } catch {
       toast.error('Could not delete the appointment', { description: 'It is still booked — please try again.' });
+      return false;
     }
   };
 
   // Soft-cancel: keeps the booking in the record, marks it Cancelled, frees the slot.
-  const handleCancelAppointment = async (apt: Appointment) => {
-    if (apt.status === 'Cancelled') return;
+  const handleCancelAppointment = async (apt: Appointment): Promise<boolean> => {
+    if (apt.status === 'Cancelled') return false;
     const ok = await confirm({
       title: 'Cancel this booking?',
       description: `${apt.type} on ${apt.date} at ${apt.time} will be marked Cancelled and the slot freed. The booking stays in the record.`,
       confirmLabel: 'Cancel booking',
       tone: 'danger',
     });
-    if (!ok) return;
+    if (!ok) return false;
     try {
       await onUpdateAppointment(apt.id, { status: 'Cancelled' });
       toast.success('Booking cancelled');
+      return true;
     } catch {
       toast.error('Could not cancel the booking', { description: 'Please try again.' });
+      return false;
     }
   };
 
@@ -783,10 +798,19 @@ const ClientRecord: React.FC = () => {
         )}
 
         {/* ── Message drawer (opened from the header "Message" button) ── */}
+        <Portal>
+        <AnimatePresence>
         {showMessageDrawer && (
-          <div className="fixed inset-0 z-[100] flex justify-end" role="dialog" aria-modal="true">
-            <div className="absolute inset-0 bg-obsidian/40 animate-fade-in" onClick={() => setShowMessageDrawer(false)} />
-            <div className="relative w-full sm:max-w-md bg-ivory h-full shadow-modal flex flex-col animate-slide-up sm:animate-fade-in">
+          <div className="fixed inset-0 z-[180] flex justify-end" role="dialog" aria-modal="true">
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-obsidian/55 backdrop-blur-sm" onClick={() => setShowMessageDrawer(false)}
+            />
+            <motion.div
+              initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }}
+              transition={{ type: 'spring', damping: 32, stiffness: 320, mass: 0.9 }}
+              className="relative w-full sm:max-w-md bg-white h-full shadow-modal flex flex-col"
+            >
               <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-sand shrink-0">
                 <div className="min-w-0">
                   <h3 className="text-sm font-medium text-obsidian truncate">Message {getFirstName(selectedClient.name)}</h3>
@@ -897,9 +921,11 @@ const ClientRecord: React.FC = () => {
                   templates={templates.filter(t => t.category === 'message')}
                 />
               </div>
-            </div>
+            </motion.div>
           </div>
         )}
+        </AnimatePresence>
+        </Portal>
 
         {viewTab === 'clinical' && (
           <div className="space-y-3">
@@ -942,7 +968,7 @@ const ClientRecord: React.FC = () => {
                 {showSendFormMenu && (
                   <>
                     <div className="fixed inset-0 z-40" onClick={() => setShowSendFormMenu(false)} />
-                    <div className="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-panel border border-black/5 z-50 p-2 space-y-1">
+                    <div className="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-panel border border-sand z-50 p-2 space-y-1 animate-fade-up">
                       {FORMS.map(form => (
                         <button
                           key={form.id}
@@ -1812,23 +1838,22 @@ const ClientRecord: React.FC = () => {
         subtitle={rescheduleApt ? `${rescheduleApt.type} — currently ${rescheduleApt.date} ${rescheduleApt.time}` : undefined}
         size="md"
         footer={
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             {rescheduleApt && rescheduleApt.status !== 'Cancelled' && (
-              <button type="button" onClick={() => { const a = rescheduleApt; setRescheduleApt(null); handleCancelAppointment(a); }} className="px-3 py-2 text-sm font-medium text-danger hover:bg-danger-bg rounded-md transition-colors">Cancel booking</button>
+              <UIButton variant="ghost" size="sm" className="!text-danger hover:!bg-danger-bg" onClick={async () => { if (rescheduleApt && await handleCancelAppointment(rescheduleApt)) setRescheduleApt(null); }}>
+                Cancel booking
+              </UIButton>
             )}
             {rescheduleApt && (
-              <button type="button" onClick={() => { const a = rescheduleApt; setRescheduleApt(null); handleDeleteAppointment(a); }} className="px-3 py-2 text-sm font-medium text-danger hover:bg-danger-bg rounded-md transition-colors">Delete</button>
+              <UIButton variant="ghost" size="sm" className="!text-danger hover:!bg-danger-bg" onClick={async () => { if (rescheduleApt && await handleDeleteAppointment(rescheduleApt)) setRescheduleApt(null); }}>
+                Delete
+              </UIButton>
             )}
-            <div className="flex gap-3 justify-end ml-auto">
-              <button type="button" onClick={() => setRescheduleApt(null)} className="px-4 py-2 text-sm text-muted hover:text-obsidian transition-colors">Close</button>
-              <button
-                type="submit"
-                form="reschedule-form"
-                disabled={rescheduleStatus === 'saving' || !rescheduleForm.date || !rescheduleForm.time}
-                className="bg-primary text-obsidian px-5 py-2 rounded-md text-sm font-medium disabled:opacity-50"
-              >
+            <div className="flex items-center gap-2 ml-auto">
+              <UIButton variant="ghost" size="sm" onClick={() => setRescheduleApt(null)}>Close</UIButton>
+              <UIButton variant="primary" size="sm" type="submit" form="reschedule-form" loading={rescheduleStatus === 'saving'} disabled={rescheduleStatus === 'saving' || !rescheduleForm.date || !rescheduleForm.time}>
                 {rescheduleStatus === 'saving' ? 'Saving…' : 'Save changes'}
-              </button>
+              </UIButton>
             </div>
           </div>
         }

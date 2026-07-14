@@ -58,7 +58,7 @@ export const RowActions: React.FC<{
       {open && (
         <div
           role="menu"
-          className={`absolute z-40 mt-1 min-w-[176px] rounded-lg border border-sand bg-white shadow-panel py-1 ${align === 'right' ? 'right-0' : 'left-0'}`}
+          className={`absolute z-40 mt-1 min-w-[176px] rounded-lg border border-sand bg-white shadow-panel py-1 animate-fade-up ${align === 'right' ? 'right-0' : 'left-0'}`}
         >
           {actions.map((a, i) => (
             <button

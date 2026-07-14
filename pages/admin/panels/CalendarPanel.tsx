@@ -110,37 +110,43 @@ function CalendarPanel() {
     }
   };
 
-  const handleDelete = async (id: string, clientName: string) => {
+  // Returns true if the appointment was actually deleted (so callers can then
+  // close the edit modal only on a real action, not when the user backs out).
+  const handleDelete = async (id: string, clientName: string): Promise<boolean> => {
     const ok = await confirm({
       title: 'Delete this appointment?',
       description: `This will permanently remove ${clientName}'s appointment. This action cannot be undone.`,
       confirmLabel: 'Delete',
       tone: 'danger',
     });
-    if (!ok) return;
+    if (!ok) return false;
     try {
       await onDeleteAppointment(id);
+      return true;
     } catch {
       toast.error('Could not delete the appointment', { description: 'It is still on the schedule — please try again.' });
+      return false;
     }
   };
 
   // Soft-cancel: keeps the booking in the record but marks it Cancelled and
   // frees the slot. This is the clear, reversible alternative to a hard delete.
-  const cancelBooking = async (apt: Appointment) => {
-    if (apt.status === 'Cancelled') return;
+  const cancelBooking = async (apt: Appointment): Promise<boolean> => {
+    if (apt.status === 'Cancelled') return false;
     const ok = await confirm({
       title: 'Cancel this booking?',
       description: `${apt.clientName}'s ${apt.type} on ${apt.date} at ${apt.time} will be marked Cancelled and the slot freed. The booking stays in the record.`,
       confirmLabel: 'Cancel booking',
       tone: 'danger',
     });
-    if (!ok) return;
+    if (!ok) return false;
     try {
       await onUpdateAppointment(apt.id, { status: 'Cancelled' });
       toast.success('Booking cancelled');
+      return true;
     } catch {
       toast.error('Could not cancel the booking', { description: 'Please try again.' });
+      return false;
     }
   };
 
@@ -652,18 +658,22 @@ function CalendarPanel() {
         subtitle={editAppt ? `${editAppt.clientName} · ${editAppt.type}` : undefined}
         size="md"
         footer={
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             {editAppt && editAppt.status !== 'Cancelled' && (
-              <button type="button" onClick={() => { const a = editAppt; setEditAppt(null); cancelBooking(a); }} className="px-3 py-2 text-sm font-medium text-danger hover:bg-danger-bg rounded-md transition-colors">Cancel booking</button>
+              <Button variant="ghost" size="sm" className="!text-danger hover:!bg-danger-bg" onClick={async () => { if (editAppt && await cancelBooking(editAppt)) setEditAppt(null); }}>
+                Cancel booking
+              </Button>
             )}
             {editAppt && (
-              <button type="button" onClick={() => { const a = editAppt; setEditAppt(null); handleDelete(a.id, a.clientName); }} className="px-3 py-2 text-sm font-medium text-danger hover:bg-danger-bg rounded-md transition-colors">Delete</button>
+              <Button variant="ghost" size="sm" className="!text-danger hover:!bg-danger-bg" onClick={async () => { if (editAppt && await handleDelete(editAppt.id, editAppt.clientName)) setEditAppt(null); }}>
+                Delete
+              </Button>
             )}
-            <div className="flex gap-3 justify-end ml-auto">
-              <button type="button" onClick={() => setEditAppt(null)} className="px-4 py-2 text-sm text-muted hover:text-obsidian">Close</button>
-              <button type="submit" form="cal-edit-form" disabled={editSaving || !editForm.date || !editForm.time} className="bg-primary text-obsidian px-5 py-2 rounded-md text-sm font-medium disabled:opacity-50">
+            <div className="flex items-center gap-2 ml-auto">
+              <Button variant="ghost" size="sm" onClick={() => setEditAppt(null)}>Close</Button>
+              <Button variant="primary" size="sm" type="submit" form="cal-edit-form" loading={editSaving} disabled={editSaving || !editForm.date || !editForm.time}>
                 {editSaving ? 'Saving…' : 'Save changes'}
-              </button>
+              </Button>
             </div>
           </div>
         }
