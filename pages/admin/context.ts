@@ -1,7 +1,7 @@
 import { createContext, useContext, RefObject } from 'react';
 import {
   Page, User, Client, Appointment, Message, GalleryItem,
-  AdminType, AppNotification, TreatmentPlan, Prescription, Payment, Task, Template,
+  AdminType, AppNotification, TreatmentPlan, Payment, Task, Template,
 } from '../../types';
 
 export type AdminTab =
@@ -146,8 +146,6 @@ export interface AdminContextValue extends AdminPageProps {
 
   // Clinical data handlers
   onSaveTreatmentPlan: (clientId: string, plan: TreatmentPlan) => Promise<void>;
-  onAddPrescription: (clientId: string, rx: Prescription) => Promise<void>;
-  onUpdatePrescription: (clientId: string, rxId: string, updates: Partial<Prescription>) => Promise<void>;
   onAddPayment: (clientId: string, payment: Payment) => Promise<void>;
   onUpdatePayment: (clientId: string, paymentId: string, updates: Partial<Payment>) => Promise<void>;
 }

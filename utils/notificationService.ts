@@ -134,24 +134,6 @@ export const notifyTreatmentPlanReady = async (
   });
 };
 
-/** Notify a client that a prescription was added to their record */
-export const notifyPrescriptionAdded = async (
-  clientId: string,
-  clientEmail: string,
-  clientName: string,
-  drugName: string
-) => {
-  // Server-side email omits the drug name (GDPR-conservative).
-  await createNotification({
-    recipientId: clientId,
-    recipientRole: 'client',
-    type: 'prescription_added',
-    title: 'New Prescription Added',
-    body: `Your clinician has added ${drugName} to your treatment. Open My care for the instructions.`,
-    metadata: { clientId },
-  });
-};
-
 /** Notify a client that a form was sent to them (in-app only — no email) */
 export const notifyFormSent = async (
   clientId: string,

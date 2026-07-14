@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { User, Client, Appointment, Message, GalleryItem, AdminType, TreatmentPlan, TreatmentPhase, Prescription, Payment, Treatment, AppNotification, NotificationType } from '../types';
+import { User, Client, Appointment, Message, GalleryItem, AdminType, TreatmentPlan, TreatmentPhase, Payment, Treatment, AppNotification, NotificationType } from '../types';
 import { FORMS, PACKAGES, getPackage, formatPackagePrice } from '../constants';
 import { InteractiveForm } from '../components/InteractiveForm';
 import Logo from '../components/Logo';
@@ -17,7 +17,7 @@ import { Button, Modal, Input, Select, Textarea, SidebarItem as UISidebarItem, C
 import type { CommandItem } from '../components/ui';
 import { processImageForUpload, validateImageFile, ACCEPTED_IMAGE_TYPES } from '../imageUtils';
 import { logClinicalAction } from '../utils/auditLogger';
-import { notifyPaymentSent, notifyTreatmentPlanReady, notifyPrescriptionAdded } from '../utils/notificationService';
+import { notifyPaymentSent, notifyTreatmentPlanReady } from '../utils/notificationService';
 import { parseTime12h, formatMinutes12h, localTodayISO } from '../utils/time';
 import { DUMMY_PATIENT } from '../utils/dummyPatient';
 
@@ -713,7 +713,7 @@ const AdminPage: React.FC<AdminPageProps> = ({
     }
   };
 
-  // ── Treatment plan / prescriptions / payments ──────────────────────────────
+  // ── Treatment plan / payments ──────────────────────────────────────────────
   const onSaveTreatmentPlan = async (clientId: string, plan: TreatmentPlan) => {
     // Capture BEFORE the write: notify only on the plan's first phases,
     // not on every subsequent edit.
@@ -730,39 +730,11 @@ const AdminPage: React.FC<AdminPageProps> = ({
     }
   };
 
-  const onAddPrescription = async (clientId: string, rx: Prescription) => {
-    const client = clients.find(c => c.id === clientId);
-    const existing = client?.prescriptions || [];
-    await onUpdateClient(clientId, { prescriptions: [...existing, rx] });
-    await logClinicalAction(user?.id || 'admin', 'add_prescription', clientId, `Added prescription: ${rx.drugName}`);
-    if (client) {
-      try {
-        await notifyPrescriptionAdded(clientId, client.email, client.name, rx.drugName);
-      } catch (err) {
-        console.error('Prescription notification failed (non-blocking):', err);
-      }
-    }
-  };
-
-  // Payments + prescriptions are single nested ARRAY fields on the client doc, so
-  // a read-modify-write from a stale render snapshot would clobber a concurrent
+  // Payments are a single nested ARRAY field on the client doc, so a
+  // read-modify-write from a stale render snapshot would clobber a concurrent
   // change (e.g. the Stripe webhook flipping a deposit to Paid, or two admins).
   // Run these in a transaction that re-reads the live array. (Also closes the
-  // audit-trail gap on prescription/payment edits.)
-  const onUpdatePrescription = async (clientId: string, rxId: string, updates: Partial<Prescription>) => {
-    const ref = doc(db, 'clients', clientId);
-    try {
-      await runTransaction(db, async (tx) => {
-        const snap = await tx.get(ref);
-        const existing = (snap.data()?.prescriptions as Prescription[] | undefined) || [];
-        tx.update(ref, cleanData({ prescriptions: existing.map(r => r.id === rxId ? { ...r, ...updates } : r) }));
-      });
-      await logClinicalAction(user?.id || 'admin', 'update_prescription', clientId, `Updated prescription ${rxId}`);
-    } catch {
-      toast.error('Could not update the prescription', { description: 'Please try again.' });
-    }
-  };
-
+  // audit-trail gap on payment edits.)
   const onAddPayment = async (clientId: string, payment: Payment) => {
     const ref = doc(db, 'clients', clientId);
     try {
@@ -894,7 +866,7 @@ const AdminPage: React.FC<AdminPageProps> = ({
     onSendMessage, onMarkMessageRead, onUpdateMessage, onUpdateClient,
     onMarkNotificationRead, onMarkAdminNotificationRead,
     tasks, onAddTask, onUpdateTask, onDeleteTask,
-    onSaveTreatmentPlan, onAddPrescription, onUpdatePrescription,
+    onSaveTreatmentPlan,
     onAddPayment, onUpdatePayment,
     clinicians: CLINICIANS,
     // State
@@ -943,7 +915,7 @@ const AdminPage: React.FC<AdminPageProps> = ({
     onSendMessage, onMarkMessageRead, onUpdateMessage, onUpdateClient,
     onMarkNotificationRead, onMarkAdminNotificationRead, openPatient,
     tasks, onAddTask, onUpdateTask, onDeleteTask,
-    onSaveTreatmentPlan, onAddPrescription, onUpdatePrescription,
+    onSaveTreatmentPlan,
     onAddPayment, onUpdatePayment, CLINICIANS,
     activeTab, practiceTab, effectiveAdminType, selectedClientId, clientRecordTab,
     isSidebarOpen, isSidebarCollapsed, lightboxImage,

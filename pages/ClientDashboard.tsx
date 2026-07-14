@@ -2,7 +2,7 @@ import React, { useState, useMemo, memo, useCallback } from 'react';
 import {
   Stethoscope, FileText, CheckCircle, CreditCard, MessageCircle, Send,
   CalendarDays, FlaskConical, Navigation, History, ClipboardList, Info,
-  UserIcon, X, LogOut, Menu, Bell, BellOff, ArrowRight, Pill, Camera,
+  UserIcon, X, LogOut, Menu, Bell, BellOff, ArrowRight, Camera,
   Upload, RefreshCw,
   LayoutDashboard, Calendar as CalendarIcon, MessageSquare,
   BadgeCheck, CalendarCheck, Star,
@@ -765,8 +765,6 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
       }
       case 'care-treatment': {
           const plan = currentClient?.treatmentPlan;
-          const rxList = currentClient?.prescriptions || [];
-          const activeRx = rxList.filter(r => r.status === 'Active');
           return (
           <div className="animate-fade-up flex flex-col gap-6">
             <PageHeader title="My care" subtitle="Your treatment plan, visits and progress" />
@@ -895,7 +893,7 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
                   </div>
                </div>
 
-               {/* Right: Progress Summary, Prescriptions & Gallery (rendered first on mobile) */}
+               {/* Right: Progress Summary & Gallery (rendered first on mobile) */}
                <div className="lg:col-span-4 space-y-4 md:space-y-6 order-1 lg:order-2">
                   {/* Progress % lives on Home — this card is just the next action */}
                   <Card className="p-5 md:p-6 border border-black/5 shadow-sm">
@@ -907,26 +905,6 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user, onLogout, onNav
                         <button onClick={() => setActiveTab('messages')} className="w-full bg-primary text-obsidian py-3 rounded-xl text-sm font-medium hover:opacity-90 transition-all">Request next visit</button>
                      </div>
                   </Card>
-
-                  {/* Prescriptions */}
-                  {activeRx.length > 0 && (
-                    <Card className="p-6 md:p-8 border border-black/5 shadow-sm">
-                      <div className="flex items-center gap-3 mb-4">
-                        <Pill size={20} className="text-primary" />
-                        <h3 className="text-xs text-muted">Active Prescriptions</h3>
-                      </div>
-                      <div className="space-y-3">
-                        {activeRx.map(rx => (
-                          <div key={rx.id} className="p-4 bg-cream rounded-md">
-                            <p className="text-sm font-medium text-obsidian">{rx.drugName}</p>
-                            <p className="text-xs font-medium text-muted mt-0.5">{rx.dosage}</p>
-                            <p className="text-xs font-medium text-muted/70 mt-1 leading-relaxed">{rx.instructions}</p>
-                            {rx.prescribedBy && <p className="text-xs text-muted mt-2">Prescribed by {rx.prescribedBy}</p>}
-                          </div>
-                        ))}
-                      </div>
-                    </Card>
-                  )}
 
                   <Card className="p-6 md:p-8 border border-black/5 shadow-sm">
                      <div className="flex justify-between items-center mb-6">

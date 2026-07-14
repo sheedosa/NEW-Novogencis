@@ -8,7 +8,7 @@ import {
   Camera, X, Plus, Image as ImageIcon, ArrowLeft, CheckCircle,
   CalendarClock, FileText, CreditCard, ChevronDown, Send, GitCompare,
   Stethoscope, Pencil, Check, Trash2, Package as PackageIcon,
-  User as UserIcon, MessageSquare, Activity, Receipt, Ban,
+  User as UserIcon, MessageSquare, Activity, Receipt,
   Phone, Mail, MapPin, Siren, Calendar as CalendarIcon,
 } from 'lucide-react';
 import { Card as UICard, CardHeader, Button as UIButton, Badge as UIBadge, StatusBadge as UIStatusBadge, EmptyState as UIEmptyState, useToast, Modal as UIModal, useConfirm } from '../../components/ui';
@@ -19,7 +19,7 @@ import { logClinicalAction } from '../../utils/auditLogger';
 import { relativeTime, absoluteDateTime } from '../../utils/relativeTime';
 import { notifyFeedbackReceived } from '../../utils/notificationService';
 import { parseTime12h, localTodayISO } from '../../utils/time';
-import { Appointment, TreatmentPlan, TreatmentPhase, Prescription, Payment } from '../../types';
+import { Appointment, TreatmentPlan, TreatmentPhase, Payment } from '../../types';
 
 const ClientRecord: React.FC = () => {
   const { toast } = useToast();
@@ -65,8 +65,6 @@ const ClientRecord: React.FC = () => {
     onDeleteAppointment,
     clinicians,
     onSaveTreatmentPlan,
-    onAddPrescription,
-    onUpdatePrescription,
     onAddPayment,
     onUpdatePayment,
   } = useAdminContext();
@@ -75,7 +73,7 @@ const ClientRecord: React.FC = () => {
   const [rescheduleForm, setRescheduleForm] = useState({ date: '', time: '', clinicianId: '', notes: '' });
   const [rescheduleStatus, setRescheduleStatus] = useState<'idle' | 'saving' | 'error'>('idle');
   const [rescheduleConflict, setRescheduleConflict] = useState(false);
-  // "Save & add another" flag for the Add Phase / Prescription / Payment modals.
+  // "Save & add another" flag for the Add Phase / Payment modals.
   // Set by the secondary submit button just before the form submits; the
   // submit handler reads + resets it to decide whether to keep the modal open.
   const addAnotherRef = useRef(false);
@@ -91,14 +89,9 @@ const ClientRecord: React.FC = () => {
   const [editingPhaseId, setEditingPhaseId] = useState<string | null>(null);
   const [editPhaseForm, setEditPhaseForm] = useState<Partial<TreatmentPhase>>({});
 
-  // Prescription state
-  const [showAddRx, setShowAddRx] = useState(false);
-  const [rxForm, setRxForm] = useState({ drugName: '', dosage: '', instructions: '', startDate: '', endDate: '', prescribedBy: '' });
-  const [rxSaving, setRxSaving] = useState(false);
   // In-flight guards: disable the clicked row action so a slow Firestore
   // write can't be double-fired, and surface failures via toast.
   const [busyPaymentId, setBusyPaymentId] = useState<string | null>(null);
-  const [busyRxId, setBusyRxId] = useState<string | null>(null);
 
   // Payment state
   const [showAddPayment, setShowAddPayment] = useState(false);
@@ -1200,7 +1193,6 @@ const ClientRecord: React.FC = () => {
         {/* ── Treatment Plan tab ────────────────────────────────────────── */}
         {viewTab === 'plan' && (() => {
           const plan = selectedClient.treatmentPlan;
-          const rxList = selectedClient.prescriptions || [];
           const totalPhases = plan?.phases.length || 0;
           const completedPhases = plan?.phases.filter(p => p.status === 'Completed').length || 0;
           const totalSessions = plan?.phases.reduce((s, p) => s + p.sessionsPlanned, 0) || 0;
@@ -1372,68 +1364,6 @@ const ClientRecord: React.FC = () => {
                       </div>
                     )}
                   </UICard>
-
-                  {/* Prescriptions */}
-                  <UICard>
-                    <div className="flex items-center justify-between mb-4">
-                      <h3 className="text-sm font-medium text-obsidian">Prescriptions</h3>
-                      <UIButton variant="primary" size="sm" leadingIcon={<Plus size={13} />} onClick={() => setShowAddRx(true)}>
-                        Add prescription
-                      </UIButton>
-                    </div>
-                    {!rxList.length ? (
-                      <UIEmptyState
-                        icon={<FileText size={16} />}
-                        title="No prescriptions yet"
-                        description="Add a prescription to track patient medications."
-                        compact
-                      />
-                    ) : (
-                      <div className="space-y-2">
-                        {rxList.map(rx => {
-                          const rxStatusVariant: Record<string, 'active' | 'new' | 'inactive'> = {
-                            Active: 'active', Completed: 'new', Discontinued: 'inactive',
-                          };
-                          return (
-                            <div key={rx.id} className={`flex items-center justify-between p-4 rounded-md border border-sand bg-white hover:bg-cream/40 transition-colors ${rx.status !== 'Active' ? 'opacity-60' : ''}`}>
-                              <div>
-                                <p className="text-sm font-medium text-obsidian">{rx.drugName}</p>
-                                <p className="text-xs text-muted mt-0.5">{rx.dosage} — {rx.instructions}</p>
-                                <p className="text-xs text-hint mt-1">
-                                  From {new Date(rx.startDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
-                                  {rx.endDate ? ` → ${new Date(rx.endDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}` : ''}
-                                </p>
-                              </div>
-                              <div className="flex items-center gap-2 shrink-0">
-                                <UIBadge variant={rxStatusVariant[rx.status] || 'inactive'}>{rx.status}</UIBadge>
-                                {rx.status === 'Active' && (
-                                  <button onClick={async () => {
-                                    const ok = await confirm({
-                                      title: `Discontinue ${rx.drugName}?`,
-                                      description: 'This marks the prescription as discontinued. You can add a new prescription later if needed.',
-                                      confirmLabel: 'Discontinue',
-                                      tone: 'danger',
-                                    });
-                                    if (!ok) return;
-                                    setBusyRxId(rx.id);
-                                    try {
-                                      await onUpdatePrescription(selectedClient.id, rx.id, { status: 'Discontinued' });
-                                    } catch {
-                                      toast.error('Could not discontinue prescription', { description: 'The change was not saved — please try again.' });
-                                    } finally {
-                                      setBusyRxId(null);
-                                    }
-                                  }} disabled={busyRxId === rx.id} className="btn-icon hover:!text-danger disabled:opacity-50" title="Discontinue">
-                                    <Ban size={13} />
-                                  </button>
-                                )}
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </UICard>
                 </div>
 
                 {/* Right: Summary card */}
@@ -1452,10 +1382,6 @@ const ClientRecord: React.FC = () => {
                           <div className="bg-primary h-full rounded-full" style={{ width: totalSessions > 0 ? `${Math.round((completedSessions / totalSessions) * 100)}%` : '0%' }} />
                         </div>
                         <p className="text-xs text-right mt-1 font-medium text-obsidian">{completedSessions}/{totalSessions}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-muted mb-1">Active prescriptions</p>
-                        <p className="text-xl font-medium text-obsidian">{rxList.filter(r => r.status === 'Active').length}</p>
                       </div>
                       {plan?.adminNotes && (
                         <div className="p-4 bg-cream rounded-md border border-sand">
@@ -1558,92 +1484,6 @@ const ClientRecord: React.FC = () => {
                 </form>
               </UIModal>
 
-              {/* Add Prescription Modal */}
-              <UIModal
-                open={showAddRx}
-                onClose={() => setShowAddRx(false)}
-                title="Add Prescription"
-                size="md"
-                footer={
-                  <div className="flex gap-3 justify-end">
-                    <button type="button" onClick={() => setShowAddRx(false)} className="px-4 py-2 text-sm text-muted hover:text-obsidian">Cancel</button>
-                    <button
-                      type="submit"
-                      form="add-rx-form"
-                      disabled={rxSaving}
-                      onClick={() => { addAnotherRef.current = true; }}
-                      className="px-4 py-2 rounded-md text-sm font-medium text-obsidian bg-cream hover:bg-sand disabled:opacity-50 transition-colors"
-                    >
-                      Save & add another
-                    </button>
-                    <button
-                      type="submit"
-                      form="add-rx-form"
-                      disabled={rxSaving}
-                      className="bg-primary text-obsidian px-5 py-2 rounded-md text-sm font-medium disabled:opacity-50"
-                    >
-                      {rxSaving ? 'Saving…' : 'Add Prescription'}
-                    </button>
-                  </div>
-                }
-              >
-                <form
-                  id="add-rx-form"
-                  onSubmit={async (e) => {
-                    e.preventDefault();
-                    setRxSaving(true);
-                    const newRx: Prescription = {
-                      id: `rx-${crypto.randomUUID()}`,
-                      drugName: rxForm.drugName,
-                      dosage: rxForm.dosage,
-                      instructions: rxForm.instructions,
-                      startDate: rxForm.startDate,
-                      endDate: rxForm.endDate || undefined,
-                      prescribedBy: rxForm.prescribedBy || user?.fullName,
-                      status: 'Active',
-                      createdAt: new Date().toISOString(),
-                    };
-                    try {
-                      await onAddPrescription(selectedClient.id, newRx);
-                      setRxForm({ drugName: '', dosage: '', instructions: '', startDate: '', endDate: '', prescribedBy: '' });
-                      if (addAnotherRef.current) {
-                        addAnotherRef.current = false;
-                        toast.success('Prescription added', { description: 'Form cleared — add the next one or close.' });
-                      } else {
-                        setShowAddRx(false);
-                      }
-                    } catch {
-                      addAnotherRef.current = false;
-                      toast.error('Could not add the prescription', { description: 'Your entries are still in the form — please try again.' });
-                    } finally {
-                      setRxSaving(false);
-                    }
-                  }}
-                  className="space-y-4"
-                >
-                  {[
-                    { label: 'Drug / Product Name *', field: 'drugName', required: true, placeholder: 'e.g. Minoxidil 5%' },
-                    { label: 'Dosage *', field: 'dosage', required: true, placeholder: 'e.g. 1ml twice daily' },
-                    { label: 'Instructions', field: 'instructions', required: false, placeholder: 'e.g. Apply to affected area in the morning' },
-                    { label: 'Prescribed By', field: 'prescribedBy', required: false, placeholder: user?.fullName || '' },
-                  ].map(({ label, field, required, placeholder }) => (
-                    <div key={field}>
-                      <label className="text-xs text-muted block mb-1">{label}</label>
-                      <input required={required} type="text" value={(rxForm as Record<string, string>)[field]} onChange={e => setRxForm(p => ({ ...p, [field]: e.target.value }))} placeholder={placeholder} className="w-full bg-cream border-transparent rounded-md px-4 py-3 text-base sm:text-sm font-medium focus:ring-2 focus:ring-primary/20" />
-                    </div>
-                  ))}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <label className="text-xs text-muted block mb-1">Start Date *</label>
-                      <input required type="date" value={rxForm.startDate} onChange={e => setRxForm(p => ({ ...p, startDate: e.target.value }))} className="w-full bg-cream border-transparent rounded-md px-4 py-3 text-base sm:text-sm font-medium focus:ring-2 focus:ring-primary/20" />
-                    </div>
-                    <div>
-                      <label className="text-xs text-muted block mb-1">End Date</label>
-                      <input type="date" value={rxForm.endDate} onChange={e => setRxForm(p => ({ ...p, endDate: e.target.value }))} className="w-full bg-cream border-transparent rounded-md px-4 py-3 text-base sm:text-sm font-medium focus:ring-2 focus:ring-primary/20" />
-                    </div>
-                  </div>
-                </form>
-              </UIModal>
             </div>
           );
         })()}
