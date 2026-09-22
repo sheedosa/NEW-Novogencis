@@ -3,7 +3,11 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig({
   plugins: [react()],
-  base: './',
+  // Root-absolute: the site is served from the apex of novogenics.co.uk,
+  // index.html already references /icons, /manifest.json etc. absolutely,
+  // and public/404.html can be served from any depth without breaking the
+  // asset URLs it hands back to the browser.
+  base: '/',
   server: {
     port: 3000,
   },

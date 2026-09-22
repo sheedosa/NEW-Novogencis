@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; base-uri 'self'">
+    <meta name="robots" content="noindex">
+    <title>Novogenics</title>
+    <style>
+      body { margin: 0; display: flex; align-items: center; justify-content: center;
+             min-height: 100vh; background: #FDFCFB; color: #1C1917;
+             font-family: ui-sans-serif, system-ui, sans-serif; font-size: 14px; }
+    </style>
+    <!--
+      GitHub Pages serves this file for any path it cannot match, and unlike
+      Firebase Hosting it cannot rewrite unknown paths to /index.html.
+
+      The app routes on the hash (App.tsx -> handleHashChange), but sitemap.xml
+      advertises clean paths (/about, /treatments, ...) and inbound links may
+      use them. This maps a clean path onto the matching hash route so those
+      links land on the right page instead of a dead end. Anything unrecognised
+      falls back to the homepage.
+
+      Keep KNOWN_PAGES in sync with the Page enum in types.ts.
+    -->
+    <script>
+      (function () {
+        var KNOWN_PAGES = [
+          'home', 'about', 'treatments', 'pricing', 'faq', 'blog', 'contact',
+          'assessment', 'privacy-policy', 'cancellation-policy',
+          'admin', 'signin', 'register', 'client-dashboard'
+        ];
+
+        // First path segment, lowercased and stripped of a trailing slash.
+        var segment = window.location.pathname.replace(/^\/+/, '').split('/')[0].toLowerCase();
+        var page = KNOWN_PAGES.indexOf(segment) !== -1 ? segment : 'home';
+
+        // Carry any query string through as a hash-appended query, which is the
+        // shape App.tsx already parses (e.g. "#client-dashboard?payment=success").
+        var query = window.location.search.replace(/^\?/, '');
+        var target = '/#' + page + (query ? '?' + query : '');
+
+        // replace() so the dead path does not linger in session history.
+        window.location.replace(target);
+      })();
+    </script>
+</head>
+<body>
+    <p>Redirecting to <a href="/">novogenics.co.uk</a>…</p>
+</body>
+</html>

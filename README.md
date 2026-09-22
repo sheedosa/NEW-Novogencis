@@ -1,19 +1,34 @@
 # Novogenics Hair Restoration
 
-This is a React/Vite application for Novogenics Hair Restoration.
+React/Vite application for Novogenics Hair Restoration — marketing site, patient
+portal and clinical admin panel, backed by Firebase.
 
-## Deployment on Hostinger
-
-1. Connect your GitHub repository to Hostinger via the **Git** section in hPanel.
-2. Set the **Deployment Directory** to `public_html`.
-3. Use the following **Post-deployment command**:
+## Local development
 
 ```bash
-export PATH=$PATH:/usr/local/bin
 npm install
-npm run build
-cp -r dist/* .
-cp dist/.htaccess .
+npm run dev        # dev server on :3000
+npm run build      # production build into dist/
+npm run type-check
+npm run lint
 ```
 
-4. Ensure you do **NOT** add any environment variables in the Hostinger dashboard, as the application uses `firebase-config.json` for its configuration.
+## Deployment
+
+The site deploys to **GitHub Pages** at [novogenics.co.uk](https://novogenics.co.uk)
+automatically on every push to `main`, via
+`.github/workflows/deploy-pages.yml`. No secrets or environment variables are
+needed — the Firebase client config lives in `firebase-applet-config.json`.
+
+See **[DEPLOYMENT.md](DEPLOYMENT.md)** for the GitHub Pages setup, the DNS
+records for the custom domain, and the security-header trade-offs that come with
+static hosting.
+
+The Firebase backend (Firestore, Auth, Storage and the Cloud Functions in
+`functions/`) deploys separately:
+
+```bash
+npm run deploy:rules
+npm run deploy:indexes
+npm run deploy:all
+```
