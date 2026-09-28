@@ -437,7 +437,10 @@ const AssessmentPage: React.FC<AssessmentPageProps> = ({ onNavigate, onIntakeCom
     if (!currentQuestion) return true;
     const answer = answers[currentQuestion.id];
     if (currentQuestion.type === 'checkbox') return (answer?.value as string[])?.length > 0;
-    if (currentQuestion.type === 'file') return (answer?.value as string[])?.length > 0;
+    // Photos are optional (the question says "if possible"); only hold the
+    // step while an upload is still in flight so a patient never moves on
+    // with a photo half-way through landing.
+    if (currentQuestion.type === 'file') return !uploading;
     return !!answer?.value;
   })();
 
@@ -551,6 +554,11 @@ const AssessmentPage: React.FC<AssessmentPageProps> = ({ onNavigate, onIntakeCom
                 <h2 className="text-lg md:text-2xl font-bold text-obsidian leading-tight">
                   {currentQuestion.text}
                 </h2>
+                {currentQuestion.type === 'file' && (
+                  <p className="mt-2 text-xs md:text-sm text-muted">
+                    Optional — you can skip this step and add photos later from your patient portal.
+                  </p>
+                )}
               </div>
             )}
 
@@ -824,7 +832,10 @@ const AssessmentPage: React.FC<AssessmentPageProps> = ({ onNavigate, onIntakeCom
                 disabled={!isStepValid}
                 className={`ml-auto px-8 md:px-12 py-4 md:py-5 rounded-full font-medium text-[10px] md:text-xs uppercase transition-all ${!isStepValid ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-primary text-white shadow-xl shadow-primary/20 hover:scale-105 active:scale-95'}`}
               >
-                Continue
+                {currentQuestion?.type === 'file' && !uploading &&
+                  ((answers[currentQuestion.id]?.value as string[]) || []).length === 0
+                  ? 'Skip for now'
+                  : 'Continue'}
               </button>
             )}
           </div>
